@@ -7,15 +7,16 @@ import java.net.SocketException;
 import java.net.UnknownHostException;
 import javax.net.SocketFactory;
 
-public class CustomSocketFactory extends SocketFactory {
+public class SocketFactoryWithTimeouts extends SocketFactory {
   private SocketFactory socketFactory = SocketFactory.getDefault();
-  private Integer soTimeout;
+  private int soTimeout;
 
-  public void setSocketFactory(SocketFactory socketFactory) {
-    this.socketFactory = socketFactory;
+  public SocketFactoryWithTimeouts(int soTimeout) {
+    this.soTimeout = soTimeout;
   }
 
-  public void setSoTimeout(Integer soTimeout) {
+  public SocketFactoryWithTimeouts(SocketFactory delegate, int soTimeout) {
+    this.socketFactory = delegate;
     this.soTimeout = soTimeout;
   }
 
@@ -49,8 +50,6 @@ public class CustomSocketFactory extends SocketFactory {
   }
 
   private void applyCustomParameters(Socket socket) throws SocketException {
-    if (soTimeout != null) {
-      socket.setSoTimeout(soTimeout);
-    }
+    socket.setSoTimeout(soTimeout);
   }
 }

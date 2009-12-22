@@ -1,5 +1,6 @@
 package ru.hh.rabbitmq.impl;
 
+import com.rabbitmq.client.Address;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionParameters;
 import com.rabbitmq.client.ShutdownListener;
@@ -15,32 +16,30 @@ public class ConnectionFactoryImpl implements ConnectionFactory, ShutdownListene
   private static final Logger logger = LoggerFactory.getLogger(ConnectionFactoryImpl.class);
 
   private ConnectionParameters connectionParameters;
+  private Address[] addresses;
   private SocketFactory socketFactory;
-  private String hostName;
-  private Integer portNumber;
   private Integer closeTimeout;
 
   private com.rabbitmq.client.ConnectionFactory connectionFactory;
   private volatile boolean initialized;
   private volatile boolean shuttingDown;
 
-  public void setConnectionParameters(ConnectionParameters connectionParameters) {
+  public ConnectionFactoryImpl(ConnectionParameters connectionParameters, Address... addresses) {
     this.connectionParameters = connectionParameters;
+    this.addresses = addresses;
   }
 
-  public void setSocketFactory(SocketFactory socketFactory) {
+  public ConnectionFactoryImpl(ConnectionParameters connectionParameters, SocketFactory socketFactory, Address... addresses) {
+    this.connectionParameters = connectionParameters;
+    this.addresses = addresses;
     this.socketFactory = socketFactory;
   }
 
-  public void setHostName(String hostName) {
-    this.hostName = hostName;
-  }
-
-  public void setPortNumber(Integer portNumber) {
-    this.portNumber = portNumber;
-  }
-
-  public void setCloseTimeout(Integer closeTimeout) {
+  public ConnectionFactoryImpl(
+      ConnectionParameters connectionParameters, SocketFactory socketFactory, Integer closeTimeout, Address... addresses) {
+    this.connectionParameters = connectionParameters;
+    this.addresses = addresses;
+    this.socketFactory = socketFactory;
     this.closeTimeout = closeTimeout;
   }
 
@@ -60,7 +59,7 @@ public class ConnectionFactoryImpl implements ConnectionFactory, ShutdownListene
   public Connection openConnection() throws IOException {
     logger.debug("Openning new connection");
     ensureRunning();
-    Connection connection = connectionFactory.newConnection(hostName, portNumber);
+    Connection connection = connectionFactory.newConnection(addresses);
     connection.addShutdownListener(this);
     return connection;
   }

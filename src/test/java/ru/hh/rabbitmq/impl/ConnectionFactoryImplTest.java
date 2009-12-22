@@ -1,6 +1,7 @@
 package ru.hh.rabbitmq.impl;
 
 import com.headhunter.test.Mocks;
+import com.rabbitmq.client.Address;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.ConnectionParameters;
@@ -21,6 +22,7 @@ public class ConnectionFactoryImplTest {
   private ConnectionFactoryImpl impl;
   private ConnectionParameters params;
   private ConnectionFactory connectionFactory;
+  private Address[] addresses;
 
   private Mocks mm;
 
@@ -28,15 +30,10 @@ public class ConnectionFactoryImplTest {
   public void setUp() throws Exception {
     mm = new Mocks();
     socketFactory = mm.createMock(SocketFactory.class);
-    impl = new ConnectionFactoryImpl();
-    impl.setSocketFactory(socketFactory);
-    impl.setPortNumber(PORT);
-    impl.setHostName(HOST);
-    impl.setCloseTimeout(CLOSE_TIMEOUT);
-
     params = new ConnectionParameters();
-    impl.setConnectionParameters(params);
+    addresses = new Address[] { new Address(HOST, PORT) };
 
+    impl = new ConnectionFactoryImpl(params, socketFactory, CLOSE_TIMEOUT, addresses);
     impl.init();
 
     connectionFactory = mm.createMock(ConnectionFactory.class);
@@ -58,7 +55,7 @@ public class ConnectionFactoryImplTest {
 
   private void testOpenConnectionInternal() throws IOException {
     Connection connection = EasyMock.createMock(Connection.class);
-    connectionFactory.newConnection(EasyMock.eq(HOST), EasyMock.eq(PORT));
+    connectionFactory.newConnection(EasyMock.eq(addresses));
     EasyMock.expectLastCall().andReturn(connection).anyTimes();
 
     connection.addShutdownListener(impl);

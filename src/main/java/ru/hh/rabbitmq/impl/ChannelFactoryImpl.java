@@ -14,7 +14,7 @@ public class ChannelFactoryImpl implements ChannelFactory {
 
   private ConnectionFactory connectionFactory;
   private String queueName;
-  private boolean durableQueue;
+  private boolean durableQueue = true;
   private Integer prefetchCount;
   private AutoreconnectProperties autoreconnect = new AutoreconnectProperties(false);
 
