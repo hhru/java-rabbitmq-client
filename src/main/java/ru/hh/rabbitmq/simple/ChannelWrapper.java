@@ -27,6 +27,10 @@ public class ChannelWrapper {
 
   private Channel channel;
 
+  public ChannelWrapper(QueueProperties properties, ChannelFactory factory) {
+    this(properties.getName(), properties.isDurable(), factory);
+  }
+
   public ChannelWrapper(String queue, boolean durable, ChannelFactory factory) {
     this.queue = queue;
     this.durable = durable;
