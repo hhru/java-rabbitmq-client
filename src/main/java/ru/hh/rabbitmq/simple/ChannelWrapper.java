@@ -18,16 +18,18 @@ public class ChannelWrapper {
   private static final Logger logger = LoggerFactory.getLogger(ChannelWrapper.class);
 
   private String queue;
+  private boolean durable;
   private ChannelFactory factory;
   private AutoreconnectProperties autoreconnect;
 
-  private volatile boolean closed;
-  private volatile boolean inTransaction;
+  private boolean closed;
+  private boolean inTransaction;
 
   private Channel channel;
 
-  public ChannelWrapper(String queue, ChannelFactory factory) {
+  public ChannelWrapper(String queue, boolean durable, ChannelFactory factory) {
     this.queue = queue;
+    this.durable = durable;
     this.factory = factory;
     this.autoreconnect = new AutoreconnectProperties(false);
   }
@@ -38,31 +40,43 @@ public class ChannelWrapper {
     this.autoreconnect = autoreconnect;
   }
 
-  public void begin() throws IOException {
+  public void begin() {
     if (inTransaction) {
       throw new IllegalStateException("Already in transaction");
     }
     ensureConnectedAndRunning();
-    channel.txSelect();
-    inTransaction = true;
+    try {
+      channel.txSelect();
+      inTransaction = true;
+    } catch (IOException e) {
+      throw new RuntimeException("Error starting transaction", e);
+    }
   }
 
-  public void commit() throws IOException {
+  public void commit() {
     if (!inTransaction) {
       throw new IllegalStateException("Not in transaction");
     }
     ensureConnectedAndRunning();
-    channel.txCommit();
-    inTransaction = false;
+    try {
+      channel.txCommit();
+      inTransaction = false;
+    } catch (IOException e) {
+      throw new RuntimeException("Error commiting transaction", e);
+    }
   }
 
-  public void rollback() throws IOException {
+  public void rollback() {
     if (!inTransaction) {
       return;
     }
     ensureConnectedAndRunning();
-    channel.txRollback();
-    inTransaction = false;
+    try {
+      channel.txRollback();
+      inTransaction = false;
+    } catch (IOException e) {
+      throw new RuntimeException("Error rolling back transaction", e);
+    }
   }
 
   public void send(ReturnListener returnListener, Message... message) throws IOException {
@@ -138,22 +152,38 @@ public class ChannelWrapper {
     channel.basicConsume(queue, false, consumer);
     Delivery delivery;
     Message message;
-    receiver.onStart();
-    while (!receiver.isEnough()) {
-      if (timeout != null) {
-        delivery = consumer.nextDelivery(timeout);
-      } else {
-        delivery = consumer.nextDelivery();
+    try {
+      receiver.onStart();
+      while (!receiver.isEnough() && !Thread.currentThread().isInterrupted()) {
+        if (timeout != null) {
+          delivery = consumer.nextDelivery(timeout);
+        } else {
+          delivery = consumer.nextDelivery();
+        }
+        if (delivery == null) {
+          break;
+        }
+        message = Message.fromDelivery(delivery);
+
+        if (Thread.currentThread().isInterrupted()) {
+          return;
+        }
+
+        receiver.receive(message);
+
+        // if we got the message and processed it we need to send ack even if thread was interrupted
+        // so we save interrupted flag after receiver action and restore it after ack action because sometimes RabbitMQ resets it somewhere inside.
+        boolean interrupted = Thread.currentThread().isInterrupted();
+        long deliveryTag = delivery.getEnvelope().getDeliveryTag();
+        channel.basicAck(deliveryTag, false);
+
+        if (interrupted) {
+          Thread.currentThread().interrupt();
+        }
       }
-      if (delivery == null) {
-        break;
-      }
-      message = Message.fromDelivery(delivery);
-      receiver.receive(message);
-      long deliveryTag = delivery.getEnvelope().getDeliveryTag();
-      channel.basicAck(deliveryTag, false);
+    } finally {
+      receiver.onFinish();
     }
-    receiver.onFinish();
   }
 
   public void close() {
@@ -161,49 +191,41 @@ public class ChannelWrapper {
     factory.returnChannel(channel);
   }
 
-  private void ensureConnectedAndRunning() throws IOException {
+  private void ensureConnectedAndRunning() {
     if (closed) {
       throw new IllegalStateException("Already closed");
     }
     ensureConnected();
   }
 
-  private void ensureConnected() throws IOException {
-    if (channel != null && channel.isOpen()) {
+  private void ensureConnected() {
+    if (inTransaction) {
+      // ignore reconnection attempt, let closed connection throw it's own exception
       return;
-    }
-
-    if (channel == null) {
-      channel = factory.openChannel(queue);
-      return;
-    }
-    autoreconnect();
-  }
-
-  private void autoreconnect() {
-    if (!autoreconnect.isEnabled() || autoreconnect.getAttempts() == 0) {
-      throw new IllegalStateException("No channel is available and autoreconnect is disabled");
     }
 
     int attempt = 0;
-    while (attempt <= autoreconnect.getAttempts()) {
+    while (channel == null || !channel.isOpen()) {
+      attempt++;
       try {
-        channel = factory.openChannel(queue);
-        break;
+        logger.debug("Openning channel");
+        channel = factory.openChannel(queue, durable);
+        logger.debug("Channel is ready");
       } catch (IOException e) {
-        logger.warn(String.format("Attempt %d out of %d to reconnect has failed", attempt, autoreconnect.getAttempts()), e);
+        if (!autoreconnect.isEnabled() || attempt > autoreconnect.getAttempts()) {
+          throw new RuntimeException("Can't open channel", e);
+        }
+        logger.warn(
+          String.format(
+            "Attempt %d out of %d to reconnect the channel has failed, sleeping then retrying", attempt,
+            autoreconnect.getAttempts()), e);
         try {
           TimeUnit.MILLISECONDS.sleep(autoreconnect.getDelay());
         } catch (InterruptedException e1) {
           Thread.currentThread().interrupt();
-          logger.warn("Sleep between autoreconnection attempts has been interrupted, ignoring", e1);
+          throw new RuntimeException("Sleep between autoreconnection attempts has been interrupted", e1);
         }
       }
-      attempt++;
-    }
-
-    if (channel == null || !channel.isOpen()) {
-      throw new IllegalStateException("Failed to automatically reconnect channel");
-    }
+    } // while not connected
   }
 }

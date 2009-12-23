@@ -16,6 +16,7 @@ import ru.hh.rabbitmq.ChannelFactory;
 
 public class ChannelWrapperTest {
   private static final String QUEUE_NAME = "one";
+  private static final boolean QUEUE_DURABLE = true;
   private Mocks mm;
   private ChannelFactory factory;
   private Channel channel;
@@ -25,10 +26,10 @@ public class ChannelWrapperTest {
   public void setUp() throws IOException {
     mm = new Mocks();
     ChannelFactory factory = mm.createMock(ChannelFactory.class);
-    wrapper = new ChannelWrapper(QUEUE_NAME, factory);
+    wrapper = new ChannelWrapper(QUEUE_NAME, QUEUE_DURABLE, factory);
 
     channel = mm.createMock(Channel.class);
-    factory.openChannel(EasyMock.eq(QUEUE_NAME));
+    factory.openChannel(EasyMock.eq(QUEUE_NAME), EasyMock.eq(QUEUE_DURABLE));
     mm.expectLastCall().andReturn(channel).anyTimes();
 
     channel.isOpen();

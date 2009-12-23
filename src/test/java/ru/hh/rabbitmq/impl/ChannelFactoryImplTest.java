@@ -24,14 +24,14 @@ public class ChannelFactoryImplTest {
     mm = new Mocks();
     factory = mm.createMock(ConnectionFactory.class);
     AutoreconnectProperties auto = new AutoreconnectProperties(false);
-    impl = new ChannelFactoryImpl(factory, QUEUE_NAME, QUEUE_DURABLE, QUEUE_QOS, auto);
+    impl = new ChannelFactoryImpl(factory, QUEUE_QOS, auto);
   }
 
   @Test
   public void testOpenChannel() throws IOException {
     mockOpenChannel(QUEUE_NAME);
     mm.replay();
-    impl.openChannel(QUEUE_NAME);
+    impl.openChannel(QUEUE_NAME, QUEUE_DURABLE);
     mm.verify();
   }
 
@@ -39,7 +39,7 @@ public class ChannelFactoryImplTest {
   public void testOpenNamedChannel() throws IOException {
     mockOpenChannel("two");
     mm.replay();
-    impl.openChannel("two");
+    impl.openChannel("two", true);
     mm.verify();
   }
 
@@ -50,7 +50,7 @@ public class ChannelFactoryImplTest {
     impl.close();
     mm.verify();
     try {
-      impl.openChannel("three");
+      impl.openChannel("three", true);
       Assert.fail();
     } catch (IllegalStateException e) { }
   }

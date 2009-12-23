@@ -13,33 +13,19 @@ public class ChannelFactoryImpl implements ChannelFactory {
   private static final Logger logger = LoggerFactory.getLogger(ChannelFactoryImpl.class);
 
   private ConnectionFactory connectionFactory;
-  private String queueName;
-  private boolean durableQueue = true;
   private Integer prefetchCount;
   private AutoreconnectProperties autoreconnect = new AutoreconnectProperties(false);
 
-  private Connection connection;
+  private volatile Connection connection;
   private volatile boolean shuttingDown = false;
 
-  public ChannelFactoryImpl(
-      ConnectionFactory connectionFactory, String queueName, boolean durableQueue, Integer prefetchCount,
-      AutoreconnectProperties autoreconnect) {
+  public ChannelFactoryImpl(ConnectionFactory connectionFactory, Integer prefetchCount, AutoreconnectProperties autoreconnect) {
     this.connectionFactory = connectionFactory;
-    this.queueName = queueName;
-    this.durableQueue = durableQueue;
     this.prefetchCount = prefetchCount;
     this.autoreconnect = autoreconnect;
   }
 
-  public String getQueueName() {
-    return queueName;
-  }
-
-  public Channel openChannel() throws IOException {
-    return openChannel(queueName);
-  }
-
-  public Channel openChannel(String queueName) throws IOException {
+  public Channel openChannel(String queueName, boolean durableQueue) throws IOException {
     logger.debug("Openning channel");
     ensureConnectedAndRunning();
     Channel channel = connection.createChannel();
@@ -68,48 +54,36 @@ public class ChannelFactoryImpl implements ChannelFactory {
     }
   }
 
-  private void ensureConnectedAndRunning() throws IOException {
+  private void ensureConnectedAndRunning() {
     if (shuttingDown) {
       throw new IllegalStateException("Shutting down");
     }
     ensureConnected();
   }
 
-  private void ensureConnected() throws IOException {
-    if (connection != null && connection.isOpen()) {
-      return;
-    }
-
-    if (connection == null) {
-      connection = connectionFactory.openConnection();
-      return;
-    }
-    autoreconnect();
-  }
-
-  private void autoreconnect() {
-    if (!autoreconnect.isEnabled() || autoreconnect.getAttempts() == 0) {
-      throw new IllegalStateException("No connection is available and autoreconnect is disabled");
-    }
-
+  private void ensureConnected() {
     int attempt = 0;
-    while (attempt <= autoreconnect.getAttempts()) {
+    while (connection == null || !connection.isOpen()) {
+      attempt++;
       try {
+        logger.debug("Connecting");
         connection = connectionFactory.openConnection();
-        break;
+        logger.debug("Connection is ready");
       } catch (IOException e) {
-        logger.warn(String.format("Attempt %d out of %d to reconnect has failed", attempt, autoreconnect.getAttempts()), e);
+        if (!autoreconnect.isEnabled() || attempt > autoreconnect.getAttempts()) {
+          throw new RuntimeException("Can't connect to queue server", e);
+        }
+        logger.warn(
+          String.format(
+            "Attempt %d out of %d to reconnect to server has failed, sleeping then retrying", attempt,
+            autoreconnect.getAttempts()), e);
         try {
           TimeUnit.MILLISECONDS.sleep(autoreconnect.getDelay());
         } catch (InterruptedException e1) {
           Thread.currentThread().interrupt();
-          logger.warn("Sleep between autoreconnection attempts has been interrupted, ignoring", e1);
+          throw new RuntimeException("Sleep between autoreconnection attempts has been interrupted", e1);
         }
       }
-      attempt++;
-    }
-    if (connection == null || !connection.isOpen()) {
-      throw new IllegalStateException("Failed to automatically reconnect to MQ");
     }
   }
 
