@@ -72,11 +72,13 @@ public class ChannelWrapper {
 
   public void rollback() {
     if (!inTransaction) {
+      // TODO it seems better to throw illegal state exception here
       return;
     }
     ensureConnectedAndRunning();
     try {
       channel.txRollback();
+      // TODO: beware of channel remaining in transactional state here (see amqp specs)
       inTransaction = false;
     } catch (IOException e) {
       throw new RuntimeException("Error rolling back transaction", e);
@@ -224,6 +226,7 @@ public class ChannelWrapper {
             "Attempt %d out of %d to reconnect the channel has failed, sleeping then retrying", attempt,
             autoreconnect.getAttempts()), e);
         try {
+          // TODO: random delay is better
           TimeUnit.MILLISECONDS.sleep(autoreconnect.getDelay());
         } catch (InterruptedException e1) {
           Thread.currentThread().interrupt();

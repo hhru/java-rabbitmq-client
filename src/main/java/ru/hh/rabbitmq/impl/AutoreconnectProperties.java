@@ -1,6 +1,7 @@
 package ru.hh.rabbitmq.impl;
 
 public class AutoreconnectProperties {
+  // TODO: what is the difference between enabled=false and attempts=1 ?
   private boolean enabled;
   private Integer attempts = 3;
   private Long delay = 100L;
