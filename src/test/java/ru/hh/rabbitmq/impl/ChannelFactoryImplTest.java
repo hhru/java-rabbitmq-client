@@ -23,7 +23,7 @@ public class ChannelFactoryImplTest {
   public void setUp() throws Exception {
     mm = new Mocks();
     factory = mm.createMock(ConnectionFactory.class);
-    AutoreconnectProperties auto = new AutoreconnectProperties(false);
+    AutoreconnectProperties auto = new AutoreconnectProperties(0);
     impl = new ChannelFactoryImpl(factory, QUEUE_QOS, auto);
   }
 

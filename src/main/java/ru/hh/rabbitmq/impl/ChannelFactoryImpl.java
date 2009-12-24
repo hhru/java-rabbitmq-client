@@ -3,7 +3,6 @@ package ru.hh.rabbitmq.impl;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import java.io.IOException;
-import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import ru.hh.rabbitmq.ChannelFactory;
@@ -14,7 +13,7 @@ public class ChannelFactoryImpl implements ChannelFactory {
 
   private ConnectionFactory connectionFactory;
   private Integer prefetchCount;
-  private AutoreconnectProperties autoreconnect = new AutoreconnectProperties(false);
+  private AutoreconnectProperties autoreconnect = new AutoreconnectProperties(0);
 
   private volatile Connection connection;
   private volatile boolean shuttingDown = false;
@@ -27,9 +26,14 @@ public class ChannelFactoryImpl implements ChannelFactory {
 
   public Channel openChannel(String queueName, boolean durableQueue) throws IOException {
     logger.debug("Openning channel");
+    Channel channel = openChannel();
+    channel.queueDeclare(queueName, durableQueue);
+    return channel;
+  }
+
+  public Channel openChannel() throws IOException {
     ensureConnectedAndRunning();
     Channel channel = connection.createChannel();
-    channel.queueDeclare(queueName, durableQueue);
     if (prefetchCount != null) {
       channel.basicQos(prefetchCount);
     }
@@ -70,7 +74,7 @@ public class ChannelFactoryImpl implements ChannelFactory {
         connection = connectionFactory.openConnection();
         logger.debug("Connection is ready");
       } catch (IOException e) {
-        if (!autoreconnect.isEnabled() || attempt > autoreconnect.getAttempts()) {
+        if (attempt > autoreconnect.getAttempts()) {
           throw new RuntimeException("Can't connect to queue server", e);
         }
         logger.warn(
@@ -78,7 +82,7 @@ public class ChannelFactoryImpl implements ChannelFactory {
             "Attempt %d out of %d to reconnect to server has failed, sleeping then retrying", attempt,
             autoreconnect.getAttempts()), e);
         try {
-          TimeUnit.MILLISECONDS.sleep(autoreconnect.getDelay());
+          autoreconnect.getSleeper().sleep();
         } catch (InterruptedException e1) {
           Thread.currentThread().interrupt();
           throw new RuntimeException("Sleep between autoreconnection attempts has been interrupted", e1);

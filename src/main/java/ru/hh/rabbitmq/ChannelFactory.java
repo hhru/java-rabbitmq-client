@@ -4,8 +4,9 @@ import com.rabbitmq.client.Channel;
 import java.io.IOException;
 
 public interface ChannelFactory {
-  // TODO: remove queueName or add openChannel() without paramethers
   Channel openChannel(String queueName, boolean durableQueue) throws IOException;
+
+  Channel openChannel() throws IOException;
 
   void returnChannel(Channel channel);
 

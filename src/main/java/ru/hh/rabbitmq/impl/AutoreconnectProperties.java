@@ -1,35 +1,40 @@
 package ru.hh.rabbitmq.impl;
 
+import java.util.concurrent.TimeUnit;
+import ru.hh.rabbitmq.util.RandomSleep;
+
 public class AutoreconnectProperties {
-  // TODO: what is the difference between enabled=false and attempts=1 ?
-  private boolean enabled;
   private Integer attempts = 3;
-  private Long delay = 100L;
+  private int minDelay = 100;
+  private int maxDelay = 500;
+  private RandomSleep sleeper;
 
-  public AutoreconnectProperties(boolean enabled) {
-    this.enabled = enabled;
-  }
-
-  public AutoreconnectProperties(boolean enabled, Integer attempts) {
-    this.enabled = enabled;
+  public AutoreconnectProperties(Integer attempts) {
     this.attempts = attempts;
   }
 
-  public AutoreconnectProperties(boolean enabled, Integer attempts, Long delay) {
-    this.enabled = enabled;
+  public AutoreconnectProperties(Integer attempts, int minDelay, int maxDelay) {
     this.attempts = attempts;
-    this.delay = delay;
-  }
-
-  public boolean isEnabled() {
-    return enabled;
+    this.minDelay = minDelay;
+    this.maxDelay = maxDelay;
   }
 
   public Integer getAttempts() {
     return attempts;
   }
 
-  public Long getDelay() {
-    return delay;
+  public int getMinDelay() {
+    return minDelay;
+  }
+
+  public int getMaxDelay() {
+    return maxDelay;
+  }
+
+  public RandomSleep getSleeper() {
+    if (sleeper == null) {
+      sleeper = new RandomSleep(TimeUnit.MILLISECONDS, minDelay, maxDelay);
+    }
+    return sleeper;
   }
 }

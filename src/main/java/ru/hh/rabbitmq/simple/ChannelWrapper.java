@@ -8,7 +8,6 @@ import com.rabbitmq.client.ReturnListener;
 import com.rabbitmq.client.ShutdownSignalException;
 import java.io.IOException;
 import java.util.Collection;
-import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import ru.hh.rabbitmq.ChannelFactory;
@@ -21,21 +20,15 @@ public class ChannelWrapper {
   private boolean durable;
   private ChannelFactory factory;
   private AutoreconnectProperties autoreconnect;
+  private boolean transactional;
 
+  private boolean nonEmptyTransaction;
   private boolean closed;
-  private boolean inTransaction;
 
   private Channel channel;
 
-  public ChannelWrapper(QueueProperties properties, ChannelFactory factory) {
-    this(properties.getName(), properties.isDurable(), factory);
-  }
-
-  public ChannelWrapper(String queue, boolean durable, ChannelFactory factory) {
-    this.queue = queue;
-    this.durable = durable;
-    this.factory = factory;
-    this.autoreconnect = new AutoreconnectProperties(false);
+  public ChannelWrapper(QueueProperties properties, boolean transactional, ChannelFactory factory) {
+    this(properties.getName(), properties.isDurable(), transactional, factory);
   }
 
   public ChannelWrapper(String queue, ChannelFactory factory, AutoreconnectProperties autoreconnect) {
@@ -44,48 +37,37 @@ public class ChannelWrapper {
     this.autoreconnect = autoreconnect;
   }
 
-  public void begin() {
-    if (inTransaction) {
-      throw new IllegalStateException("Already in transaction");
-    }
-    ensureConnectedAndRunning();
-    try {
-      channel.txSelect();
-      inTransaction = true;
-    } catch (IOException e) {
-      throw new RuntimeException("Error starting transaction", e);
-    }
+  public ChannelWrapper(String queue, boolean durable, boolean transactional, ChannelFactory factory) {
+    this.queue = queue;
+    this.durable = durable;
+    this.transactional = transactional;
+    this.factory = factory;
+    this.autoreconnect = new AutoreconnectProperties(0);
   }
 
   public void commit() {
-    if (!inTransaction) {
-      throw new IllegalStateException("Not in transaction");
-    }
     ensureConnectedAndRunning();
     try {
       channel.txCommit();
-      inTransaction = false;
+      nonEmptyTransaction = false;
     } catch (IOException e) {
       throw new RuntimeException("Error commiting transaction", e);
     }
   }
 
   public void rollback() {
-    if (!inTransaction) {
-      // TODO it seems better to throw illegal state exception here
-      return;
-    }
     ensureConnectedAndRunning();
     try {
       channel.txRollback();
       // TODO: beware of channel remaining in transactional state here (see amqp specs)
-      inTransaction = false;
+      nonEmptyTransaction = false;
     } catch (IOException e) {
       throw new RuntimeException("Error rolling back transaction", e);
     }
   }
 
   public void send(ReturnListener returnListener, Message... message) throws IOException {
+    ensureConnectedAndRunning();
     setReturnListener(returnListener);
     send(message);
   }
@@ -94,6 +76,7 @@ public class ChannelWrapper {
     ensureConnectedAndRunning();
     for (Message message : messages) {
       channel.basicPublish("", queue, true, false, message.getProperties(), message.getBody());
+      nonEmptyTransaction = true;
     }
   }
 
@@ -104,6 +87,7 @@ public class ChannelWrapper {
   }
 
   public void send(ReturnListener returnListener, Collection<Message> messages) throws IOException {
+    ensureConnectedAndRunning();
     setReturnListener(returnListener);
     send(messages);
   }
@@ -137,6 +121,7 @@ public class ChannelWrapper {
     receiver.receive(message);
     long deliveryTag = response.getEnvelope().getDeliveryTag();
     channel.basicAck(deliveryTag, false);
+    nonEmptyTransaction = true;
     return true;
   }
 
@@ -182,6 +167,7 @@ public class ChannelWrapper {
         boolean interrupted = Thread.currentThread().isInterrupted();
         long deliveryTag = delivery.getEnvelope().getDeliveryTag();
         channel.basicAck(deliveryTag, false);
+        nonEmptyTransaction = true;
 
         if (interrupted) {
           Thread.currentThread().interrupt();
@@ -205,7 +191,7 @@ public class ChannelWrapper {
   }
 
   private void ensureConnected() {
-    if (inTransaction) {
+    if (transactional && nonEmptyTransaction) {
       // ignore reconnection attempt, let closed connection throw it's own exception
       return;
     }
@@ -216,9 +202,12 @@ public class ChannelWrapper {
       try {
         logger.debug("Openning channel");
         channel = factory.openChannel(queue, durable);
+        if (transactional) {
+          channel.txSelect();
+        }
         logger.debug("Channel is ready");
       } catch (IOException e) {
-        if (!autoreconnect.isEnabled() || attempt > autoreconnect.getAttempts()) {
+        if (attempt > autoreconnect.getAttempts()) {
           throw new RuntimeException("Can't open channel", e);
         }
         logger.warn(
@@ -226,8 +215,7 @@ public class ChannelWrapper {
             "Attempt %d out of %d to reconnect the channel has failed, sleeping then retrying", attempt,
             autoreconnect.getAttempts()), e);
         try {
-          // TODO: random delay is better
-          TimeUnit.MILLISECONDS.sleep(autoreconnect.getDelay());
+          autoreconnect.getSleeper().sleep();
         } catch (InterruptedException e1) {
           Thread.currentThread().interrupt();
           throw new RuntimeException("Sleep between autoreconnection attempts has been interrupted", e1);

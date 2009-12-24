@@ -5,7 +5,6 @@ import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Envelope;
 import com.rabbitmq.client.GetResponse;
 import com.rabbitmq.client.QueueingConsumer;
-import com.rabbitmq.client.QueueingConsumer.Delivery;
 import com.rabbitmq.client.ShutdownSignalException;
 import java.io.IOException;
 import junit.framework.Assert;
@@ -26,7 +25,7 @@ public class ChannelWrapperTest {
   public void setUp() throws IOException {
     mm = new Mocks();
     ChannelFactory factory = mm.createMock(ChannelFactory.class);
-    wrapper = new ChannelWrapper(QUEUE_NAME, QUEUE_DURABLE, factory);
+    wrapper = new ChannelWrapper(QUEUE_NAME, QUEUE_DURABLE, false, factory);
 
     channel = mm.createMock(Channel.class);
     factory.openChannel(EasyMock.eq(QUEUE_NAME), EasyMock.eq(QUEUE_DURABLE));
@@ -62,9 +61,6 @@ public class ChannelWrapperTest {
   @Test
   public void testWaitAndReceiveMany() throws IOException, ShutdownSignalException, InterruptedException {
     DummyMessageReceiver receiver = new DummyMessageReceiver();
-
-    Envelope envelope = new Envelope(1, false, "", QUEUE_NAME);
-    Delivery delivery = new Delivery(envelope, null, null);
 
     channel.basicConsume(EasyMock.eq(QUEUE_NAME), EasyMock.eq(false), EasyMock.isA(QueueingConsumer.class));
     mm.expectLastCall().andReturn("").anyTimes();
