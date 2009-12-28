@@ -4,22 +4,22 @@ import java.util.concurrent.TimeUnit;
 import ru.hh.rabbitmq.util.RandomSleep;
 
 public class AutoreconnectProperties {
-  private Integer attempts = 3;
+  private int attempts = 3;
   private int minDelay = 100;
   private int maxDelay = 500;
   private RandomSleep sleeper;
 
-  public AutoreconnectProperties(Integer attempts) {
+  public AutoreconnectProperties(int attempts) {
     this.attempts = attempts;
   }
 
-  public AutoreconnectProperties(Integer attempts, int minDelay, int maxDelay) {
+  public AutoreconnectProperties(int attempts, int minDelay, int maxDelay) {
     this.attempts = attempts;
     this.minDelay = minDelay;
     this.maxDelay = maxDelay;
   }
 
-  public Integer getAttempts() {
+  public int getAttempts() {
     return attempts;
   }
 
