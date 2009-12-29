@@ -143,7 +143,7 @@ public class ChannelWrapper {
       return;
     }
     QueueingConsumer consumer = new QueueingConsumer(channel);
-    channel.basicConsume(queue, false, consumer);
+    String consumerTag = channel.basicConsume(queue, false, consumer);
     Delivery delivery;
     Message message;
     try {
@@ -177,6 +177,7 @@ public class ChannelWrapper {
         }
       } while (!receiver.isEnough() && !Thread.currentThread().isInterrupted());
     } finally {
+      channel.basicCancel(consumerTag);
       receiver.onFinish();
     }
   }

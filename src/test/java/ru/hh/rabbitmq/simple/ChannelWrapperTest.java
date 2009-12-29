@@ -17,7 +17,6 @@ public class ChannelWrapperTest {
   private static final String QUEUE_NAME = "one";
   private static final boolean QUEUE_DURABLE = true;
   private Mocks mm;
-  private ChannelFactory factory;
   private Channel channel;
   private ChannelWrapper wrapper;
 
@@ -63,7 +62,10 @@ public class ChannelWrapperTest {
     DummyMessageReceiver receiver = new DummyMessageReceiver();
 
     channel.basicConsume(EasyMock.eq(QUEUE_NAME), EasyMock.eq(false), EasyMock.isA(QueueingConsumer.class));
-    mm.expectLastCall().andReturn("").anyTimes();
+    mm.expectLastCall().andReturn("zxc").anyTimes();
+
+    channel.basicCancel(EasyMock.eq("zxc"));
+    mm.expectLastCall().anyTimes();
 
     mm.replay();
 
