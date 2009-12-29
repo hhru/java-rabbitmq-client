@@ -139,13 +139,16 @@ public class ChannelWrapper {
   public void waitAndReceiveMany(MessagesReceiver receiver, Long timeout) throws IOException, ShutdownSignalException,
     InterruptedException {
     ensureConnectedAndRunning();
+    if (Thread.currentThread().isInterrupted()) {
+      return;
+    }
     QueueingConsumer consumer = new QueueingConsumer(channel);
     channel.basicConsume(queue, false, consumer);
     Delivery delivery;
     Message message;
     try {
       receiver.onStart();
-      while (!receiver.isEnough() && !Thread.currentThread().isInterrupted()) {
+      do {
         if (timeout != null) {
           delivery = consumer.nextDelivery(timeout);
         } else {
@@ -172,7 +175,7 @@ public class ChannelWrapper {
         if (interrupted) {
           Thread.currentThread().interrupt();
         }
-      }
+      } while (!receiver.isEnough() && !Thread.currentThread().isInterrupted());
     } finally {
       receiver.onFinish();
     }
