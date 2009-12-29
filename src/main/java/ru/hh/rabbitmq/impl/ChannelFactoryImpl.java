@@ -92,6 +92,7 @@ public class ChannelFactoryImpl implements ChannelFactory {
   }
 
   public void close() {
+    logger.debug("Closing");
     shuttingDown = true;
     connectionFactory.returnConnection(connection);
   }
