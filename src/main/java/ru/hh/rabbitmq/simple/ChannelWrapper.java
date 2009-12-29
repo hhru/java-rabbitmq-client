@@ -204,7 +204,7 @@ public class ChannelWrapper {
     while (channel == null || !channel.isOpen()) {
       attempt++;
       try {
-        logger.debug("Openning channel");
+        logger.debug("Openning channel to {}", queue);
         channel = factory.openChannel(queue, durable);
         if (transactional) {
           channel.txSelect();

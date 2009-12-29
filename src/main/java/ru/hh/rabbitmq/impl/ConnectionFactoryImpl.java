@@ -44,6 +44,7 @@ public class ConnectionFactoryImpl implements ConnectionFactory, ShutdownListene
   }
 
   public void init() {
+    logger.debug("Started initializing");
     if (initialized) {
       throw new IllegalStateException("Already initialized!");
     }
