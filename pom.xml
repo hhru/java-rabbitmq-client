@@ -1,5 +1,4 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>ru.headhunter.commons</groupId>
@@ -9,7 +8,7 @@
     <groupId>ru.hh.rabbitmq</groupId>
     <artifactId>rabbitmq-client</artifactId>
     <packaging>jar</packaging>
-    <version>0.0.1-SNAPSHOT</version>
+    <version>0.0.1</version>
     <name>RabbitMQ client and utilities</name>
     <build>
         <plugins>
@@ -76,7 +75,7 @@
         </dependency>
     </dependencies>    
     <scm>
-        <connection>scm:svn:https://svn.hh.ru/headhunter.ru/commons/rabbitmq-client/trunk</connection>
-        <developerConnection>scm:svn:https://svn.hh.ru/headhunter.ru/commons/rabbitmq-client/trunk</developerConnection>
+        <connection>scm:svn:https://svn.hh.ru/headhunter.ru/commons/rabbitmq-client/tags/rabbitmq-client-0.0.1</connection>
+        <developerConnection>scm:svn:https://svn.hh.ru/headhunter.ru/commons/rabbitmq-client/tags/rabbitmq-client-0.0.1</developerConnection>
     </scm>
 </project>
