@@ -74,7 +74,7 @@ public class ChannelWrapperTest {
 
     Assert.assertNull(receiver.message);
     Assert.assertTrue(receiver.finishCalled);
-    Assert.assertTrue(receiver.isEnoughCalled);
+    Assert.assertFalse(receiver.isEnoughCalled);
     Assert.assertTrue(receiver.startCalled);
   }
 }
