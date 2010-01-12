@@ -35,7 +35,7 @@ public class ChannelWrapperTest {
   }
 
   @Test
-  public void testReceiveSingle() throws IOException {
+  public void testReceiveSingle() throws IOException, InterruptedException {
     DummyMessageReceiver receiver = new DummyMessageReceiver();
 
     Envelope envelope = new Envelope(1, false, "", QUEUE_NAME);

@@ -110,8 +110,9 @@ public class ChannelWrapper {
    * @return  true if the queue returned a message, false if the queue was empty at the time of calling
    *
    * @throws  IOException
+   * @throws  InterruptedException
    */
-  public boolean receiveSingle(MessageReceiver receiver) throws IOException {
+  public boolean receiveSingle(MessageReceiver receiver) throws IOException, InterruptedException {
     ensureConnectedAndRunning();
     GetResponse response = channel.basicGet(queue, false);
     if (response == null) {
@@ -172,7 +173,7 @@ public class ChannelWrapper {
         channel.basicAck(deliveryTag, false);
         nonEmptyTransaction = true;
 
-        if (interrupted) {
+        if (interrupted && !Thread.currentThread().isInterrupted()) {
           Thread.currentThread().interrupt();
         }
       } while (!receiver.isEnough() && !Thread.currentThread().isInterrupted());

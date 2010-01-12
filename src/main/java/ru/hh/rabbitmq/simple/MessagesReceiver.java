@@ -1,9 +1,7 @@
 package ru.hh.rabbitmq.simple;
 
-import java.io.IOException;
-
 public interface MessagesReceiver {
-  void receive(Message message) throws IOException;
+  void receive(Message message) throws InterruptedException;
 
   boolean isEnough();
 

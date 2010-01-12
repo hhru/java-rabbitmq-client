@@ -1,14 +1,12 @@
 package ru.hh.rabbitmq.simple;
 
-import java.io.IOException;
-
 public class DummyMessageReceiver implements MessageReceiver, MessagesReceiver {
   public Message message;
   public boolean startCalled;
   public boolean finishCalled;
   public boolean isEnoughCalled;
 
-  public void receive(Message message) throws IOException {
+  public void receive(Message message) {
     this.message = message;
   }
 
