@@ -183,6 +183,11 @@ public class ChannelWrapper {
     }
   }
 
+  public void purge() throws IOException {
+    ensureConnectedAndRunning();
+    channel.queuePurge(queue);
+  }
+
   public void close() {
     closed = true;
     factory.returnChannel(channel);
