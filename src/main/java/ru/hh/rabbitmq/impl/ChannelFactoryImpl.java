@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import ru.hh.rabbitmq.ChannelFactory;
 import ru.hh.rabbitmq.ConnectionFactory;
+import ru.hh.rabbitmq.ConnectionFailedException;
 
 public class ChannelFactoryImpl implements ChannelFactory {
   private static final Logger logger = LoggerFactory.getLogger(ChannelFactoryImpl.class);
@@ -75,7 +76,7 @@ public class ChannelFactoryImpl implements ChannelFactory {
         logger.debug("Connection is ready");
       } catch (IOException e) {
         if (attempt > autoreconnect.getAttempts()) {
-          throw new RuntimeException("Can't connect to queue server", e);
+          throw new ConnectionFailedException("Can't connect to queue server", e);
         }
         logger.warn(
           String.format(
@@ -85,7 +86,7 @@ public class ChannelFactoryImpl implements ChannelFactory {
           autoreconnect.getSleeper().sleep();
         } catch (InterruptedException e1) {
           Thread.currentThread().interrupt();
-          throw new RuntimeException("Sleep between autoreconnection attempts has been interrupted", e1);
+          throw new ConnectionFailedException("Sleep between autoreconnection attempts has been interrupted", e1);
         }
       }
     }

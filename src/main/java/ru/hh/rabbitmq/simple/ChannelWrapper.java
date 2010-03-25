@@ -11,6 +11,8 @@ import java.util.Collection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import ru.hh.rabbitmq.ChannelFactory;
+import ru.hh.rabbitmq.ConnectionFailedException;
+import ru.hh.rabbitmq.TransactionException;
 import ru.hh.rabbitmq.impl.AutoreconnectProperties;
 
 public class ChannelWrapper {
@@ -51,7 +53,7 @@ public class ChannelWrapper {
       channel.txCommit();
       nonEmptyTransaction = false;
     } catch (IOException e) {
-      throw new RuntimeException("Error commiting transaction", e);
+      throw new TransactionException("Error commiting transaction", e);
     }
   }
 
@@ -62,7 +64,7 @@ public class ChannelWrapper {
       // TODO: beware of channel remaining in transactional state here (see amqp specs)
       nonEmptyTransaction = false;
     } catch (IOException e) {
-      throw new RuntimeException("Error rolling back transaction", e);
+      throw new TransactionException("Error rolling back transaction", e);
     }
   }
 
@@ -218,7 +220,7 @@ public class ChannelWrapper {
         logger.debug("Channel is ready");
       } catch (IOException e) {
         if (attempt > autoreconnect.getAttempts()) {
-          throw new RuntimeException("Can't open channel", e);
+          throw new ConnectionFailedException("Can't open channel", e);
         }
         logger.warn(
           String.format(
@@ -228,7 +230,7 @@ public class ChannelWrapper {
           autoreconnect.getSleeper().sleep();
         } catch (InterruptedException e1) {
           Thread.currentThread().interrupt();
-          throw new RuntimeException("Sleep between autoreconnection attempts has been interrupted", e1);
+          throw new ConnectionFailedException("Sleep between autoreconnection attempts has been interrupted", e1);
         }
       }
     } // while not connected
