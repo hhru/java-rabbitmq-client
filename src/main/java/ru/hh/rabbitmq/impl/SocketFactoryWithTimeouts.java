@@ -21,6 +21,13 @@ public class SocketFactoryWithTimeouts extends SocketFactory {
   }
 
   @Override
+  public Socket createSocket() throws IOException {
+    Socket socket = new Socket();
+    applyCustomParameters(socket);
+    return socket;
+  }
+
+  @Override
   public Socket createSocket(String host, int port) throws IOException, UnknownHostException {
     Socket socket = socketFactory.createSocket(host, port);
     applyCustomParameters(socket);
