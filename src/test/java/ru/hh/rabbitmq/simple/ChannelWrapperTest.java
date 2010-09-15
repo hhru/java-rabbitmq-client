@@ -27,7 +27,9 @@ public class ChannelWrapperTest {
     wrapper = new ChannelWrapper(QUEUE_NAME, QUEUE_DURABLE, false, factory);
 
     channel = mm.createMock(Channel.class);
-    factory.openChannel(EasyMock.eq(QUEUE_NAME), EasyMock.eq(QUEUE_DURABLE));
+    factory.openChannel(
+      (String) EasyMock.isNull(), (String) EasyMock.isNull(), EasyMock.eq(false), EasyMock.eq(QUEUE_NAME),
+      EasyMock.eq(QUEUE_DURABLE), (String) EasyMock.isNull());
     mm.expectLastCall().andReturn(channel).anyTimes();
 
     channel.isOpen();
