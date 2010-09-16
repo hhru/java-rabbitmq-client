@@ -30,8 +30,16 @@ public class ChannelWrapper {
 
   private Channel channel;
 
+  public ChannelWrapper(String queueName, boolean transactional, ChannelFactory factory) {
+    this(queueName, null, null, transactional, factory, null);
+  }
+
   public ChannelWrapper(String queueName, boolean transactional, ChannelFactory factory, AutoreconnectProperties autoreconnect) {
     this(queueName, null, null, transactional, factory, autoreconnect);
+  }
+
+  public ChannelWrapper(String exchangeName, String routingKey, boolean transactional, ChannelFactory factory) {
+    this(null, exchangeName, routingKey, transactional, factory, null);
   }
 
   public ChannelWrapper(
