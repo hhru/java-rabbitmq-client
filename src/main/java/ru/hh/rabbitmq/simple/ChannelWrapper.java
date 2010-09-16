@@ -18,8 +18,8 @@ import ru.hh.rabbitmq.impl.AutoreconnectProperties;
 public class ChannelWrapper {
   private static final Logger logger = LoggerFactory.getLogger(ChannelWrapper.class);
 
-  private QueueProperties queueProperties;
-  private ExchangeProperties exchangeProperties;
+  private String queueName;
+  private String exchangeName;
   private String routingKey;
   private ChannelFactory factory;
   private AutoreconnectProperties autoreconnect;
@@ -30,27 +30,21 @@ public class ChannelWrapper {
 
   private Channel channel;
 
-  public ChannelWrapper(QueueProperties properties, boolean transactional, ChannelFactory factory) {
-    this(null, properties, null, transactional, factory, null);
-  }
-
-  public ChannelWrapper(String queue, ChannelFactory factory, AutoreconnectProperties autoreconnect) {
-    this(null, new QueueProperties(queue, false), null, false, factory, autoreconnect);
-  }
-
-  public ChannelWrapper(ExchangeProperties properties, boolean transactional, ChannelFactory factory) {
-    this(properties, null, null, transactional, factory, null);
-  }
-
-  public ChannelWrapper(String queue, boolean durable, boolean transactional, ChannelFactory factory) {
-    this(null, new QueueProperties(queue, durable), null, transactional, factory, null);
+  public ChannelWrapper(String queueName, boolean transactional, ChannelFactory factory, AutoreconnectProperties autoreconnect) {
+    this(queueName, null, null, transactional, factory, autoreconnect);
   }
 
   public ChannelWrapper(
-      ExchangeProperties exchangeProperties, QueueProperties queueProperties, String routingKey, boolean transactional,
-      ChannelFactory factory, AutoreconnectProperties autoreconnect) {
-    this.queueProperties = queueProperties;
-    this.exchangeProperties = exchangeProperties;
+      String exchangeName, String routingKey, boolean transactional, ChannelFactory factory,
+      AutoreconnectProperties autoreconnect) {
+    this(null, exchangeName, routingKey, transactional, factory, autoreconnect);
+  }
+
+  public ChannelWrapper(
+      String queueName, String exchangeName, String routingKey, boolean transactional, ChannelFactory factory,
+      AutoreconnectProperties autoreconnect) {
+    this.queueName = queueName;
+    this.exchangeName = exchangeName;
     this.routingKey = routingKey;
     this.transactional = transactional;
     this.factory = factory;
@@ -85,8 +79,8 @@ public class ChannelWrapper {
   }
 
   private String getTargetExchangeName() {
-    if (exchangeProperties != null) {
-      return exchangeProperties.getName();
+    if (exchangeName != null) {
+      return exchangeName;
     }
     return "";
   }
@@ -95,7 +89,7 @@ public class ChannelWrapper {
     if (routingKey != null) {
       return routingKey;
     }
-    return queueProperties.getName();
+    return queueName;
   }
 
   public void send(Message... messages) throws IOException {
@@ -141,7 +135,7 @@ public class ChannelWrapper {
    */
   public boolean receiveSingle(MessageReceiver receiver) throws IOException, InterruptedException {
     ensureConnectedAndRunning();
-    GetResponse response = channel.basicGet(queueProperties.getName(), false);
+    GetResponse response = channel.basicGet(queueName, false);
     if (response == null) {
       return false;
     }
@@ -171,7 +165,7 @@ public class ChannelWrapper {
       return;
     }
     QueueingConsumer consumer = new QueueingConsumer(channel);
-    String consumerTag = channel.basicConsume(queueProperties.getName(), false, consumer);
+    String consumerTag = channel.basicConsume(queueName, false, consumer);
     Delivery delivery;
     Message message;
     try {
@@ -212,7 +206,7 @@ public class ChannelWrapper {
 
   public void purge() throws IOException {
     ensureConnectedAndRunning();
-    channel.queuePurge(queueProperties.getName());
+    channel.queuePurge(queueName);
   }
 
   public void close() {
@@ -233,19 +227,12 @@ public class ChannelWrapper {
       return;
     }
 
-    String queueName = queueProperties != null ? queueProperties.getName() : null;
-    boolean queueDurable = queueProperties != null ? queueProperties.isDurable() : false;
-
-    String exchangeName = exchangeProperties != null ? exchangeProperties.getName() : null;
-    String exchangeType = exchangeProperties != null ? exchangeProperties.getType() : null;
-    boolean exchangeDurable = exchangeProperties != null ? exchangeProperties.isDurable() : false;
-
     int attempt = 0;
     while (channel == null || !channel.isOpen()) {
       attempt++;
       try {
         logger.debug("Openning channel");
-        channel = factory.openChannel(exchangeName, exchangeType, exchangeDurable, queueName, queueDurable, routingKey);
+        channel = factory.openChannel();
         if (transactional) {
           channel.txSelect();
         }

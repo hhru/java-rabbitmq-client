@@ -25,36 +25,6 @@ public class ChannelFactoryImpl implements ChannelFactory {
     this.autoreconnect = autoreconnect;
   }
 
-  public Channel openChannel(String queueName, boolean durableQueue) throws IOException {
-    return openChannel(null, null, false, queueName, durableQueue, null);
-  }
-
-  public Channel openChannel(String exchangeName, String exchangeType, boolean durableExchange) throws IOException {
-    return openChannel(exchangeName, exchangeType, durableExchange, null, false, null);
-  }
-
-  @Override
-  public Channel openChannel(
-      String exchangeName, String exchangeType, boolean durableExchange, String queueName, boolean durableQueue,
-      String routingKey) throws IOException {
-    Channel channel = openChannel();
-
-    if (exchangeName != null && exchangeType != null) {
-      logger.debug("Declaring exchange: {} / {} / {}", new Object[] { exchangeName, exchangeType, durableExchange });
-      channel.exchangeDeclare(exchangeName, exchangeType, durableExchange);
-    }
-
-    if (queueName != null) {
-      logger.debug("Declaring queue: {} / {}", queueName, durableQueue);
-      channel.queueDeclare(queueName, durableQueue);
-      if (routingKey != null && exchangeName != null) {
-        logger.debug("Binding queue {} to exchange {} with routing key {}", new Object[] { queueName, exchangeName, routingKey });
-        channel.queueBind(queueName, exchangeName, routingKey);
-      }
-    }
-    return channel;
-  }
-
   public Channel openChannel() throws IOException {
     logger.debug("Openning channel");
     ensureConnectedAndRunning();

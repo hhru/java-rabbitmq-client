@@ -1,7 +1,6 @@
 package ru.hh.rabbitmq.impl;
 
 import com.headhunter.test.Mocks;
-import com.rabbitmq.client.AMQP.Queue.DeclareOk;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import java.io.IOException;
@@ -29,17 +28,9 @@ public class ChannelFactoryImplTest {
 
   @Test
   public void testOpenChannel() throws IOException {
-    mockOpenChannel(QUEUE_NAME);
+    mockOpenChannel();
     mm.replay();
-    impl.openChannel(QUEUE_NAME, QUEUE_DURABLE);
-    mm.verify();
-  }
-
-  @Test
-  public void testOpenNamedChannel() throws IOException {
-    mockOpenChannel("two");
-    mm.replay();
-    impl.openChannel("two", true);
+    impl.openChannel();
     mm.verify();
   }
 
@@ -50,7 +41,7 @@ public class ChannelFactoryImplTest {
     impl.close();
     mm.verify();
     try {
-      impl.openChannel("three", true);
+      impl.openChannel();
       Assert.fail();
     } catch (IllegalStateException e) { }
   }
@@ -70,7 +61,7 @@ public class ChannelFactoryImplTest {
     mm.verify();
   }
 
-  private void mockOpenChannel(String queueName) throws IOException {
+  private void mockOpenChannel() throws IOException {
     Connection connection = mm.createMock(Connection.class);
 
     connection.isOpen();
@@ -82,10 +73,6 @@ public class ChannelFactoryImplTest {
     Channel channel = mm.createMock(Channel.class);
     connection.createChannel();
     mm.expectLastCall().andReturn(channel).anyTimes();
-
-    DeclareOk ok = mm.createMock(DeclareOk.class);
-    channel.queueDeclare(EasyMock.eq(queueName), EasyMock.eq(QUEUE_DURABLE));
-    mm.expectLastCall().andReturn(ok).anyTimes();
 
     channel.basicQos(QUEUE_QOS);
     mm.expectLastCall().anyTimes();
