@@ -49,10 +49,16 @@ public class ConnectionFactoryImpl implements ConnectionFactory, ShutdownListene
       throw new IllegalStateException("Already initialized!");
     }
 
-    connectionFactory = new com.rabbitmq.client.ConnectionFactory(connectionParameters);
+    connectionFactory = new com.rabbitmq.client.ConnectionFactory();
     if (socketFactory != null) {
       connectionFactory.setSocketFactory(socketFactory);
     }
+    connectionFactory.setUsername(connectionParameters.getUserName());
+    connectionFactory.setPassword(connectionParameters.getPassword());
+    connectionFactory.setVirtualHost(connectionParameters.getVirtualHost());
+    connectionFactory.setRequestedChannelMax(connectionParameters.getRequestedChannelMax());
+    connectionFactory.setRequestedFrameMax(connectionParameters.getRequestedFrameMax());
+    connectionFactory.setRequestedHeartbeat(connectionParameters.getRequestedHeartbeat());
     initialized = true;
     logger.debug("Finished initializing");
   }
