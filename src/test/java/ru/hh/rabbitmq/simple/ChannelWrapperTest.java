@@ -23,7 +23,7 @@ public class ChannelWrapperTest {
   public void setUp() throws IOException {
     mm = new Mocks();
     ChannelFactory factory = mm.createMock(ChannelFactory.class);
-    wrapper = new ChannelWrapper(QUEUE_NAME, false, factory, null);
+    wrapper = new ChannelWrapper.Builder(QUEUE_NAME, factory).create();
 
     channel = mm.createMock(Channel.class);
     factory.getChannel();
