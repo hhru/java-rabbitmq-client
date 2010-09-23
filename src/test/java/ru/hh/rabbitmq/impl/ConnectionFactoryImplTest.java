@@ -19,7 +19,7 @@ public class ConnectionFactoryImplTest {
   private static final int CLOSE_TIMEOUT = 1;
 
   private SocketFactory socketFactory;
-  private ConnectionFactoryImpl impl;
+  private SingleConnectionFactory impl;
   private ConnectionParameters params;
   private ConnectionFactory connectionFactory;
   private Address[] addresses;
@@ -33,7 +33,7 @@ public class ConnectionFactoryImplTest {
     params = new ConnectionParameters();
     addresses = new Address[] { new Address(HOST, PORT) };
 
-    impl = new ConnectionFactoryImpl(params, socketFactory, CLOSE_TIMEOUT, addresses);
+    impl = new SingleConnectionFactory(params, socketFactory, CLOSE_TIMEOUT, addresses);
     impl.init();
 
     connectionFactory = mm.createMock(ConnectionFactory.class);

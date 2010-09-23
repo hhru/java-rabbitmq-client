@@ -12,8 +12,8 @@ import org.slf4j.LoggerFactory;
 import ru.hh.rabbitmq.ConnectionFactory;
 import ru.hh.rabbitmq.NotInitializedException;
 
-public class ConnectionFactoryImpl implements ConnectionFactory, ShutdownListener {
-  private static final Logger logger = LoggerFactory.getLogger(ConnectionFactoryImpl.class);
+public class SingleConnectionFactory implements ConnectionFactory, ShutdownListener {
+  private static final Logger logger = LoggerFactory.getLogger(SingleConnectionFactory.class);
 
   private ConnectionParameters connectionParameters;
   private Address[] addresses;
@@ -24,18 +24,18 @@ public class ConnectionFactoryImpl implements ConnectionFactory, ShutdownListene
   private volatile boolean initialized;
   private volatile boolean shuttingDown;
 
-  public ConnectionFactoryImpl(ConnectionParameters connectionParameters, Address... addresses) {
+  public SingleConnectionFactory(ConnectionParameters connectionParameters, Address... addresses) {
     this.connectionParameters = connectionParameters;
     this.addresses = addresses;
   }
 
-  public ConnectionFactoryImpl(ConnectionParameters connectionParameters, SocketFactory socketFactory, Address... addresses) {
+  public SingleConnectionFactory(ConnectionParameters connectionParameters, SocketFactory socketFactory, Address... addresses) {
     this.connectionParameters = connectionParameters;
     this.addresses = addresses;
     this.socketFactory = socketFactory;
   }
 
-  public ConnectionFactoryImpl(
+  public SingleConnectionFactory(
       ConnectionParameters connectionParameters, SocketFactory socketFactory, Integer closeTimeout, Address... addresses) {
     this.connectionParameters = connectionParameters;
     this.addresses = addresses;
