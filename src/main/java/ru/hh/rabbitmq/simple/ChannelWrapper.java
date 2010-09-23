@@ -49,10 +49,16 @@ public class ChannelWrapper implements FlowListener {
   }
 
   public void setTransactional(boolean transactional) {
+    if (channel != null && transactional != this.transactional) {
+      throw new IllegalStateException("can't change transactional status on open channel");
+    }
     this.transactional = transactional;
   }
 
   public void setPrefetchCount(Integer prefetchCount) {
+    if (channel != null) {
+      throw new IllegalStateException("can't change prefetch count on open channel");
+    }
     this.prefetchCount = prefetchCount;
   }
 
