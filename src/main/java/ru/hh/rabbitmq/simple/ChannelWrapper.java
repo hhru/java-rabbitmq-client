@@ -13,7 +13,6 @@ import org.slf4j.LoggerFactory;
 import ru.hh.rabbitmq.ChannelFactory;
 import ru.hh.rabbitmq.ConnectionFailedException;
 import ru.hh.rabbitmq.TransactionException;
-import ru.hh.rabbitmq.impl.AutoreconnectProperties;
 
 public class ChannelWrapper {
   private static final Logger logger = LoggerFactory.getLogger(ChannelWrapper.class);
@@ -22,7 +21,6 @@ public class ChannelWrapper {
   private String exchangeName;
   private String routingKey;
   private ChannelFactory factory;
-  private AutoreconnectProperties autoreconnect;
   private boolean transactional;
 
   private boolean nonEmptyTransaction;
@@ -31,40 +29,22 @@ public class ChannelWrapper {
   private Channel channel;
 
   public ChannelWrapper(String queueName, boolean transactional, ChannelFactory factory) {
-    this(queueName, null, null, transactional, factory, null);
-  }
-
-  public ChannelWrapper(String queueName, boolean transactional, ChannelFactory factory, AutoreconnectProperties autoreconnect) {
-    this(queueName, null, null, transactional, factory, autoreconnect);
+    this(queueName, null, null, transactional, factory);
   }
 
   public ChannelWrapper(String exchangeName, String routingKey, boolean transactional, ChannelFactory factory) {
-    this(null, exchangeName, routingKey, transactional, factory, null);
-  }
-
-  public ChannelWrapper(
-      String exchangeName, String routingKey, boolean transactional, ChannelFactory factory,
-      AutoreconnectProperties autoreconnect) {
-    this(null, exchangeName, routingKey, transactional, factory, autoreconnect);
+    this(null, exchangeName, routingKey, transactional, factory);
   }
 
   public ChannelWrapper(String queueName, String exchangeName, String routingKey, boolean transactional, ChannelFactory factory) {
-    this(queueName, exchangeName, routingKey, transactional, factory, null);
-  }
-
-  public ChannelWrapper(
-      String queueName, String exchangeName, String routingKey, boolean transactional, ChannelFactory factory,
-      AutoreconnectProperties autoreconnect) {
     this.queueName = queueName;
     this.exchangeName = exchangeName;
     this.routingKey = routingKey;
     this.transactional = transactional;
     this.factory = factory;
-    this.autoreconnect = autoreconnect == null ? new AutoreconnectProperties(0) : autoreconnect;
   }
 
   public void commit() {
-    ensureConnectedAndRunning();
     try {
       channel.txCommit();
       nonEmptyTransaction = false;
@@ -74,7 +54,6 @@ public class ChannelWrapper {
   }
 
   public void rollback() {
-    ensureConnectedAndRunning();
     try {
       channel.txRollback();
       // TODO: beware of channel remaining in transactional state here (see amqp specs)
@@ -106,10 +85,10 @@ public class ChannelWrapper {
 
   public void send(Message... messages) throws IOException {
     ensureConnectedAndRunning();
+    nonEmptyTransaction = true;
     for (Message message : messages) {
       channel.basicPublish(
         getTargetExchangeName(), getTargetRoutingKey(), true, false, message.getProperties(), message.getBody());
-      nonEmptyTransaction = true;
     }
   }
 
@@ -238,32 +217,15 @@ public class ChannelWrapper {
       // ignore reconnection attempt, let closed connection throw it's own exception
       return;
     }
-
-    int attempt = 0;
-    while (channel == null || !channel.isOpen()) {
-      attempt++;
+    if (channel == null || !channel.isOpen()) {
       try {
-        logger.debug("Openning channel");
         channel = factory.getChannel();
         if (transactional) {
           channel.txSelect();
         }
-        logger.debug("Channel is ready");
       } catch (IOException e) {
-        if (attempt > autoreconnect.getAttempts()) {
-          throw new ConnectionFailedException("Can't open channel", e);
-        }
-        logger.warn(
-          String.format(
-            "Attempt %d out of %d to reconnect the channel has failed, sleeping then retrying", attempt,
-            autoreconnect.getAttempts()), e);
-        try {
-          autoreconnect.getSleeper().sleep();
-        } catch (InterruptedException e1) {
-          Thread.currentThread().interrupt();
-          throw new ConnectionFailedException("Sleep between autoreconnection attempts has been interrupted", e1);
-        }
+        throw new ConnectionFailedException("Can't open channel", e);
       }
-    } // while not connected
+    }
   }
 }
