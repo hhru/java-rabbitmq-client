@@ -13,6 +13,7 @@ public class ChannelFactoryImpl implements ChannelFactory {
   private static final Logger logger = LoggerFactory.getLogger(ChannelFactoryImpl.class);
 
   private ConnectionFactory connectionFactory;
+  // TODO: move to ChannelWrapper
   private Integer prefetchCount;
   private AutoreconnectProperties autoreconnect = new AutoreconnectProperties(0);
 
