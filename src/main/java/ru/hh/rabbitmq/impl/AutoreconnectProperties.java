@@ -3,6 +3,7 @@ package ru.hh.rabbitmq.impl;
 import java.util.concurrent.TimeUnit;
 import ru.hh.rabbitmq.util.RandomSleep;
 
+@Deprecated
 public class AutoreconnectProperties {
   private int attempts = 3;
   private int minDelay = 100;
