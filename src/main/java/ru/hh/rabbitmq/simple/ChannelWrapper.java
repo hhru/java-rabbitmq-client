@@ -49,7 +49,7 @@ public class ChannelWrapper implements FlowListener {
   }
 
   public void setTransactional(boolean transactional) {
-    if (channel != null && transactional != this.transactional) {
+    if (channel != null) {
       throw new IllegalStateException("can't change transactional status on open channel");
     }
     this.transactional = transactional;
