@@ -26,7 +26,7 @@ public class ChannelWrapperTest {
     wrapper = new ChannelWrapper(QUEUE_NAME, false, factory, null);
 
     channel = mm.createMock(Channel.class);
-    factory.openChannel();
+    factory.getChannel();
     mm.expectLastCall().andReturn(channel).anyTimes();
 
     channel.isOpen();

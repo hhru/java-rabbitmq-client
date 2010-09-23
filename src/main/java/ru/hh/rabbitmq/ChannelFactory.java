@@ -4,7 +4,7 @@ import com.rabbitmq.client.Channel;
 import java.io.IOException;
 
 public interface ChannelFactory {
-  Channel openChannel() throws IOException;
+  Channel getChannel() throws IOException;
 
   void returnChannel(Channel channel);
 

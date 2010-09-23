@@ -25,7 +25,7 @@ public class ChannelFactoryImpl implements ChannelFactory {
     this.autoreconnect = autoreconnect;
   }
 
-  public Channel openChannel() throws IOException {
+  public Channel getChannel() throws IOException {
     logger.debug("Openning channel");
     ensureConnectedAndRunning();
     Channel channel = connection.createChannel();
@@ -67,7 +67,7 @@ public class ChannelFactoryImpl implements ChannelFactory {
       try {
         logger.debug("Connecting");
         // TODO: several connections can be opened simultaneously from different threads
-        connection = connectionFactory.openConnection();
+        connection = connectionFactory.getConnection();
         logger.debug("Connection is ready");
       } catch (IOException e) {
         if (attempt > autoreconnect.getAttempts()) {

@@ -244,7 +244,7 @@ public class ChannelWrapper {
       attempt++;
       try {
         logger.debug("Openning channel");
-        channel = factory.openChannel();
+        channel = factory.getChannel();
         if (transactional) {
           channel.txSelect();
         }

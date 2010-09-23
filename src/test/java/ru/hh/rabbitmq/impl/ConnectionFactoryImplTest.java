@@ -39,7 +39,7 @@ public class ConnectionFactoryImplTest {
 
     mm.replay();
 
-    impl.openConnection();
+    impl.getConnection();
 
     mm.verify();
     mm.reset();
@@ -55,7 +55,7 @@ public class ConnectionFactoryImplTest {
     mm.verify();
     
     try {
-      impl.openConnection();
+      impl.getConnection();
       Assert.fail();
     } catch (IllegalStateException e) { }
   }

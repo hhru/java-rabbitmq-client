@@ -30,7 +30,7 @@ public class ChannelFactoryImplTest {
   public void testOpenChannel() throws IOException {
     mockOpenChannel();
     mm.replay();
-    impl.openChannel();
+    impl.getChannel();
     mm.verify();
   }
 
@@ -41,7 +41,7 @@ public class ChannelFactoryImplTest {
     impl.close();
     mm.verify();
     try {
-      impl.openChannel();
+      impl.getChannel();
       Assert.fail();
     } catch (IllegalStateException e) { }
   }
@@ -67,7 +67,7 @@ public class ChannelFactoryImplTest {
     connection.isOpen();
     mm.expectLastCall().andReturn(true).anyTimes();
 
-    factory.openConnection();
+    factory.getConnection();
     mm.expectLastCall().andReturn(connection).anyTimes();
 
     Channel channel = mm.createMock(Channel.class);
