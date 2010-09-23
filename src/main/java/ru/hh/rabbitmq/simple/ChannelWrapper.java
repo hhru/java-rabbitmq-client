@@ -1,6 +1,7 @@
 package ru.hh.rabbitmq.simple;
 
 import com.rabbitmq.client.Channel;
+import com.rabbitmq.client.FlowListener;
 import com.rabbitmq.client.GetResponse;
 import com.rabbitmq.client.QueueingConsumer;
 import com.rabbitmq.client.QueueingConsumer.Delivery;
@@ -14,7 +15,7 @@ import ru.hh.rabbitmq.ChannelFactory;
 import ru.hh.rabbitmq.ConnectionFailedException;
 import ru.hh.rabbitmq.TransactionException;
 
-public class ChannelWrapper {
+public class ChannelWrapper implements FlowListener {
   private static final Logger logger = LoggerFactory.getLogger(ChannelWrapper.class);
 
   private String queueName;
@@ -27,6 +28,7 @@ public class ChannelWrapper {
   private boolean closed;
 
   private Channel channel;
+  private volatile boolean flowActive = true;
   private Integer prefetchCount;
 
   public ChannelWrapper(String queueName, boolean transactional, ChannelFactory factory) {
@@ -79,7 +81,7 @@ public class ChannelWrapper {
   }
 
   public void send(ReturnListener returnListener, Message... message) throws IOException {
-    ensureConnectedAndRunning();
+    ensureConnected();
     setReturnListener(returnListener);
     send(message);
   }
@@ -99,9 +101,10 @@ public class ChannelWrapper {
   }
 
   public void send(Message... messages) throws IOException {
-    ensureConnectedAndRunning();
+    ensureConnected();
     nonEmptyTransaction = true;
     for (Message message : messages) {
+      checkFlow();
       channel.basicPublish(
         getTargetExchangeName(), getTargetRoutingKey(), true, false, message.getProperties(), message.getBody());
     }
@@ -114,7 +117,7 @@ public class ChannelWrapper {
   }
 
   public void send(ReturnListener returnListener, Collection<Message> messages) throws IOException {
-    ensureConnectedAndRunning();
+    ensureConnected();
     setReturnListener(returnListener);
     send(messages);
   }
@@ -140,7 +143,7 @@ public class ChannelWrapper {
    * @throws  InterruptedException
    */
   public boolean receiveSingle(MessageReceiver receiver) throws IOException, InterruptedException {
-    ensureConnectedAndRunning();
+    ensureConnected();
     GetResponse response = channel.basicGet(queueName, false);
     if (response == null) {
       return false;
@@ -166,7 +169,7 @@ public class ChannelWrapper {
    */
   public void waitAndReceiveMany(MessagesReceiver receiver, Long timeout) throws IOException, ShutdownSignalException,
     InterruptedException {
-    ensureConnectedAndRunning();
+    ensureConnected();
     if (Thread.currentThread().isInterrupted()) {
       return;
     }
@@ -211,23 +214,20 @@ public class ChannelWrapper {
   }
 
   public void purge() throws IOException {
-    ensureConnectedAndRunning();
+    ensureConnected();
     channel.queuePurge(queueName);
   }
 
   public void close() {
     closed = true;
+    channel.setFlowListener(null);
     factory.returnChannel(channel);
   }
 
-  private void ensureConnectedAndRunning() {
+  private void ensureConnected() {
     if (closed) {
       throw new IllegalStateException("Already closed");
     }
-    ensureConnected();
-  }
-
-  private void ensureConnected() {
     if (transactional && nonEmptyTransaction) {
       // ignore reconnection attempt, let closed connection throw it's own exception
       return;
@@ -235,6 +235,10 @@ public class ChannelWrapper {
     if (channel == null || !channel.isOpen()) {
       try {
         channel = factory.getChannel();
+        // TODO: channel can be stopped from the beginning, but we are considering it to be active
+        // TODO: use channel.getFlow().getActive when it becomes threadsafe 
+        flowActive = true;
+        channel.setFlowListener(this);
         if (prefetchCount != null) {
           channel.basicQos(prefetchCount);
         }
@@ -244,6 +248,22 @@ public class ChannelWrapper {
       } catch (IOException e) {
         throw new ConnectionFailedException("Can't open channel", e);
       }
+    }
+  }
+  
+  private void checkFlow() {
+    if (!flowActive) {
+      throw new IllegalStateException("can't send, server sent channel.flow = false");
+    }
+  }
+
+  @Override
+  public void handleFlow(boolean active) throws IOException {
+    flowActive = active;
+    if (active) {
+      logger.info("got channel.flow = true, resuming to send messages");
+    } else {
+      logger.error("got channel.flow = false, sending is prohibited");
     }
   }
 }
