@@ -40,7 +40,7 @@ public class SingleConnectionFactory implements ConnectionFactory, ShutdownListe
     this.attempts = attempts;
   }
 
-  public synchronized Connection getConnection() throws IOException {
+  public synchronized Connection getConnection() {
     logger.debug("Opening new connection");
     int remains = attempts;
     while ((connection == null || !connection.isOpen()) && !shuttingDown && remains > 0) {

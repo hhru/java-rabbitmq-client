@@ -1,10 +1,9 @@
 package ru.hh.rabbitmq;
 
 import com.rabbitmq.client.Connection;
-import java.io.IOException;
 
 public interface ConnectionFactory {
-  Connection getConnection() throws IOException;
+  Connection getConnection();
 
   void returnConnection(Connection connection);
 

@@ -6,6 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import ru.hh.rabbitmq.ChannelFactory;
 import ru.hh.rabbitmq.ConnectionFactory;
+import ru.hh.rabbitmq.ConnectionFailedException;
 
 public class ChannelFactoryImpl implements ChannelFactory {
   private static final Logger logger = LoggerFactory.getLogger(ChannelFactoryImpl.class);
@@ -16,9 +17,13 @@ public class ChannelFactoryImpl implements ChannelFactory {
     this.connectionFactory = connectionFactory;
   }
 
-  public Channel getChannel() throws IOException {
+  public Channel getChannel() {
     logger.debug("Opening channel");
-    return connectionFactory.getConnection().createChannel();
+    try {
+      return connectionFactory.getConnection().createChannel();
+    } catch (IOException e) {
+      throw new ConnectionFailedException("failed to create channel", e);
+    }
   }
 
   public void returnChannel(Channel channel) {

@@ -1,10 +1,9 @@
 package ru.hh.rabbitmq;
 
 import com.rabbitmq.client.Channel;
-import java.io.IOException;
 
 public interface ChannelFactory {
-  Channel getChannel() throws IOException;
+  Channel getChannel();
 
   void returnChannel(Channel channel);
 
