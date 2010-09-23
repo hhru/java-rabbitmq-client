@@ -1,36 +1,27 @@
 package ru.hh.rabbitmq.impl;
 
 import com.rabbitmq.client.Channel;
-import com.rabbitmq.client.Connection;
 import java.io.IOException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import ru.hh.rabbitmq.ChannelFactory;
 import ru.hh.rabbitmq.ConnectionFactory;
-import ru.hh.rabbitmq.ConnectionFailedException;
 
-//TODO remove completely, use connectionFactory.getConnection() for raw access, or ChannelWrapper for high level operations
 public class ChannelFactoryImpl implements ChannelFactory {
   private static final Logger logger = LoggerFactory.getLogger(ChannelFactoryImpl.class);
 
   private ConnectionFactory connectionFactory;
   // TODO: move to ChannelWrapper
   private Integer prefetchCount;
-  private AutoreconnectProperties autoreconnect = new AutoreconnectProperties(0);
-
-  private volatile Connection connection;
-  private volatile boolean shuttingDown = false;
-
-  public ChannelFactoryImpl(ConnectionFactory connectionFactory, Integer prefetchCount, AutoreconnectProperties autoreconnect) {
+  
+  public ChannelFactoryImpl(ConnectionFactory connectionFactory, Integer prefetchCount) {
     this.connectionFactory = connectionFactory;
     this.prefetchCount = prefetchCount;
-    this.autoreconnect = autoreconnect;
   }
 
   public Channel getChannel() throws IOException {
-    logger.debug("Openning channel");
-    ensureConnectedAndRunning();
-    Channel channel = connection.createChannel();
+    logger.debug("Opening channel");
+    Channel channel = connectionFactory.getConnection().createChannel();
     if (prefetchCount != null) {
       channel.basicQos(prefetchCount);
     }
@@ -38,60 +29,24 @@ public class ChannelFactoryImpl implements ChannelFactory {
   }
 
   public void returnChannel(Channel channel) {
-    logger.debug("Closing channel");
     if (channel == null) {
       return;
     }
-
+    
     if (!channel.isOpen()) {
-      logger.warn("Channel is already closing, ignoring");
+      logger.warn("Channel is already closed, ignoring");
       return;
     }
-
     try {
+      logger.debug("Closing channel");
       channel.close();
     } catch (IOException e) {
       logger.warn("Error while closing channel, ignoring", e);
     }
-  }
-
-  private void ensureConnectedAndRunning() {
-    if (shuttingDown) {
-      throw new IllegalStateException("Shutting down");
-    }
-    ensureConnected();
-  }
-
-  private void ensureConnected() {
-    int attempt = 0;
-    while (connection == null || !connection.isOpen()) {
-      attempt++;
-      try {
-        logger.debug("Connecting");
-        // TODO: several connections can be opened simultaneously from different threads
-        connection = connectionFactory.getConnection();
-        logger.debug("Connection is ready");
-      } catch (IOException e) {
-        if (attempt > autoreconnect.getAttempts()) {
-          throw new ConnectionFailedException("Can't connect to queue server", e);
-        }
-        logger.warn(
-          String.format(
-            "Attempt %d out of %d to reconnect to server has failed, sleeping then retrying", attempt,
-            autoreconnect.getAttempts()), e);
-        try {
-          autoreconnect.getSleeper().sleep();
-        } catch (InterruptedException e1) {
-          Thread.currentThread().interrupt();
-          throw new ConnectionFailedException("Sleep between autoreconnection attempts has been interrupted", e1);
-        }
-      }
-    }
+    connectionFactory.returnConnection(channel.getConnection());
   }
 
   public void close() {
-    logger.debug("Closing");
-    shuttingDown = true;
-    connectionFactory.returnConnection(connection);
+    // nothing to do
   }
 }
