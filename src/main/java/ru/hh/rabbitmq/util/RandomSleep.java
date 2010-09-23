@@ -5,8 +5,8 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * Sleeps random time between min and max, threadsafe
- * TODO: move to hh-wide utility library
  */
+@Deprecated
 public class RandomSleep {
   private final Random random = new Random();
   private final int min;

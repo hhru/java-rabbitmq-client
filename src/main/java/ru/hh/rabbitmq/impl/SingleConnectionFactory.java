@@ -10,7 +10,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import ru.hh.rabbitmq.ConnectionFactory;
 import ru.hh.rabbitmq.ConnectionFailedException;
-import ru.hh.rabbitmq.util.RandomSleep;
 
 /**
  * Maintains single open connection, reconnects if necessary
@@ -20,7 +19,8 @@ public class SingleConnectionFactory implements ConnectionFactory, ShutdownListe
 
   private final Address[] addresses;
   private final com.rabbitmq.client.ConnectionFactory connectionFactory;
-  private final RandomSleep randomSleep;
+  private final TimeUnit retryUnit;
+  private final long retryDelay;
   private final int attempts;
   
   // guarded by synchronized(this)
@@ -31,11 +31,12 @@ public class SingleConnectionFactory implements ConnectionFactory, ShutdownListe
   /**
    * @see com.rabbitmq.client.ConnectionFactory#newConnection(com.rabbitmq.client.Address[])
    */
-  public SingleConnectionFactory(com.rabbitmq.client.ConnectionFactory connectionFactory, TimeUnit unit, int minDelay, 
-                                 int maxDelay, int attempts, Address... addresses) {
+  public SingleConnectionFactory(com.rabbitmq.client.ConnectionFactory connectionFactory, TimeUnit retryUnit, long retryDelay,
+                                 int attempts, Address... addresses) {
     this.connectionFactory = connectionFactory;
     this.addresses = addresses;
-    this.randomSleep = new RandomSleep(unit, minDelay, maxDelay);
+    this.retryUnit = retryUnit;
+    this.retryDelay = retryDelay;
     this.attempts = attempts;
   }
 
@@ -53,7 +54,7 @@ public class SingleConnectionFactory implements ConnectionFactory, ShutdownListe
         } else if (remains > 0) {
           logger.warn("connection attempt failed, retrying", connectionError);
           try {
-            randomSleep.sleep();
+            retryUnit.sleep(retryDelay);
           } catch (InterruptedException interrupt) {
             throw new ConnectionFailedException("retry sleep was interrupted", interrupt);
           }
