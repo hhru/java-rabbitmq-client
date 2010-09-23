@@ -31,6 +31,9 @@ public class ChannelWrapperTest {
 
     channel.isOpen();
     mm.expectLastCall().andReturn(true).anyTimes();
+    
+    channel.setFlowListener(wrapper);
+    mm.expectLastCall().anyTimes();
   }
 
   @Test
