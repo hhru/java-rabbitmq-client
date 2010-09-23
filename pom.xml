@@ -60,17 +60,7 @@
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
-            <version>1.5.8</version>
-        </dependency>
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-log4j12</artifactId>
-            <version>1.5.8</version>
-        </dependency>
-        <dependency>
-            <groupId>log4j</groupId>
-            <artifactId>log4j</artifactId>
-            <version>1.2.14</version>
+            <version>1.6.1</version>
         </dependency>
 
         <!-- testing -->
@@ -78,13 +68,13 @@
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
             <scope>test</scope>
-            <version>4.7</version>
+            <version>4.8.1</version>
         </dependency>
         <dependency>
             <groupId>ru.headhunter.commons</groupId>
             <artifactId>test-util</artifactId>
             <scope>test</scope>
-            <version>1.7.1</version>
+            <version>1.8</version>
         </dependency>
     </dependencies>    
     <scm>
