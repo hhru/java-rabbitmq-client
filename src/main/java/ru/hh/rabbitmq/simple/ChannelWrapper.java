@@ -23,42 +23,70 @@ public class ChannelWrapper implements FlowListener {
   private String routingKey;
   private ChannelFactory factory;
   private boolean transactional;
+  private Integer prefetchCount;
+  private boolean waitFlow;
 
   private boolean nonEmptyTransaction;
   private boolean closed;
 
   private Channel channel;
   private volatile boolean flowActive = true;
-  private Integer prefetchCount;
-
-  public ChannelWrapper(String queueName, boolean transactional, ChannelFactory factory) {
-    this(queueName, null, null, transactional, factory, null);
-  }
-
-  public ChannelWrapper(String queueName, boolean transactional, ChannelFactory factory, Integer prefetchCount) {
-    this(queueName, null, null, transactional, factory, prefetchCount);
-  }
   
-  public ChannelWrapper(String exchangeName, String routingKey, boolean transactional, ChannelFactory factory) {
-    this(null, exchangeName, routingKey, transactional, factory, null);
+  public static class Builder {
+    private String queueName;
+    private String exchangeName;
+    private String routingKey;
+    private ChannelFactory factory;
+    private boolean transactional = false;
+    private Integer prefetchCount = null;
+    private boolean waitFlow = false;
+
+    public Builder(String queueName, ChannelFactory factory) {
+      this.queueName = queueName;
+      this.factory = factory;
+    }
+
+    public Builder(String exchangeName, String routingKey, ChannelFactory factory) {
+      this.exchangeName = exchangeName;
+      this.factory = factory;
+      this.routingKey = routingKey;
+    }
+
+    public Builder(String queueName, String exchangeName, String routingKey, ChannelFactory factory) {
+      this.queueName = queueName;
+      this.exchangeName = exchangeName;
+      this.routingKey = routingKey;
+      this.factory = factory;
+    }
+
+    public Builder transactional(boolean transactional) {
+      this.transactional = transactional;
+      return this;
+    }
+    
+    public Builder prefetchCount(int count) {
+      this.prefetchCount = count;
+      return this;
+    }
+    
+    public Builder waitFlow(boolean wait) {
+      this.waitFlow = wait;
+      return this;
+    }
+    
+    public ChannelWrapper create() {
+      return new ChannelWrapper(this);
+    }
   }
 
-  public ChannelWrapper(String exchangeName, String routingKey, boolean transactional, ChannelFactory factory, Integer prefetchCount) {
-    this(null, exchangeName, routingKey, transactional, factory, prefetchCount);
-  }
-  
-  public ChannelWrapper(String queueName, String exchangeName, String routingKey, boolean transactional, ChannelFactory factory) {
-    this(queueName, exchangeName, routingKey, transactional, factory, null);
-  }
-  
-  public ChannelWrapper(String queueName, String exchangeName, String routingKey, boolean transactional, ChannelFactory factory,
-                        Integer prefetchCount) {
-    this.queueName = queueName;
-    this.exchangeName = exchangeName;
-    this.routingKey = routingKey;
-    this.transactional = transactional;
-    this.factory = factory;
-    this.prefetchCount = prefetchCount;
+  private ChannelWrapper(Builder builder) {
+    this.queueName = builder.queueName;
+    this.exchangeName = builder.exchangeName;
+    this.routingKey = builder.routingKey;
+    this.factory = builder.factory;
+    this.transactional = builder.transactional;
+    this.prefetchCount = builder.prefetchCount;
+    this.waitFlow = builder.waitFlow;
   }
 
   public void commit() {
@@ -252,7 +280,7 @@ public class ChannelWrapper implements FlowListener {
   }
   
   private void checkFlow() {
-    if (!flowActive) {
+    if (!flowActive && !waitFlow) {
       throw new IllegalStateException("can't send, server sent channel.flow = false");
     }
   }
