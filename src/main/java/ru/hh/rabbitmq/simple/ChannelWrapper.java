@@ -27,21 +27,36 @@ public class ChannelWrapper {
   private boolean closed;
 
   private Channel channel;
+  private Integer prefetchCount;
 
   public ChannelWrapper(String queueName, boolean transactional, ChannelFactory factory) {
-    this(queueName, null, null, transactional, factory);
+    this(queueName, null, null, transactional, factory, null);
   }
 
+  public ChannelWrapper(String queueName, boolean transactional, ChannelFactory factory, Integer prefetchCount) {
+    this(queueName, null, null, transactional, factory, prefetchCount);
+  }
+  
   public ChannelWrapper(String exchangeName, String routingKey, boolean transactional, ChannelFactory factory) {
-    this(null, exchangeName, routingKey, transactional, factory);
+    this(null, exchangeName, routingKey, transactional, factory, null);
   }
 
+  public ChannelWrapper(String exchangeName, String routingKey, boolean transactional, ChannelFactory factory, Integer prefetchCount) {
+    this(null, exchangeName, routingKey, transactional, factory, prefetchCount);
+  }
+  
   public ChannelWrapper(String queueName, String exchangeName, String routingKey, boolean transactional, ChannelFactory factory) {
+    this(queueName, exchangeName, routingKey, transactional, factory, null);
+  }
+  
+  public ChannelWrapper(String queueName, String exchangeName, String routingKey, boolean transactional, ChannelFactory factory,
+                        Integer prefetchCount) {
     this.queueName = queueName;
     this.exchangeName = exchangeName;
     this.routingKey = routingKey;
     this.transactional = transactional;
     this.factory = factory;
+    this.prefetchCount = prefetchCount;
   }
 
   public void commit() {
@@ -220,6 +235,9 @@ public class ChannelWrapper {
     if (channel == null || !channel.isOpen()) {
       try {
         channel = factory.getChannel();
+        if (prefetchCount != null) {
+          channel.basicQos(prefetchCount);
+        }
         if (transactional) {
           channel.txSelect();
         }

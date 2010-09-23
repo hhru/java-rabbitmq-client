@@ -11,21 +11,14 @@ public class ChannelFactoryImpl implements ChannelFactory {
   private static final Logger logger = LoggerFactory.getLogger(ChannelFactoryImpl.class);
 
   private ConnectionFactory connectionFactory;
-  // TODO: move to ChannelWrapper
-  private Integer prefetchCount;
   
-  public ChannelFactoryImpl(ConnectionFactory connectionFactory, Integer prefetchCount) {
+  public ChannelFactoryImpl(ConnectionFactory connectionFactory) {
     this.connectionFactory = connectionFactory;
-    this.prefetchCount = prefetchCount;
   }
 
   public Channel getChannel() throws IOException {
     logger.debug("Opening channel");
-    Channel channel = connectionFactory.getConnection().createChannel();
-    if (prefetchCount != null) {
-      channel.basicQos(prefetchCount);
-    }
-    return channel;
+    return connectionFactory.getConnection().createChannel();
   }
 
   public void returnChannel(Channel channel) {

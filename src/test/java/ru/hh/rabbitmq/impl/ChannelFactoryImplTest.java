@@ -18,7 +18,7 @@ public class ChannelFactoryImplTest {
   public void setUp() throws Exception {
     mm = new Mocks();
     factory = mm.createMock(ConnectionFactory.class);
-    impl = new ChannelFactoryImpl(factory, QUEUE_QOS);
+    impl = new ChannelFactoryImpl(factory);
   }
 
   @Test
