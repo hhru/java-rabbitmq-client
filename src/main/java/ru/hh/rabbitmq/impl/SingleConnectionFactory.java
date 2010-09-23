@@ -9,6 +9,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import ru.hh.rabbitmq.ConnectionFactory;
 
+/**
+ * Maintains single open connection, reconnects if necessary
+ */
 public class SingleConnectionFactory implements ConnectionFactory, ShutdownListener {
   private static final Logger logger = LoggerFactory.getLogger(SingleConnectionFactory.class);
 
@@ -20,6 +23,9 @@ public class SingleConnectionFactory implements ConnectionFactory, ShutdownListe
   
   private volatile boolean shuttingDown;
 
+  /**
+   * @see com.rabbitmq.client.ConnectionFactory#newConnection(com.rabbitmq.client.Address[])
+   */
   public SingleConnectionFactory(com.rabbitmq.client.ConnectionFactory connectionFactory, Address... addresses) {
     this.connectionFactory = connectionFactory;
     this.addresses = addresses;
