@@ -9,6 +9,7 @@ import ru.hh.rabbitmq.ChannelFactory;
 import ru.hh.rabbitmq.ConnectionFactory;
 import ru.hh.rabbitmq.ConnectionFailedException;
 
+//TODO remove completely, use connectionFactory.getConnection() for raw access, or ChannelWrapper for high level operations
 public class ChannelFactoryImpl implements ChannelFactory {
   private static final Logger logger = LoggerFactory.getLogger(ChannelFactoryImpl.class);
 
