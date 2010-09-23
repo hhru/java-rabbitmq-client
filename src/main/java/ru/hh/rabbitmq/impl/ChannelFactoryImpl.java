@@ -66,6 +66,7 @@ public class ChannelFactoryImpl implements ChannelFactory {
       attempt++;
       try {
         logger.debug("Connecting");
+        // TODO: several connections can be opened simultaneously from different threads
         connection = connectionFactory.openConnection();
         logger.debug("Connection is ready");
       } catch (IOException e) {
