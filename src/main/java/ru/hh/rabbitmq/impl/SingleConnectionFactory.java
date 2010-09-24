@@ -41,11 +41,12 @@ public class SingleConnectionFactory implements ConnectionFactory, ShutdownListe
   }
 
   public synchronized Connection getConnection() {
-    logger.debug("Opening new connection");
+    logger.debug("obtaining connection");
     int remains = attempts;
     while ((connection == null || !connection.isOpen()) && !shuttingDown && (remains > 0 || attempts == 0)) {
       try {
         remains--;
+        logger.debug("opening new connection");
         connection = connectionFactory.newConnection(addresses);
         connection.addShutdownListener(this);
       } catch (IOException connectionError) {
