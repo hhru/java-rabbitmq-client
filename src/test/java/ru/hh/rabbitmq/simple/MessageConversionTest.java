@@ -4,7 +4,12 @@ import com.rabbitmq.client.AMQP.BasicProperties;
 import com.rabbitmq.client.Envelope;
 import com.rabbitmq.client.GetResponse;
 import com.rabbitmq.client.QueueingConsumer.Delivery;
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 import junit.framework.Assert;
+import org.codehaus.jackson.JsonGenerationException;
+import org.codehaus.jackson.map.JsonMappingException;
 import org.junit.Test;
 
 public class MessageConversionTest {
@@ -34,5 +39,38 @@ public class MessageConversionTest {
     Assert.assertEquals(envelope, message.getEnvelope());
     Assert.assertEquals(props, message.getProperties());
     Assert.assertEquals(body, message.getBody());
+  }
+
+  @Test
+  public void testJsonMessage() throws JsonGenerationException, JsonMappingException, IOException, InterruptedException {
+    Map<String, Object> body = new HashMap<String, Object>();
+    body.put("someInt1", 1);
+    body.put("someString1", "test");
+
+    Map<String, Object> headers = new HashMap<String, Object>();
+    headers.put("someInt2", 2);
+    headers.put("someString2", "test2");
+
+    JsonMessage message = new JsonMessage(body, headers);
+    TestJsonMessageReceiver receiver = new TestJsonMessageReceiver();
+    receiver.receive(message);
+
+    Assert.assertEquals(body, receiver.getBody());
+    Assert.assertEquals(headers, receiver.getHeaders());
+  }
+
+  @Test
+  public void testJsonObject() throws JsonGenerationException, JsonMappingException, IOException, InterruptedException {
+    DummyJsonObject obj = new DummyJsonObject();
+
+    Map<String, Object> headers = new HashMap<String, Object>();
+    headers.put("someInt2", 2);
+    headers.put("someString2", "test2");
+
+    JsonMessage message = new JsonMessage(obj, headers);
+    TestJsonObjectReceiver receiver = new TestJsonObjectReceiver();
+    receiver.receive(message);
+
+    Assert.assertEquals(obj, receiver.getBody());
   }
 }
