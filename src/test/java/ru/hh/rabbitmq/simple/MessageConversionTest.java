@@ -52,7 +52,7 @@ public class MessageConversionTest {
     headers.put("someString2", "test2");
 
     JsonMessage message = new JsonMessage(body, headers);
-    TestJsonMessageReceiver receiver = new TestJsonMessageReceiver();
+    DummyJsonMessageReceiver receiver = new DummyJsonMessageReceiver();
     receiver.receive(message);
 
     Assert.assertEquals(body, receiver.getBody());
@@ -68,7 +68,7 @@ public class MessageConversionTest {
     headers.put("someString2", "test2");
 
     JsonMessage message = new JsonMessage(obj, headers);
-    TestJsonObjectReceiver receiver = new TestJsonObjectReceiver();
+    DummyJsonObjectReceiver receiver = new DummyJsonObjectReceiver();
     receiver.receive(message);
 
     Assert.assertEquals(obj, receiver.getBody());

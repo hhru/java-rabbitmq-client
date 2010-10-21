@@ -3,11 +3,11 @@ package ru.hh.rabbitmq.simple;
 import com.rabbitmq.client.Envelope;
 import java.util.Map;
 
-public class TestJsonObjectReceiver extends JsonMessageReceiver<DummyJsonObject> {
+public class DummyJsonObjectReceiver extends JsonMessageReceiver<DummyJsonObject> {
   private DummyJsonObject body;
   private Map<String, Object> headers;
 
-  public TestJsonObjectReceiver() {
+  public DummyJsonObjectReceiver() {
     super(DummyJsonObject.class);
   }
 
