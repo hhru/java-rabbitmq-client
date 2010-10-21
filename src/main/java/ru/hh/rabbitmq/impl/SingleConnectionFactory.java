@@ -5,6 +5,8 @@ import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ShutdownListener;
 import com.rabbitmq.client.ShutdownSignalException;
 import java.io.IOException;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,6 +37,24 @@ public class SingleConnectionFactory implements ConnectionFactory, ShutdownListe
                                  int attempts, Address... addresses) {
     this.connectionFactory = connectionFactory;
     this.addresses = addresses;
+    this.retryUnit = retryUnit;
+    this.retryDelay = retryDelay;
+    this.attempts = attempts;
+  }
+
+  public SingleConnectionFactory(com.rabbitmq.client.ConnectionFactory connectionFactory, TimeUnit retryUnit, long retryDelay,
+                                 int attempts, String hosts, int port) {
+    List<Address> addresses = new LinkedList<Address>();
+    for (String host : hosts.split("\\s*,\\s*")) {
+      if (host.length() != 0 ) {
+        addresses.add(new Address(host, port));
+      }
+    }
+    if (addresses.size() == 0) {
+      throw new IllegalArgumentException("no rabbitmq hosts specified in : " + hosts);
+    }
+    this.connectionFactory = connectionFactory;
+    this.addresses = addresses.toArray(new Address[addresses.size()]);
     this.retryUnit = retryUnit;
     this.retryDelay = retryDelay;
     this.attempts = attempts;
