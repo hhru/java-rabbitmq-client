@@ -8,7 +8,7 @@
     <groupId>ru.hh.rabbitmq</groupId>
     <artifactId>rabbitmq-client</artifactId>
     <packaging>jar</packaging>
-    <version>0.0.14-SNAPSHOT</version>
+    <version>0.0.14</version>
     <name>RabbitMQ client and utilities</name>
     <build>
         <plugins>
@@ -105,7 +105,7 @@
     </properties>
         
     <scm>
-        <connection>scm:svn:https://svn.hh.ru/headhunter.ru/commons/rabbitmq-client/trunk</connection>
-        <developerConnection>scm:svn:https://svn.hh.ru/headhunter.ru/commons/rabbitmq-client/trunk</developerConnection>
+        <connection>scm:svn:https://svn.hh.ru/headhunter.ru/commons/rabbitmq-client/tags/rabbitmq-client-0.0.14</connection>
+        <developerConnection>scm:svn:https://svn.hh.ru/headhunter.ru/commons/rabbitmq-client/tags/rabbitmq-client-0.0.14</developerConnection>
     </scm>
 </project>
