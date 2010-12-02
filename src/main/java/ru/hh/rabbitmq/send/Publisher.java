@@ -5,6 +5,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.rabbitmq.client.Address;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -62,11 +63,23 @@ public class Publisher {
    * 
    * @return ListenableFuture that gets completed after successful sending
    */
-  public ListenableFuture<Void> send(final Destination destination, final Collection<Message> messages) {
+  public ListenableFuture<Void> send(Destination destination, Collection<Message> messages) {
     PublishTaskFuture future = new PublishTaskFuture(destination, messages, false);
     taskQueue.add(future);
     return future;
   }
+
+  /**
+   * Nontransactional nonblocking method, enqueues messages internally, throws exception if local queue is full
+   * 
+   * @return ListenableFuture that gets completed after successful sending
+   */
+  public ListenableFuture<Void> send(Map<Message, Destination> messages) {
+    PublishTaskFuture future = new PublishTaskFuture(messages, false);
+    taskQueue.add(future);
+    return future;
+  }
+  
 
   /**
    * Transactional nonblocking method, enqueues messages internally, throws exception if local queue is full
@@ -84,6 +97,17 @@ public class Publisher {
    */
   public ListenableFuture<Void> sendTransactional(Destination destination, Collection<Message> messages) {
     PublishTaskFuture future = new PublishTaskFuture(destination, messages, true);
+    taskQueue.add(future);
+    return future;
+  }
+  
+  /**
+   * Transactional nonblocking method, enqueues messages internally, throws exception if local queue is full
+   * 
+   * @return ListenableFuture that gets completed after successful sending
+   */
+  public ListenableFuture<Void> sendTransactional(Map<Message, Destination> messages) {
+    PublishTaskFuture future = new PublishTaskFuture(messages, true);
     taskQueue.add(future);
     return future;
   }

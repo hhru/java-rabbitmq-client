@@ -6,7 +6,7 @@ import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.ReturnListener;
 import java.io.IOException;
-import java.util.Collection;
+import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,10 +41,10 @@ class ChannelWorker extends AbstractService implements ReturnListener {
                   try {
                     if (task.isTransactional()) {
                       transactionalChannel.txSelect();
-                      publishMessages(transactionalChannel, task.getDestination(), task.getMessages());
+                      publishMessages(transactionalChannel, task.getMessages());
                       transactionalChannel.txCommit();
                     } else {
-                      publishMessages(plainChannel, task.getDestination(), task.getMessages());
+                      publishMessages(plainChannel, task.getMessages());
                     }
                     task.complete();
                   } catch (Exception e) {
@@ -80,10 +80,10 @@ class ChannelWorker extends AbstractService implements ReturnListener {
     return channel;
   }
   
-  private void publishMessages(Channel channel, Destination destination, Collection<Message> messages) throws IOException {
-    for (Message message : messages) {
-      channel.basicPublish(destination.getExchange(), destination.getRoutingKey(), destination.isMandatory(), 
-        destination.isImmediate(), message.getProperties(), message.getBody());
+  private void publishMessages(Channel channel, Map<Message, Destination> messages) throws IOException {
+    for (Map.Entry<Message, Destination> entry : messages.entrySet()) {
+      channel.basicPublish(entry.getValue().getExchange(), entry.getValue().getRoutingKey(), entry.getValue().isMandatory(), 
+        entry.getValue().isImmediate(), entry.getKey().getProperties(), entry.getKey().getBody());
     }
   }
 
