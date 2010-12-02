@@ -64,19 +64,24 @@ class ChannelWorker extends AbstractService {
                 if (task.isCancelled()) {
                   continue;
                 }
-                if (task.isTransactional()) {
-                  transactionalChannel = ensureOpen(transactionalChannel, channelFactory);
-                  transactionalChannel.txSelect();
-                  publishMessages(transactionalChannel, task.getDestination(), task.getMessages());
-                  transactionalChannel.txCommit();
-                } else {
-                  plainChannel = ensureOpen(plainChannel, channelFactory);
-                  publishMessages(plainChannel, task.getDestination(), task.getMessages());
+                try {
+                  if (task.isTransactional()) {
+                    transactionalChannel = ensureOpen(transactionalChannel, channelFactory);
+                    transactionalChannel.txSelect();
+                    publishMessages(transactionalChannel, task.getDestination(), task.getMessages());
+                    transactionalChannel.txCommit();
+                  } else {
+                    plainChannel = ensureOpen(plainChannel, channelFactory);
+                    publishMessages(plainChannel, task.getDestination(), task.getMessages());
+                  }
+                  task.complete();
+                } catch (Exception e) {
+                  task.fail(e);
+                  throw e;
                 }
-                task.complete();
               }
             } catch (Exception e) {
-              logger.error("failed to run task", e);
+              logger.error("failed to execute task", e);
             } finally {
               channelFactory.returnChannel(plainChannel);
               channelFactory.returnChannel(transactionalChannel);
