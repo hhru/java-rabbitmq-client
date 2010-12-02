@@ -64,6 +64,8 @@ public class AsynchronousPublisherTest {
     mocks.expectLastCall().andReturn(channel).anyTimes();
     channel.setReturnListener(EasyMock.<ReturnListener>anyObject());
     mocks.expectLastCall().anyTimes();
+    channel.txSelect();
+    mocks.expectLastCall().andReturn(null).anyTimes();
     channel.close();
     mocks.expectLastCall().anyTimes();
     channel.getConnection();
