@@ -12,6 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import ru.hh.rabbitmq.ConnectionFactory;
 import ru.hh.rabbitmq.ConnectionFailedException;
+import ru.hh.rabbitmq.util.Addresses;
 
 /**
  * Maintains single open connection, reconnects if necessary
@@ -44,20 +45,7 @@ public class SingleConnectionFactory implements ConnectionFactory, ShutdownListe
 
   public SingleConnectionFactory(com.rabbitmq.client.ConnectionFactory connectionFactory, TimeUnit retryUnit, long retryDelay,
                                  int attempts, String hosts, int port) {
-    List<Address> addresses = new LinkedList<Address>();
-    for (String host : hosts.split("\\s*,\\s*")) {
-      if (host.length() != 0 ) {
-        addresses.add(new Address(host, port));
-      }
-    }
-    if (addresses.size() == 0) {
-      throw new IllegalArgumentException("no rabbitmq hosts specified in : " + hosts);
-    }
-    this.connectionFactory = connectionFactory;
-    this.addresses = addresses.toArray(new Address[addresses.size()]);
-    this.retryUnit = retryUnit;
-    this.retryDelay = retryDelay;
-    this.attempts = attempts;
+    this(connectionFactory, retryUnit, retryDelay, attempts, Addresses.split(hosts, port));
   }
 
   public synchronized Connection getConnection() {
