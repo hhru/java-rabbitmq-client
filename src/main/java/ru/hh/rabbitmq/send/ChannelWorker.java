@@ -35,12 +35,11 @@ class ChannelWorker extends AbstractService implements ReturnListener {
             try {
               while (isRunning()) {
                 PublishTaskFuture task = ChannelWorker.this.taskQueue.take();
-                transactionalChannel = ensureOpen(transactionalChannel, ChannelWorker.this.channelFactory);
-                plainChannel = ensureOpen(plainChannel, ChannelWorker.this.channelFactory);
+                transactionalChannel = ensureOpen(transactionalChannel, ChannelWorker.this.channelFactory, true);
+                plainChannel = ensureOpen(plainChannel, ChannelWorker.this.channelFactory, false);
                 if (!task.isCancelled()) {
                   try {
                     if (task.isTransactional()) {
-                      transactionalChannel.txSelect();
                       publishMessages(transactionalChannel, task.getMessages());
                       transactionalChannel.txCommit();
                     } else {
@@ -72,10 +71,13 @@ class ChannelWorker extends AbstractService implements ReturnListener {
     };
   }
 
-  private Channel ensureOpen(Channel channel, ChannelFactory factory) {
+  private Channel ensureOpen(Channel channel, ChannelFactory factory, boolean transactional) throws IOException {
     if (channel == null || !channel.isOpen()) {
       channel = channelFactory.getChannel();
       channel.setReturnListener(this);
+      if (transactional) {
+        channel.txSelect();
+      }
     }
     return channel;
   }
