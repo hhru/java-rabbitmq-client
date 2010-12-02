@@ -1,17 +1,13 @@
 package ru.hh.rabbitmq.send;
 
 import com.google.common.base.Service;
+import com.google.common.util.concurrent.ListenableFuture;
 import com.rabbitmq.client.Address;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import ru.hh.rabbitmq.ConnectionFactory;
 import ru.hh.rabbitmq.impl.ChannelFactoryImpl;
 import ru.hh.rabbitmq.impl.SingleConnectionFactory;
@@ -55,18 +51,18 @@ public class Publisher {
   /**
    * Nontransactional nonblocking method, enqueues messages internally, throws exception if local queue is full
    * 
-   * @return Future that gets completed after successful sending
+   * @return ListenableFuture that gets completed after successful sending
    */
-  public Future<Void> send(Destination destination, Message... messages) {
+  public ListenableFuture<Void> send(Destination destination, Message... messages) {
     return send(destination, Arrays.asList(messages));
   }
 
   /**
    * Nontransactional nonblocking method, enqueues messages internally, throws exception if local queue is full
    * 
-   * @return Future that gets completed after successful sending
+   * @return ListenableFuture that gets completed after successful sending
    */
-  public Future<Void> send(final Destination destination, final Collection<Message> messages) {
+  public ListenableFuture<Void> send(final Destination destination, final Collection<Message> messages) {
     PublishTaskFuture future = new PublishTaskFuture(destination, messages, false);
     taskQueue.add(future);
     return future;
@@ -75,18 +71,18 @@ public class Publisher {
   /**
    * Transactional nonblocking method, enqueues messages internally, throws exception if local queue is full
    * 
-   * @return Future that gets completed after successful sending
+   * @return ListenableFuture that gets completed after successful sending
    */
-  public Future<Void> sendTransactional(Destination destination, Message... messages) {
+  public ListenableFuture<Void> sendTransactional(Destination destination, Message... messages) {
     return sendTransactional(destination, Arrays.asList(messages));
   }
 
   /**
    * Transactional nonblocking method, enqueues messages internally, throws exception if local queue is full
    * 
-   * @return Future that gets completed after successful sending
+   * @return ListenableFuture that gets completed after successful sending
    */
-  public Future<Void> sendTransactional(Destination destination, Collection<Message> messages) {
+  public ListenableFuture<Void> sendTransactional(Destination destination, Collection<Message> messages) {
     PublishTaskFuture future = new PublishTaskFuture(destination, messages, true);
     taskQueue.add(future);
     return future;
