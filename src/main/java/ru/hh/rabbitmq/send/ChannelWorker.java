@@ -53,7 +53,6 @@ class ChannelWorker extends AbstractService {
   protected void doStart() {
     executor.execute(new Runnable() {
       public void run() {
-        // TODO too many try/catch/finally
         while (isRunning()) {
           Channel plainChannel = null;
           Channel transactionalChannel = null;
