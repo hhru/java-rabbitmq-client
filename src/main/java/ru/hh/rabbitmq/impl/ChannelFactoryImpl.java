@@ -30,9 +30,8 @@ public class ChannelFactoryImpl implements ChannelFactory {
     if (channel == null) {
       return;
     }
-    
     if (!channel.isOpen()) {
-      logger.warn("Channel is already closed, ignoring");
+      logger.debug("Channel is already closed, ignoring");
       return;
     }
     try {
