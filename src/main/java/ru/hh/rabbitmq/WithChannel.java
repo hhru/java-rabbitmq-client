@@ -41,6 +41,7 @@ public class WithChannel {
     @Override
     public void run(Channel channel) {
       try {
+        // TODO check cancelled
         task.run(channel);
         set(null);
       } catch (RuntimeException e) {
