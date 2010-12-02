@@ -21,4 +21,9 @@ class ChannelTaskFuture extends AbstractFuture<Void> implements ChannelTask {
       setException(e);
     }
   }
+
+  @Override
+  public boolean isTransactional() {
+    return task.isTransactional();
+  }
 }
