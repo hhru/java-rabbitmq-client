@@ -2,6 +2,7 @@ package ru.hh.rabbitmq.send;
 
 import com.google.common.base.Service;
 import com.rabbitmq.client.Address;
+import java.util.Collection;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Future;
@@ -11,6 +12,7 @@ import org.slf4j.LoggerFactory;
 import ru.hh.rabbitmq.ConnectionFactory;
 import ru.hh.rabbitmq.impl.ChannelFactoryImpl;
 import ru.hh.rabbitmq.impl.SingleConnectionFactory;
+import ru.hh.rabbitmq.simple.Message;
 import ru.hh.rabbitmq.util.Addresses;
 
 public class Publisher {
@@ -19,7 +21,6 @@ public class Publisher {
   private final ConnectionFactory[] connectionFactories;
   private final Service[] workers;
   private final BlockingQueue<ChannelTask> taskQueue;
-
 
   public Publisher(com.rabbitmq.client.ConnectionFactory connectionFactory, TimeUnit retryUnit, long retryDelay,
                    int attempts, int queueLength, Address... addresses) {
@@ -54,5 +55,37 @@ public class Publisher {
     for(ConnectionFactory factory : connectionFactories) {
       factory.close();
     }
+  }
+
+  /**
+   * Fast sending method, enqueues message internally, throws exception if local queue full
+   * 
+   * @param exchange AMQP exchange to send message
+   * @param routingKey AMQP routing key
+   * @param messages 
+   * @return Future that gets completed after successful sending
+   */
+  public Future<Void> send(String exchange, String routingKey, Message... messages) {
+    
+  }
+  
+  /**
+   * Fast sending method, enqueues message internally, throws exception if local queue full
+   * 
+   * @param exchange AMQP exchange to send message
+   * @param routingKey AMQP routing key
+   * @param messages 
+   * @return Future that gets completed after successful sending
+   */
+  public Future<Void> send(String exchange, String routingKey, Collection<Message> messages) {
+    
+  }
+
+  public void sendTransactional(long timeout, TimeUnit unit, String exchange, String routingKey, Message... messages) {
+    
+  }
+  
+  public void sendTransactional(long timeout, TimeUnit unit, String exchange, String routingKey, Collection<Message> messages) {
+    
   }
 }
