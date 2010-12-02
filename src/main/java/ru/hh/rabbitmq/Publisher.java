@@ -19,11 +19,13 @@ public class Publisher {
     void run(Channel channel);
   }
   
-  private class ChannelWorker extends AbstractExecutionThreadService {
+  static class ChannelWorker extends AbstractExecutionThreadService {
     private final ChannelFactory channelFactory;
+    private final BlockingQueue<ChannelTask> taskQueue;
 
-    private ChannelWorker(ChannelFactory channelFactory) {
+    private ChannelWorker(ChannelFactory channelFactory, BlockingQueue<ChannelTask> taskQueue) {
       this.channelFactory = channelFactory;
+      this.taskQueue = taskQueue;
     }
 
     // TODO service name
