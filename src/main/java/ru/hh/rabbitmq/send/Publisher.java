@@ -2,6 +2,7 @@ package ru.hh.rabbitmq.send;
 
 import com.google.common.base.Service;
 import com.rabbitmq.client.Address;
+import com.rabbitmq.client.Channel;
 import java.util.Collection;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
@@ -42,12 +43,6 @@ public class Publisher {
     this(connectionFactory, retryUnit, retryDelay, attempts, queueLength, Addresses.split(hosts, port));
   }
 
-  private Future<Void> submit(final ChannelTask task) {
-    ChannelTaskFuture future = new ChannelTaskFuture(task);
-    taskQueue.add(future);
-    return future;
-  }
-  
   public void close() {
     for (Service worker : workers) {
       worker.stopAndWait();
@@ -58,34 +53,34 @@ public class Publisher {
   }
 
   /**
-   * Fast sending method, enqueues message internally, throws exception if local queue full
+   * Fast sending method, enqueues messages internally, throws exception if local queue full
    * 
-   * @param exchange AMQP exchange to send message
-   * @param routingKey AMQP routing key
-   * @param messages 
    * @return Future that gets completed after successful sending
    */
-  public Future<Void> send(String exchange, String routingKey, Message... messages) {
-    
-  }
-  
-  /**
-   * Fast sending method, enqueues message internally, throws exception if local queue full
-   * 
-   * @param exchange AMQP exchange to send message
-   * @param routingKey AMQP routing key
-   * @param messages 
-   * @return Future that gets completed after successful sending
-   */
-  public Future<Void> send(String exchange, String routingKey, Collection<Message> messages) {
-    
+  public Future<Void> send(final Destination destination, final Collection<Message> messages) {
+    ChannelTaskFuture future = new ChannelTaskFuture(new ChannelTask() {
+      @Override
+      public void run(Channel channel) {
+        for (Message message : messages) {
+          channel.basicPublish(destination.getExchange(), destination.getRoutingKey(), destination.isMandatory(), 
+            destination.isImmediate(), message.getProperties(), message.getBody());
+        }
+      }
+
+      @Override
+      public boolean isTransactional() {
+        return false;
+      }
+    });
+    taskQueue.add(future);
+    return future;
   }
 
-  public void sendTransactional(long timeout, TimeUnit unit, String exchange, String routingKey, Message... messages) {
-    
-  }
-  
-  public void sendTransactional(long timeout, TimeUnit unit, String exchange, String routingKey, Collection<Message> messages) {
+  /**
+   * Blocking transactional sending method, enqueues messages internally, waiting if necessary
+   * for space to become available, then waiting for operation to complete
+   */
+  public void sendTransactional(long timeout, TimeUnit unit, Destination destination, Collection<Message> messages) {
     
   }
 }
