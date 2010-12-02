@@ -35,15 +35,15 @@ class ChannelWorker extends AbstractService implements ReturnListener {
             try {
               while (isRunning()) {
                 PublishTaskFuture task = ChannelWorker.this.taskQueue.take();
-                if (!task.isCancelled()) { // TODO check it just before sending
+                transactionalChannel = ensureOpen(transactionalChannel, ChannelWorker.this.channelFactory);
+                plainChannel = ensureOpen(plainChannel, ChannelWorker.this.channelFactory);
+                if (!task.isCancelled()) {
                   try {
                     if (task.isTransactional()) {
-                      transactionalChannel = ensureOpen(transactionalChannel, ChannelWorker.this.channelFactory);
                       transactionalChannel.txSelect();
                       publishMessages(transactionalChannel, task.getDestination(), task.getMessages());
                       transactionalChannel.txCommit();
                     } else {
-                      plainChannel = ensureOpen(plainChannel, ChannelWorker.this.channelFactory);
                       publishMessages(plainChannel, task.getDestination(), task.getMessages());
                     }
                     task.complete();
