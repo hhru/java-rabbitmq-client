@@ -15,7 +15,11 @@ public class Publisher {
   private final Service[] workers;
   private final BlockingQueue<ChannelTask> taskQueue;
   
-  private static class ChannelWorker extends AbstractExecutionThreadService {
+  private static interface ChannelTask {
+    void run(Channel channel);
+  }
+  
+  private class ChannelWorker extends AbstractExecutionThreadService {
     private final ChannelFactory channelFactory;
 
     private ChannelWorker(ChannelFactory channelFactory) {
@@ -25,7 +29,20 @@ public class Publisher {
     @Override
     protected void run() throws Exception {
       while (isRunning()) {
-        // TODO get channel, execute ChannelTaskFuture
+        try {
+          Channel channel = channelFactory.getChannel();
+          try {
+            while (isRunning()) {
+              taskQueue.take().run(channel);
+            }
+          } catch (Exception e) {
+            logger.error("failed to run task", e);
+          } finally {
+            channelFactory.returnChannel(channel);
+          }
+        } catch (Exception e) {
+          logger.error("failed to get channel", e);
+        }
       }
     }
   }
@@ -40,9 +57,10 @@ public class Publisher {
     @Override
     public void run(Channel channel) {
       try {
-        // TODO check cancelled
-        task.run(channel);
-        set(null);
+        if (!isCancelled()) {
+          task.run(channel);
+          set(null);
+        }
       } catch (RuntimeException e) {
         setException(e);
       }
@@ -54,4 +72,11 @@ public class Publisher {
     taskQueue.add(future);
     return future;
   }
+  
+  public void close() {
+    for (Service worker : workers) {
+      worker.stopAndWait();
+    }
+  }
+
 }
