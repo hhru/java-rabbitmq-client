@@ -1,11 +1,9 @@
 package ru.hh.rabbitmq.send;
 
 import com.google.common.base.Throwables;
-import com.google.common.util.concurrent.AbstractExecutionThreadService;
 import com.google.common.util.concurrent.AbstractService;
 import com.rabbitmq.client.Channel;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
