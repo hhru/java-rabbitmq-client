@@ -7,9 +7,6 @@ import com.rabbitmq.client.ReturnListener;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import ru.hh.rabbitmq.ChannelFactory;
@@ -20,17 +17,47 @@ class ChannelWorker extends AbstractService implements ReturnListener {
   
   private final ChannelFactory channelFactory;
   private final BlockingQueue<PublishTaskFuture> taskQueue;
-  private final ExecutorService executor;
+  private final Thread thread;
 
   ChannelWorker(ChannelFactory channelFactory, BlockingQueue<PublishTaskFuture> taskQueue, final String name) {
     this.channelFactory = channelFactory;
     this.taskQueue = taskQueue;
-    this.executor = Executors.newSingleThreadExecutor(new ThreadFactory() {
+    this.thread = new Thread(name) {
       @Override
-      public Thread newThread(Runnable r) {
-        return new Thread(r, name);
+      public void run() {
+        while (isRunning()) {
+          Channel plainChannel = null;
+          Channel transactionalChannel = null;
+          try {
+            while (isRunning()) {
+              PublishTaskFuture task = ChannelWorker.this.taskQueue.take();
+              if (!task.isCancelled()) {
+                try {
+                  if (task.isTransactional()) {
+                    transactionalChannel = ensureOpen(transactionalChannel, ChannelWorker.this.channelFactory);
+                    transactionalChannel.txSelect();
+                    publishMessages(transactionalChannel, task.getDestination(), task.getMessages());
+                    transactionalChannel.txCommit();
+                  } else {
+                    plainChannel = ensureOpen(plainChannel, ChannelWorker.this.channelFactory);
+                    publishMessages(plainChannel, task.getDestination(), task.getMessages());
+                  }
+                  task.complete();
+                } catch (Exception e) {
+                  task.fail(e);
+                  throw e;
+                }
+              }
+            }
+          } catch (Exception e) {
+            logger.error("failed to execute task", e);
+          } finally {
+            ChannelWorker.this.channelFactory.returnChannel(plainChannel);
+            ChannelWorker.this.channelFactory.returnChannel(transactionalChannel);
+          }
+        }
       }
-    });
+    };
   }
 
   private Channel ensureOpen(Channel channel, ChannelFactory factory) {
@@ -47,49 +74,20 @@ class ChannelWorker extends AbstractService implements ReturnListener {
         destination.isImmediate(), message.getProperties(), message.getBody());
     }
   }
-                             
+
   @Override
   protected void doStart() {
-    executor.execute(new Runnable() {
-      public void run() {
-        while (isRunning()) {
-          Channel plainChannel = null;
-          Channel transactionalChannel = null;
-          try {
-            while (isRunning()) {
-              PublishTaskFuture task = taskQueue.take();
-              if (!task.isCancelled()) {
-                try {
-                  if (task.isTransactional()) {
-                    transactionalChannel = ensureOpen(transactionalChannel, channelFactory);
-                    transactionalChannel.txSelect();
-                    publishMessages(transactionalChannel, task.getDestination(), task.getMessages());
-                    transactionalChannel.txCommit();
-                  } else {
-                    plainChannel = ensureOpen(plainChannel, channelFactory);
-                    publishMessages(plainChannel, task.getDestination(), task.getMessages());
-                  }
-                  task.complete();
-                } catch (Exception e) {
-                  task.fail(e);
-                  throw e;
-                }
-              }
-            }
-          } catch (Exception e) {
-            logger.error("failed to execute task", e);
-          } finally {
-            channelFactory.returnChannel(plainChannel);
-            channelFactory.returnChannel(transactionalChannel);
-          }
-        }
-      }
-    });
+    thread.start();
   }
 
   @Override
   protected void doStop() {
-    executor.shutdownNow();
+    thread.interrupt();
+    try {
+      thread.join();
+    } catch (InterruptedException e) {
+      logger.warn("stopping interrupted", e);
+    }
   }
 
   @Override
