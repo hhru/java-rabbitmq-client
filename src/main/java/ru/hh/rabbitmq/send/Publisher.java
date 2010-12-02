@@ -5,8 +5,10 @@ import com.rabbitmq.client.Address;
 import java.util.Collection;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import ru.hh.rabbitmq.ConnectionFactory;
@@ -20,7 +22,7 @@ public class Publisher {
   
   private final ConnectionFactory[] connectionFactories;
   private final Service[] workers;
-  private final BlockingQueue<ChannelTask> taskQueue;
+  private final BlockingQueue<PublishTaskFuture> taskQueue;
 
   public Publisher(com.rabbitmq.client.ConnectionFactory connectionFactory, TimeUnit retryUnit, long retryDelay,
                    int attempts, int queueLength, Address... addresses) {
@@ -29,7 +31,7 @@ public class Publisher {
     }
     connectionFactories = new ConnectionFactory[addresses.length];
     workers = new Service[addresses.length];
-    taskQueue = new ArrayBlockingQueue<ChannelTask>(queueLength);
+    taskQueue = new ArrayBlockingQueue<PublishTaskFuture>(queueLength);
     for(int i = 0; i < addresses.length; i ++) {
       connectionFactories[i] = new SingleConnectionFactory(connectionFactory, retryUnit, retryDelay, attempts, addresses[i]);
       workers[i] = new ChannelWorker(new ChannelFactoryImpl(connectionFactories[i]), taskQueue, addresses[i].toString() + "-publisher-worker");
@@ -57,7 +59,7 @@ public class Publisher {
    * @return Future that gets completed after successful sending
    */
   public Future<Void> send(final Destination destination, final Collection<Message> messages) {
-    ChannelTaskFuture future = new ChannelTaskFuture(new PublishTask(destination, messages, false));
+    PublishTaskFuture future = new PublishTaskFuture(destination, messages, false);
     taskQueue.add(future);
     return future;
   }
@@ -66,7 +68,14 @@ public class Publisher {
    * Blocking transactional sending method, enqueues messages internally, waiting if necessary
    * for space to become available, then waiting for operation to complete
    */
-  public void sendTransactional(long timeout, TimeUnit unit, Destination destination, Collection<Message> messages) {
-    
+  public void sendTransactional(long timeout, TimeUnit unit, Destination destination, Collection<Message> messages) 
+                               throws InterruptedException, ExecutionException, TimeoutException {
+    PublishTaskFuture future = new PublishTaskFuture(destination, messages, false);
+    if (taskQueue.offer(future, timeout, unit)) {
+      future.get(timeout, unit);
+    } else {
+      throw new TimeoutException(String.format("queue full, failed to publish messages to exchange '%s' with routing key '%s'", 
+        destination.getExchange(), destination.getRoutingKey()));
+    }
   }
 }

@@ -3,6 +3,8 @@ package ru.hh.rabbitmq.send;
 import com.google.common.base.Throwables;
 import com.google.common.util.concurrent.AbstractService;
 import com.rabbitmq.client.Channel;
+import java.io.IOException;
+import java.util.Collection;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -10,17 +12,18 @@ import java.util.concurrent.ThreadFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import ru.hh.rabbitmq.ChannelFactory;
+import ru.hh.rabbitmq.simple.Message;
 
 // TODO ReturnListener
 class ChannelWorker extends AbstractService {
   public static final Logger logger = LoggerFactory.getLogger(ChannelWorker.class);
   
   private final ChannelFactory channelFactory;
-  private final BlockingQueue<ChannelTask> taskQueue;
+  private final BlockingQueue<PublishTaskFuture> taskQueue;
   private final ExecutorService executor;
   private final String name;
 
-  ChannelWorker(ChannelFactory channelFactory, BlockingQueue<ChannelTask> taskQueue, String name) {
+  ChannelWorker(ChannelFactory channelFactory, BlockingQueue<PublishTaskFuture> taskQueue, String name) {
     this.channelFactory = channelFactory;
     this.taskQueue = taskQueue;
     this.name = name;
@@ -32,6 +35,20 @@ class ChannelWorker extends AbstractService {
     });
   }
 
+  private Channel ensureOpen(Channel channel, ChannelFactory factory) {
+    if (channel == null || !channel.isOpen()) {
+      channel = channelFactory.getChannel();
+    }
+    return channel;
+  }
+  
+  private void publishMessages(Channel channel, Destination destination, Collection<Message> messages) throws IOException {
+    for (Message message : messages) {
+      channel.basicPublish(destination.getExchange(), destination.getRoutingKey(), destination.isMandatory(), 
+        destination.isImmediate(), message.getProperties(), message.getBody());
+    }
+  }
+                             
   @Override
   protected void doStart() {
     executor.execute(new Runnable() {
@@ -43,19 +60,20 @@ class ChannelWorker extends AbstractService {
             Channel transactionalChannel = null;
             try {
               while (isRunning()) {
-                ChannelTask task = taskQueue.take();
-                if (task.isTransactional()) {
-                  if (transactionalChannel == null || !transactionalChannel.isOpen()) {
-                    transactionalChannel = channelFactory.getChannel();
-                    transactionalChannel.txSelect();
-                  }
-                  task.run(transactionalChannel);
-                } else {
-                  if (plainChannel == null || !plainChannel.isOpen()) {
-                    plainChannel = channelFactory.getChannel();
-                  }
-                  task.run(plainChannel);
+                PublishTaskFuture task = taskQueue.take();
+                if (task.isCancelled()) {
+                  continue;
                 }
+                if (task.isTransactional()) {
+                  transactionalChannel = ensureOpen(transactionalChannel, channelFactory);
+                  transactionalChannel.txSelect();
+                  publishMessages(transactionalChannel, task.getDestination(), task.getMessages());
+                  transactionalChannel.txCommit();
+                } else {
+                  plainChannel = ensureOpen(plainChannel, channelFactory);
+                  publishMessages(plainChannel, task.getDestination(), task.getMessages());
+                }
+                task.complete();
               }
             } catch (Exception e) {
               logger.error("failed to run task", e);
