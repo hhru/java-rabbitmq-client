@@ -19,15 +19,16 @@ class ChannelWorker extends AbstractService {
   private final ChannelFactory channelFactory;
   private final BlockingQueue<ChannelTask> taskQueue;
   private final ExecutorService executor;
+  private final String name;
 
-  ChannelWorker(ChannelFactory channelFactory, BlockingQueue<ChannelTask> taskQueue) {
+  ChannelWorker(ChannelFactory channelFactory, BlockingQueue<ChannelTask> taskQueue, String name) {
     this.channelFactory = channelFactory;
     this.taskQueue = taskQueue;
+    this.name = name;
     this.executor = Executors.newSingleThreadExecutor(new ThreadFactory() {
       @Override
       public Thread newThread(Runnable r) {
-        // TODO service name
-        return new Thread(r);
+        return new Thread(r, ChannelWorker.this.name);
       }
     });
   }
