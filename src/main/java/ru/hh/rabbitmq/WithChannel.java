@@ -26,7 +26,7 @@ public class WithChannel {
     @Override
     protected void run() throws Exception {
       while (isRunning()) {
-        // TODO get channel, execute ChannelTask, set future
+        // TODO get channel, execute ChannelTaskFuture
       }
     }
   }
