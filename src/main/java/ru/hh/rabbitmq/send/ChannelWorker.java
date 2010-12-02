@@ -1,5 +1,6 @@
 package ru.hh.rabbitmq.send;
 
+import com.google.common.base.Throwables;
 import com.google.common.util.concurrent.AbstractService;
 import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Channel;
@@ -25,39 +26,46 @@ class ChannelWorker extends AbstractService implements ReturnListener {
     this.thread = new Thread(name) {
       @Override
       public void run() {
-        logger.info("worker started");
-        while (isRunning()) {
-          Channel plainChannel = null;
-          Channel transactionalChannel = null;
-          try {
-            while (isRunning()) {
-              PublishTaskFuture task = ChannelWorker.this.taskQueue.take();
-              if (!task.isCancelled()) {
-                try {
-                  if (task.isTransactional()) {
-                    transactionalChannel = ensureOpen(transactionalChannel, ChannelWorker.this.channelFactory);
-                    transactionalChannel.txSelect();
-                    publishMessages(transactionalChannel, task.getDestination(), task.getMessages());
-                    transactionalChannel.txCommit();
-                  } else {
-                    plainChannel = ensureOpen(plainChannel, ChannelWorker.this.channelFactory);
-                    publishMessages(plainChannel, task.getDestination(), task.getMessages());
+        try {
+          notifyStarted();
+          logger.info("worker started");
+          while (isRunning()) {
+            Channel plainChannel = null;
+            Channel transactionalChannel = null;
+            try {
+              while (isRunning()) {
+                PublishTaskFuture task = ChannelWorker.this.taskQueue.take();
+                if (!task.isCancelled()) {
+                  try {
+                    if (task.isTransactional()) {
+                      transactionalChannel = ensureOpen(transactionalChannel, ChannelWorker.this.channelFactory);
+                      transactionalChannel.txSelect();
+                      publishMessages(transactionalChannel, task.getDestination(), task.getMessages());
+                      transactionalChannel.txCommit();
+                    } else {
+                      plainChannel = ensureOpen(plainChannel, ChannelWorker.this.channelFactory);
+                      publishMessages(plainChannel, task.getDestination(), task.getMessages());
+                    }
+                    task.complete();
+                  } catch (Exception e) {
+                    task.fail(e);
+                    throw e;
                   }
-                  task.complete();
-                } catch (Exception e) {
-                  task.fail(e);
-                  throw e;
                 }
               }
+            } catch (Exception e) {
+              logger.error("failed to execute task", e);
+            } finally {
+              ChannelWorker.this.channelFactory.returnChannel(plainChannel);
+              ChannelWorker.this.channelFactory.returnChannel(transactionalChannel);
             }
-          } catch (Exception e) {
-            logger.error("failed to execute task", e);
-          } finally {
-            ChannelWorker.this.channelFactory.returnChannel(plainChannel);
-            ChannelWorker.this.channelFactory.returnChannel(transactionalChannel);
           }
+          logger.info("worker stopped");
+          notifyStopped();
+        } catch (Throwable t) {
+          notifyFailed(t);
+          throw Throwables.propagate(t);
         }
-        logger.info("worker stopped");
       }
     };
   }
@@ -96,6 +104,6 @@ class ChannelWorker extends AbstractService implements ReturnListener {
   public void handleBasicReturn(int replyCode, String replyText, String exchange, String routingKey, 
                                 AMQP.BasicProperties properties, byte[] body) throws IOException {
     logger.error("message returned, replyCode {}, replyText '{}', exchange {}, routingKey {}, properties {}",
-        new Object[] {replyCode, replyText, exchange, routingKey, properties});
+      new Object[]{replyCode, replyText, exchange, routingKey, properties});
   }
 }
