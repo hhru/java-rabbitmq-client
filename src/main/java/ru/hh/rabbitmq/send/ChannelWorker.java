@@ -36,6 +36,7 @@ class ChannelWorker extends AbstractService implements ReturnListener {
   private Channel ensureOpen(Channel channel, ChannelFactory factory) {
     if (channel == null || !channel.isOpen()) {
       channel = channelFactory.getChannel();
+      channel.setReturnListener(this);
     }
     return channel;
   }
