@@ -2,6 +2,7 @@ package ru.hh.rabbitmq.send;
 
 import com.google.common.base.Service;
 import com.rabbitmq.client.Address;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
@@ -56,6 +57,15 @@ public class Publisher {
    * 
    * @return Future that gets completed after successful sending
    */
+  public Future<Void> send(Destination destination, Message... messages) {
+    return send(destination, Arrays.asList(messages));
+  }
+
+  /**
+   * Nontransactional nonblocking method, enqueues messages internally, throws exception if local queue is full
+   * 
+   * @return Future that gets completed after successful sending
+   */
   public Future<Void> send(final Destination destination, final Collection<Message> messages) {
     PublishTaskFuture future = new PublishTaskFuture(destination, messages, false);
     taskQueue.add(future);
@@ -67,8 +77,16 @@ public class Publisher {
    * 
    * @return Future that gets completed after successful sending
    */
-  public Future<Void> sendTransactional(long timeout, TimeUnit unit, Destination destination, Collection<Message> messages) 
-                               throws InterruptedException, ExecutionException, TimeoutException {
+  public Future<Void> sendTransactional(Destination destination, Message... messages) {
+    return sendTransactional(destination, Arrays.asList(messages));
+  }
+
+  /**
+   * Transactional nonblocking method, enqueues messages internally, throws exception if local queue is full
+   * 
+   * @return Future that gets completed after successful sending
+   */
+  public Future<Void> sendTransactional(Destination destination, Collection<Message> messages) {
     PublishTaskFuture future = new PublishTaskFuture(destination, messages, true);
     taskQueue.add(future);
     return future;
