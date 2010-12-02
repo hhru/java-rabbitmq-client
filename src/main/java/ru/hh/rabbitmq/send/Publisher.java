@@ -25,13 +25,13 @@ public class Publisher {
   private final BlockingQueue<PublishTaskFuture> taskQueue;
 
   public Publisher(com.rabbitmq.client.ConnectionFactory connectionFactory, TimeUnit retryUnit, long retryDelay,
-                   int attempts, int queueLength, Address... addresses) {
+                   int attempts, int maxQueueLength, Address... addresses) {
     if (addresses.length < 1) {
       throw new IllegalArgumentException("can't create Publisher without connection addresses");
     }
     connectionFactories = new ConnectionFactory[addresses.length];
     workers = new Service[addresses.length];
-    taskQueue = new ArrayBlockingQueue<PublishTaskFuture>(queueLength);
+    taskQueue = new ArrayBlockingQueue<PublishTaskFuture>(maxQueueLength);
     for(int i = 0; i < addresses.length; i ++) {
       connectionFactories[i] = new SingleConnectionFactory(connectionFactory, retryUnit, retryDelay, attempts, addresses[i]);
       workers[i] = new ChannelWorker(new ChannelFactoryImpl(connectionFactories[i]), taskQueue, addresses[i].toString() + "-publisher-worker");
@@ -54,7 +54,7 @@ public class Publisher {
   }
 
   /**
-   * Fast sending method, enqueues messages internally, throws exception if local queue full
+   * Nontransactional nonblocking method, enqueues messages internally, throws exception if local queue is full
    * 
    * @return Future that gets completed after successful sending
    */
@@ -65,17 +65,14 @@ public class Publisher {
   }
 
   /**
-   * Blocking transactional sending method, enqueues messages internally, waiting if necessary
-   * for space to become available, then waiting for operation to complete
+   * Transactional nonblocking method, enqueues messages internally, throws exception if local queue is full
+   * 
+   * @return Future that gets completed after successful sending
    */
-  public void sendTransactional(long timeout, TimeUnit unit, Destination destination, Collection<Message> messages) 
+  public Future<Void> sendTransactional(long timeout, TimeUnit unit, Destination destination, Collection<Message> messages) 
                                throws InterruptedException, ExecutionException, TimeoutException {
-    PublishTaskFuture future = new PublishTaskFuture(destination, messages, false);
-    if (taskQueue.offer(future, timeout, unit)) {
-      future.get(timeout, unit);
-    } else {
-      throw new TimeoutException(String.format("queue full, failed to publish messages to exchange '%s' with routing key '%s'", 
-        destination.getExchange(), destination.getRoutingKey()));
-    }
+    PublishTaskFuture future = new PublishTaskFuture(destination, messages, true);
+    taskQueue.add(future);
+    return future;
   }
 }
