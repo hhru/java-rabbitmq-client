@@ -1,7 +1,6 @@
 package ru.hh.rabbitmq.simple;
 
 import com.rabbitmq.client.Channel;
-import com.rabbitmq.client.FlowListener;
 import com.rabbitmq.client.GetResponse;
 import com.rabbitmq.client.QueueingConsumer;
 import com.rabbitmq.client.QueueingConsumer.Delivery;
@@ -15,7 +14,7 @@ import ru.hh.rabbitmq.ChannelFactory;
 import ru.hh.rabbitmq.ConnectionFailedException;
 import ru.hh.rabbitmq.TransactionException;
 
-public class ChannelWrapper implements FlowListener {
+public class ChannelWrapper {
   private static final Logger logger = LoggerFactory.getLogger(ChannelWrapper.class);
 
   private String queueName;
@@ -24,13 +23,11 @@ public class ChannelWrapper implements FlowListener {
   private ChannelFactory factory;
   private boolean transactional = false;
   private Integer prefetchCount = null;
-  private boolean waitFlow = false;
 
   private boolean nonEmptyTransaction;
   private boolean closed;
 
   private Channel channel;
-  private volatile boolean flowActive = true;
   
   public void setQueueName(String queueName) {
     this.queueName = queueName;
@@ -60,10 +57,6 @@ public class ChannelWrapper implements FlowListener {
       throw new IllegalStateException("can't change prefetch count on open channel");
     }
     this.prefetchCount = prefetchCount;
-  }
-
-  public void setWaitFlow(boolean waitFlow) {
-    this.waitFlow = waitFlow;
   }
 
   public void commit() {
@@ -109,7 +102,6 @@ public class ChannelWrapper implements FlowListener {
     ensureConnected();
     nonEmptyTransaction = true;
     for (Message message : messages) {
-      checkFlow();
       channel.basicPublish(
         getTargetExchangeName(), getTargetRoutingKey(), true, false, message.getProperties(), message.getBody());
     }
@@ -225,7 +217,6 @@ public class ChannelWrapper implements FlowListener {
 
   public void close() {
     closed = true;
-    channel.setFlowListener(null);
     factory.returnChannel(channel);
   }
 
@@ -240,10 +231,6 @@ public class ChannelWrapper implements FlowListener {
     if (channel == null || !channel.isOpen()) {
       try {
         channel = factory.getChannel();
-        // TODO: channel can be stopped from the beginning, but we are considering it to be active
-        // TODO: use channel.getFlow().getActive when it becomes threadsafe 
-        flowActive = true;
-        channel.setFlowListener(this);
         if (prefetchCount != null) {
           channel.basicQos(prefetchCount);
         }
@@ -253,22 +240,6 @@ public class ChannelWrapper implements FlowListener {
       } catch (IOException e) {
         throw new ConnectionFailedException("Can't open channel", e);
       }
-    }
-  }
-  
-  private void checkFlow() {
-    if (!flowActive && !waitFlow) {
-      throw new IllegalStateException("can't send, server sent channel.flow = false");
-    }
-  }
-
-  @Override
-  public void handleFlow(boolean active) throws IOException {
-    flowActive = active;
-    if (active) {
-      logger.info("got channel.flow = true, resuming to send messages");
-    } else {
-      logger.error("got channel.flow = false, sending is prohibited");
     }
   }
 }
