@@ -6,15 +6,16 @@ import java.util.List;
 
 public class Addresses {
   public static Address[] split(String hosts, int port) {
-    List<Address> addresses = new LinkedList<Address>();
-    for (String host : hosts.split("\\s*,\\s*")) {
-      if (host.length() != 0 ) {
-        addresses.add(new Address(host, port));
-      }
-    }
-    if (addresses.size() == 0) {
+    String[] splitHosts = hosts.split("\\s*,\\s*");
+    if (splitHosts.length == 0) {
       throw new IllegalArgumentException("no rabbitmq hosts specified in : " + hosts);
     }
-    return addresses.toArray(new Address[addresses.size()]);
+    Address[] addresses = new Address[splitHosts.length];
+    for(int i = 0; i < splitHosts.length; i++) {
+      if (splitHosts[i].length() != 0 ) {
+        addresses[i] = new Address(splitHosts[i], port);
+      }
+    }
+    return addresses;
   }
 }
