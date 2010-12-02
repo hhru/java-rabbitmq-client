@@ -25,6 +25,7 @@ class ChannelWorker extends AbstractService implements ReturnListener {
     this.thread = new Thread(name) {
       @Override
       public void run() {
+        logger.info("worker started");
         while (isRunning()) {
           Channel plainChannel = null;
           Channel transactionalChannel = null;
@@ -56,6 +57,7 @@ class ChannelWorker extends AbstractService implements ReturnListener {
             ChannelWorker.this.channelFactory.returnChannel(transactionalChannel);
           }
         }
+        logger.info("worker stopped");
       }
     };
   }
