@@ -8,6 +8,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import ru.hh.rabbitmq.simple.Message;
 
+// TODO use ForwardingFuture
 class PublishTaskFuture implements Future<Void> {
   private final Destination destination;
   private final Collection<Message> messages;
