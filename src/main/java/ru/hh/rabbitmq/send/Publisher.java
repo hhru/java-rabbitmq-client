@@ -18,8 +18,6 @@ import ru.hh.rabbitmq.simple.Message;
 import ru.hh.rabbitmq.util.Addresses;
 
 public class Publisher {
-  private static final Logger logger = LoggerFactory.getLogger(Publisher.class);
-  
   private final ConnectionFactory[] connectionFactories;
   private final Service[] workers;
   private final BlockingQueue<PublishTaskFuture> taskQueue;
