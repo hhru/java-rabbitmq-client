@@ -4,6 +4,7 @@ import com.rabbitmq.client.Channel;
 import java.util.Collection;
 import ru.hh.rabbitmq.simple.Message;
 
+// TODO kill me, send only data, all code should live in ChannelWorker
 class PublishTask implements ChannelTask {
   private final Collection<Message> messages;
   private final Destination destination;
@@ -20,6 +21,9 @@ class PublishTask implements ChannelTask {
     for (Message message : messages) {
       channel.basicPublish(destination.getExchange(), destination.getRoutingKey(), destination.isMandatory(), 
         destination.isImmediate(), message.getProperties(), message.getBody());
+    }
+    if (transactional) {
+      channel.txCommit();
     }
   }
 
