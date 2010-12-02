@@ -54,44 +54,37 @@ class ChannelWorker extends AbstractService {
     executor.execute(new Runnable() {
       public void run() {
         // TODO too many try/catch/finally
-        try {
-          notifyStarted();
-          while (isRunning()) {
-            Channel plainChannel = null;
-            Channel transactionalChannel = null;
-            try {
-              while (isRunning()) {
-                PublishTaskFuture task = taskQueue.take();
-                if (task.isCancelled()) {
-                  continue;
-                }
-                try {
-                  if (task.isTransactional()) {
-                    transactionalChannel = ensureOpen(transactionalChannel, channelFactory);
-                    transactionalChannel.txSelect();
-                    publishMessages(transactionalChannel, task.getDestination(), task.getMessages());
-                    transactionalChannel.txCommit();
-                  } else {
-                    plainChannel = ensureOpen(plainChannel, channelFactory);
-                    publishMessages(plainChannel, task.getDestination(), task.getMessages());
-                  }
-                  task.complete();
-                } catch (Exception e) {
-                  task.fail(e);
-                  throw e;
-                }
+        while (isRunning()) {
+          Channel plainChannel = null;
+          Channel transactionalChannel = null;
+          try {
+            while (isRunning()) {
+              PublishTaskFuture task = taskQueue.take();
+              if (task.isCancelled()) {
+                continue;
               }
-            } catch (Exception e) {
-              logger.error("failed to execute task", e);
-            } finally {
-              channelFactory.returnChannel(plainChannel);
-              channelFactory.returnChannel(transactionalChannel);
+              try {
+                if (task.isTransactional()) {
+                  transactionalChannel = ensureOpen(transactionalChannel, channelFactory);
+                  transactionalChannel.txSelect();
+                  publishMessages(transactionalChannel, task.getDestination(), task.getMessages());
+                  transactionalChannel.txCommit();
+                } else {
+                  plainChannel = ensureOpen(plainChannel, channelFactory);
+                  publishMessages(plainChannel, task.getDestination(), task.getMessages());
+                }
+                task.complete();
+              } catch (Exception e) {
+                task.fail(e);
+                throw e;
+              }
             }
+          } catch (Exception e) {
+            logger.error("failed to execute task", e);
+          } finally {
+            channelFactory.returnChannel(plainChannel);
+            channelFactory.returnChannel(transactionalChannel);
           }
-          notifyStopped();
-        } catch (Throwable t) {
-          notifyFailed(t);
-          throw Throwables.propagate(t);
         }
       }
     });
