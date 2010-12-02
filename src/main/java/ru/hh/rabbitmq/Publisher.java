@@ -5,21 +5,20 @@ import com.google.common.util.concurrent.AbstractExecutionThreadService;
 import com.google.common.util.concurrent.AbstractFuture;
 import com.rabbitmq.client.Channel;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class WithChannel {
-  private static final Logger logger = LoggerFactory.getLogger(WithChannel.class);
+public class Publisher {
+  private static final Logger logger = LoggerFactory.getLogger(Publisher.class);
   
   private final Service[] workers;
   private final BlockingQueue<ChannelTask> taskQueue;
   
-  private static class WithChannelWorker extends AbstractExecutionThreadService {
+  private static class ChannelWorker extends AbstractExecutionThreadService {
     private final ChannelFactory channelFactory;
 
-    private WithChannelWorker(ChannelFactory channelFactory) {
+    private ChannelWorker(ChannelFactory channelFactory) {
       this.channelFactory = channelFactory;
     }
 
@@ -50,7 +49,7 @@ public class WithChannel {
     }
   }
 
-  public Future<Void> submit(final ChannelTask task) {
+  private Future<Void> submit(final ChannelTask task) {
     ChannelTaskFuture future = new ChannelTaskFuture(task);
     taskQueue.add(future);
     return future;
