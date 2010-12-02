@@ -53,6 +53,8 @@ class ChannelWorker extends AbstractService implements ReturnListener {
                   }
                 }
               }
+            } catch (InterruptedException e) {
+              logger.debug("worker interrupted, stopping");
             } catch (Exception e) {
               logger.error("failed to execute task", e);
             } finally {
