@@ -1,6 +1,8 @@
 package ru.hh.rabbitmq.send;
 
+import com.google.common.base.Throwables;
 import com.google.common.util.concurrent.AbstractExecutionThreadService;
+import com.google.common.util.concurrent.AbstractService;
 import com.rabbitmq.client.Channel;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Executor;
@@ -11,7 +13,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import ru.hh.rabbitmq.ChannelFactory;
 
-class ChannelWorker extends AbstractExecutionThreadService {
+class ChannelWorker extends AbstractService {
   public static final Logger logger = LoggerFactory.getLogger(ChannelWorker.class);
   
   private final ChannelFactory channelFactory;
@@ -31,32 +33,38 @@ class ChannelWorker extends AbstractExecutionThreadService {
   }
 
   @Override
-  protected Executor executor() {
-    return executor;
-  }
-
-  @Override
-  protected void run() throws Exception {
-    while (isRunning()) {
-      try {
-        Channel channel = channelFactory.getChannel();
+  protected void doStart() {
+    executor.execute(new Runnable() {
+      public void run() {
         try {
+          notifyStarted();
           while (isRunning()) {
-            taskQueue.take().run(channel);
+            try {
+              Channel channel = channelFactory.getChannel();
+              try {
+                while (isRunning()) {
+                  taskQueue.take().run(channel);
+                }
+              } catch (Exception e) {
+                logger.error("failed to run task", e);
+              } finally {
+                channelFactory.returnChannel(channel);
+              }
+            } catch (Exception e) {
+              logger.error("failed to get channel", e);
+            }
           }
-        } catch (Exception e) {
-          logger.error("failed to run task", e);
-        } finally {
-          channelFactory.returnChannel(channel);
+          notifyStopped();
+        } catch (Throwable t) {
+          notifyFailed(t);
+          throw Throwables.propagate(t);
         }
-      } catch (Exception e) {
-        logger.error("failed to get channel", e);
       }
-    }
+    });
   }
 
   @Override
-  protected void triggerShutdown() {
+  protected void doStop() {
     executor.shutdownNow();
   }
 }
