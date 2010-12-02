@@ -92,8 +92,10 @@ class ChannelWorker extends AbstractService implements ReturnListener {
 
   @Override
   protected void doStop() {
+    logger.debug("interrupting worker");
     thread.interrupt();
     try {
+      logger.debug("waiting for worker to finish");
       thread.join();
     } catch (InterruptedException e) {
       logger.warn("stopping interrupted", e);
