@@ -2,7 +2,6 @@ package ru.hh.rabbitmq.send;
 
 import com.google.common.base.Service;
 import com.rabbitmq.client.Address;
-import com.rabbitmq.client.Channel;
 import java.util.Collection;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
@@ -58,20 +57,7 @@ public class Publisher {
    * @return Future that gets completed after successful sending
    */
   public Future<Void> send(final Destination destination, final Collection<Message> messages) {
-    ChannelTaskFuture future = new ChannelTaskFuture(new ChannelTask() {
-      @Override
-      public void run(Channel channel) {
-        for (Message message : messages) {
-          channel.basicPublish(destination.getExchange(), destination.getRoutingKey(), destination.isMandatory(), 
-            destination.isImmediate(), message.getProperties(), message.getBody());
-        }
-      }
-
-      @Override
-      public boolean isTransactional() {
-        return false;
-      }
-    });
+    ChannelTaskFuture future = new ChannelTaskFuture(new PublishTask(destination, messages, false));
     taskQueue.add(future);
     return future;
   }
