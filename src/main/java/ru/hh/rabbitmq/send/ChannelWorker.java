@@ -21,16 +21,14 @@ class ChannelWorker extends AbstractService implements ReturnListener {
   private final ChannelFactory channelFactory;
   private final BlockingQueue<PublishTaskFuture> taskQueue;
   private final ExecutorService executor;
-  private final String name;
 
-  ChannelWorker(ChannelFactory channelFactory, BlockingQueue<PublishTaskFuture> taskQueue, String name) {
+  ChannelWorker(ChannelFactory channelFactory, BlockingQueue<PublishTaskFuture> taskQueue, final String name) {
     this.channelFactory = channelFactory;
     this.taskQueue = taskQueue;
-    this.name = name;
     this.executor = Executors.newSingleThreadExecutor(new ThreadFactory() {
       @Override
       public Thread newThread(Runnable r) {
-        return new Thread(r, ChannelWorker.this.name);
+        return new Thread(r, name);
       }
     });
   }
