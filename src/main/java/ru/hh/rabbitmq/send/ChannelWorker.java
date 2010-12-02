@@ -11,6 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import ru.hh.rabbitmq.ChannelFactory;
 
+// TODO ReturnListener
 class ChannelWorker extends AbstractService {
   public static final Logger logger = LoggerFactory.getLogger(ChannelWorker.class);
   
