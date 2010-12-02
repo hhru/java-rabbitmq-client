@@ -26,6 +26,8 @@ public class Publisher {
       this.channelFactory = channelFactory;
     }
 
+    // TODO service name
+
     @Override
     protected void run() throws Exception {
       while (isRunning()) {
