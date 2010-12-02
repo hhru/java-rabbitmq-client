@@ -15,15 +15,15 @@ import ru.hh.rabbitmq.impl.SingleConnectionFactory;
 import ru.hh.rabbitmq.simple.Message;
 import ru.hh.rabbitmq.util.Addresses;
 
-public class Publisher {
+public class AsynchronousPublisher {
   private final ConnectionFactory[] connectionFactories;
   private final Service[] workers;
   private final BlockingQueue<PublishTaskFuture> taskQueue;
 
-  public Publisher(com.rabbitmq.client.ConnectionFactory connectionFactory, TimeUnit retryUnit, long retryDelay,
-                   int attempts, int maxQueueLength, Address... addresses) {
+  public AsynchronousPublisher(com.rabbitmq.client.ConnectionFactory connectionFactory, TimeUnit retryUnit, long retryDelay,
+                               int attempts, int maxQueueLength, Address... addresses) {
     if (addresses.length < 1) {
-      throw new IllegalArgumentException("can't create Publisher without connection addresses");
+      throw new IllegalArgumentException("no connection addresses");
     }
     connectionFactories = new ConnectionFactory[addresses.length];
     workers = new Service[addresses.length];
@@ -35,8 +35,8 @@ public class Publisher {
     }
   }
 
-  public Publisher(com.rabbitmq.client.ConnectionFactory connectionFactory, TimeUnit retryUnit, long retryDelay,
-                   int attempts, int queueLength, String hosts, int port) {
+  public AsynchronousPublisher(com.rabbitmq.client.ConnectionFactory connectionFactory, TimeUnit retryUnit, long retryDelay,
+                               int attempts, int queueLength, String hosts, int port) {
     this(connectionFactory, retryUnit, retryDelay, attempts, queueLength, Addresses.split(hosts, port));
   }
 
