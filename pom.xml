@@ -85,6 +85,13 @@
             <version>1.6.1</version>
         </dependency>
 
+        <!-- utils -->
+        <dependency>
+          <groupId>com.google.guava</groupId>
+          <artifactId>guava</artifactId>
+          <version>r07</version>
+        </dependency>
+
         <!-- testing -->
         <dependency>
             <groupId>junit</groupId>
