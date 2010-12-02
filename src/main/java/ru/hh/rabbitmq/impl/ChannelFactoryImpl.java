@@ -8,6 +8,7 @@ import ru.hh.rabbitmq.ChannelFactory;
 import ru.hh.rabbitmq.ConnectionFactory;
 import ru.hh.rabbitmq.ConnectionFailedException;
 
+// TODO merge with SingleConnectionFactory
 public class ChannelFactoryImpl implements ChannelFactory {
   private static final Logger logger = LoggerFactory.getLogger(ChannelFactoryImpl.class);
 
@@ -27,20 +28,17 @@ public class ChannelFactoryImpl implements ChannelFactory {
   }
 
   public void returnChannel(Channel channel) {
-    if (channel == null) {
-      return;
+    if (channel != null && channel.isOpen()) {
+      try {
+        logger.debug("Closing channel");
+        channel.close();
+      } catch (IOException e) {
+        logger.warn("Error while closing channel, ignoring", e);
+      }
     }
-    if (!channel.isOpen()) {
-      logger.debug("Channel is already closed, ignoring");
-      return;
+    if (channel != null) {
+      connectionFactory.returnConnection(channel.getConnection());
     }
-    try {
-      logger.debug("Closing channel");
-      channel.close();
-    } catch (IOException e) {
-      logger.warn("Error while closing channel, ignoring", e);
-    }
-    connectionFactory.returnConnection(channel.getConnection());
   }
 
   public void close() {
