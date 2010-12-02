@@ -41,7 +41,11 @@ class ChannelWorker extends AbstractService implements ReturnListener {
                   try {
                     if (task.isTransactional()) {
                       publishMessages(transactionalChannel, task.getMessages());
-                      transactionalChannel.txCommit();
+                      if (!task.isCancelled()) {
+                        transactionalChannel.txCommit();
+                      } else {
+                        transactionalChannel.txRollback();
+                      }
                     } else {
                       publishMessages(plainChannel, task.getMessages());
                     }
