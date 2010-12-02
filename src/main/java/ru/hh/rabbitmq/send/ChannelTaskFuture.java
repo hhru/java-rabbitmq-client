@@ -19,6 +19,7 @@ class ChannelTaskFuture extends AbstractFuture<Void> implements ChannelTask {
       }
     } catch (RuntimeException e) {
       setException(e);
+      throw e;
     }
   }
 

@@ -39,19 +39,29 @@ class ChannelWorker extends AbstractService {
         try {
           notifyStarted();
           while (isRunning()) {
+            Channel plainChannel = null;
+            Channel transactionalChannel = null;
             try {
-              Channel channel = channelFactory.getChannel();
-              try {
-                while (isRunning()) {
-                  taskQueue.take().run(channel);
+              while (isRunning()) {
+                ChannelTask task = taskQueue.take();
+                if (task.isTransactional()) {
+                  if (transactionalChannel == null || !transactionalChannel.isOpen()) {
+                    transactionalChannel = channelFactory.getChannel();
+                    transactionalChannel.txSelect();
+                  }
+                  task.run(transactionalChannel);
+                } else {
+                  if (plainChannel == null || !plainChannel.isOpen()) {
+                    plainChannel = channelFactory.getChannel();
+                  }
+                  task.run(plainChannel);
                 }
-              } catch (Exception e) {
-                logger.error("failed to run task", e);
-              } finally {
-                channelFactory.returnChannel(channel);
               }
             } catch (Exception e) {
-              logger.error("failed to get channel", e);
+              logger.error("failed to run task", e);
+            } finally {
+              channelFactory.returnChannel(plainChannel);
+              channelFactory.returnChannel(transactionalChannel);
             }
           }
           notifyStopped();
