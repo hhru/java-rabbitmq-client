@@ -1,8 +1,9 @@
 package ru.hh.rabbitmq.send;
 
-import com.google.common.base.Throwables;
 import com.google.common.util.concurrent.AbstractService;
+import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Channel;
+import com.rabbitmq.client.ReturnListener;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.concurrent.BlockingQueue;
@@ -14,8 +15,7 @@ import org.slf4j.LoggerFactory;
 import ru.hh.rabbitmq.ChannelFactory;
 import ru.hh.rabbitmq.simple.Message;
 
-// TODO ReturnListener
-class ChannelWorker extends AbstractService {
+class ChannelWorker extends AbstractService implements ReturnListener {
   public static final Logger logger = LoggerFactory.getLogger(ChannelWorker.class);
   
   private final ChannelFactory channelFactory;
@@ -91,5 +91,12 @@ class ChannelWorker extends AbstractService {
   @Override
   protected void doStop() {
     executor.shutdownNow();
+  }
+
+  @Override
+  public void handleBasicReturn(int replyCode, String replyText, String exchange, String routingKey, 
+                                AMQP.BasicProperties properties, byte[] body) throws IOException {
+    logger.error("message returned, replyCode {}, replyText '{}', exchange {}, routingKey {}, properties {}",
+        new Object[] {replyCode, replyText, exchange, routingKey, properties});
   }
 }
