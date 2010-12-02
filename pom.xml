@@ -82,7 +82,7 @@
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
-            <version>1.6.1</version>
+            <version>${slf4j.version}</version>
         </dependency>
 
         <!-- utils -->
@@ -105,10 +105,17 @@
             <scope>test</scope>
             <version>1.8</version>
         </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
+            <version>${slf4j.version}</version>
+          <scope>test</scope>
+        </dependency>
     </dependencies>
     
     <properties>
         <jackson.version>1.5.4</jackson.version>
+        <slf4j.version>1.6.1</slf4j.version>
     </properties>
         
     <scm>
