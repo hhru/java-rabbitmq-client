@@ -14,7 +14,7 @@ public class CancelOnTimeout {
     this.unit = unit;
   }
 
-  void apply(Future<Void> future) throws ExecutionException, InterruptedException, TimeoutException {
+  public void apply(Future<Void> future) throws ExecutionException, InterruptedException, TimeoutException {
     try {
       future.get(timeout, unit);
     } catch (TimeoutException e) {
