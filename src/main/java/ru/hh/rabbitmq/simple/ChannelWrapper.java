@@ -14,6 +14,7 @@ import ru.hh.rabbitmq.ChannelFactory;
 import ru.hh.rabbitmq.ConnectionFailedException;
 import ru.hh.rabbitmq.TransactionException;
 
+@Deprecated // use Publisher and Receiver instead of this class
 public class ChannelWrapper {
   private static final Logger logger = LoggerFactory.getLogger(ChannelWrapper.class);
 
@@ -28,7 +29,7 @@ public class ChannelWrapper {
   private boolean closed;
 
   private Channel channel;
-  
+
   public void setQueueName(String queueName) {
     this.queueName = queueName;
   }
