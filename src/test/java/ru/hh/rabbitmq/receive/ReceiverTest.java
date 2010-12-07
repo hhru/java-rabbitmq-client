@@ -41,9 +41,9 @@ public class ReceiverTest {
 
     mocks.replay();
 
-    Receiver receiver = new Receiver(connectionFactory, TimeUnit.SECONDS, 1, 1, "myq", 1, new Address("localhost", 5672));
+    Receiver receiver = new Receiver(connectionFactory, TimeUnit.SECONDS, 1, 1, 1, new Address("localhost", 5672));
     DummyReceiver dr = new DummyReceiver();
-    receiver.receiveSingle(dr);
+    receiver.receiveSingle(dr, "myq");
 
     receiver.close();
     mocks.verify();

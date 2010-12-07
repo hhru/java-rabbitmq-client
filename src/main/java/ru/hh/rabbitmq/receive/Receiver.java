@@ -18,7 +18,6 @@ import ru.hh.rabbitmq.simple.MessageReceiver;
 import ru.hh.rabbitmq.simple.MessagesReceiver;
 
 public class Receiver {
-  private String queueName;
   private Integer prefetchCount;
   private ConnectionFactory connectionFactory;
   private ChannelFactory channelFactory;
@@ -28,17 +27,13 @@ public class Receiver {
 
   public Receiver(
       com.rabbitmq.client.ConnectionFactory connectionFactory, TimeUnit retryUnit, long retryDelay, int attempts,
-      String queueName, Integer prefetchCount, Address address) {
+      Integer prefetchCount, Address address) {
     if (connectionFactory == null) {
       throw new IllegalArgumentException("no connection factory specified");
     }
     if (address == null) {
       throw new IllegalArgumentException("no address specified");
     }
-    if (queueName == null || queueName.trim().isEmpty()) {
-      throw new IllegalArgumentException("no queue specified");
-    }
-    this.queueName = queueName;
     this.prefetchCount = prefetchCount;
     this.connectionFactory = new SingleConnectionFactory(connectionFactory, retryUnit, retryDelay, attempts, address);
     this.channelFactory = new ChannelFactoryImpl(this.connectionFactory);
@@ -48,13 +43,15 @@ public class Receiver {
    * Receives and processes single message from the queue. This method does not block the caller and returns immediately.
    *
    * @param  receiver  receiver implementation that will be used to process incoming message
+   * @param  queueName  name of queue to read messages from
    *
    * @return  true if the queue returned a message, false if the queue was empty at the time of calling
    *
    * @throws  IOException
    * @throws  InterruptedException
    */
-  public boolean receiveSingle(MessageReceiver receiver) throws IOException, InterruptedException {
+  public boolean receiveSingle(MessageReceiver receiver, String queueName) throws IOException, InterruptedException {
+    checkQueueName(queueName);
     ensureConnected();
     GetResponse response = channel.basicGet(queueName, false);
     if (response == null) {
@@ -69,16 +66,19 @@ public class Receiver {
 
   /**
    * Receives messages from queue, waits (blocks) until queue returns next message. Stops when supplied receiver's
-   * {@link MessagesReceiver#isEnough()} returns true, if timeout has been reached or thread is interrupted.
+   * {@link MessagesReceiver#isEnough()} returns true, timeout has been reached or thread is interrupted.
    *
    * @param  receiver  receiver implementation that will be used to process incoming message
-   * @param  timeout  max time to wait in blocking state
+   * @param  queueName  name of queue to read messages from
+   * @param  timeout  max time to wait in blocking state, null for infinite timeout
    *
    * @throws  IOException
    * @throws  ShutdownSignalException
    * @throws  InterruptedException
    */
-  public void receive(MessagesReceiver receiver, Long timeout) throws IOException, ShutdownSignalException, InterruptedException {
+  public void receive(MessagesReceiver receiver, String queueName, Long timeout) throws IOException, ShutdownSignalException,
+    InterruptedException {
+    checkQueueName(queueName);
     ensureConnected();
     if (Thread.currentThread().isInterrupted()) {
       return;
@@ -126,6 +126,12 @@ public class Receiver {
     closed = true;
     channelFactory.returnChannel(channel);
     this.connectionFactory.close();
+  }
+
+  private void checkQueueName(String queueName) {
+    if (queueName == null || queueName.trim().isEmpty()) {
+      throw new IllegalArgumentException("no queue name is specified");
+    }
   }
 
   private void ensureConnected() {
