@@ -20,12 +20,11 @@ public class CancelOnTimeout {
     } catch (TimeoutException e) {
       if (future.cancel(true)) {
         throw e;
+      }
+      if (future.isDone()) {
+        future.get(); // will return or throw immediately
       } else {
-        if (future.isDone()) {
-          future.get(); // will return or throw immediately
-        } else {
-          throw new CancelOnTimeoutFailedException();
-        }
+        throw new CancelOnTimeoutFailedException();
       }
     }
   }
