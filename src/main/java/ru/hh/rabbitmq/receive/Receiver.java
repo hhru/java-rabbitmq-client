@@ -39,6 +39,12 @@ public class Receiver {
     this.channelFactory = new ChannelFactoryImpl(this.connectionFactory);
   }
 
+  public Receiver(
+      com.rabbitmq.client.ConnectionFactory connectionFactory, TimeUnit retryUnit, long retryDelay, int attempts,
+      Integer prefetchCount, String host, int port) {
+    this(connectionFactory, retryUnit, retryDelay, attempts, prefetchCount, new Address(host, port));
+  }
+
   /**
    * Receives and processes single message from the queue. This method does not block the caller and returns immediately.
    *
