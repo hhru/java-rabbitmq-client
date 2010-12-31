@@ -50,6 +50,8 @@ class ChannelWorker extends AbstractService implements ReturnListener {
                       publishMessages(plainChannel, task.getMessages());
                     }
                     task.complete();
+                    logger.trace("task completed, sent {} messages, queue size is {}", task.getMessages().size(), 
+                      ChannelWorker.this.taskQueue.size());
                   } catch (Exception e) {
                     task.fail(e);
                     throw e;

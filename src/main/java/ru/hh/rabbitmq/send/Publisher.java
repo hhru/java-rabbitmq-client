@@ -9,6 +9,8 @@ import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import ru.hh.rabbitmq.ConnectionFactory;
 import ru.hh.rabbitmq.impl.ChannelFactoryImpl;
 import ru.hh.rabbitmq.impl.SingleConnectionFactory;
@@ -16,6 +18,8 @@ import ru.hh.rabbitmq.simple.Message;
 import ru.hh.rabbitmq.util.Addresses;
 
 public class Publisher {
+  public static final Logger logger = LoggerFactory.getLogger(Publisher.class);
+  
   private final ConnectionFactory[] connectionFactories;
   private final Service[] workers;
   private final BlockingQueue<PublishTaskFuture> taskQueue;
@@ -118,6 +122,7 @@ public class Publisher {
   private void addFuture(PublishTaskFuture future) {
     try {
       taskQueue.add(future);
+      logger.trace("task added with {} messages, queue size is {}", taskQueue.size());
     } catch (IllegalStateException e) {
       throw new QueueIsFullException(e);
     }
