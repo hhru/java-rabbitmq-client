@@ -122,7 +122,7 @@ public class Publisher {
   private void addFuture(PublishTaskFuture future) {
     try {
       taskQueue.add(future);
-      logger.trace("task added with {} messages, queue size is {}", taskQueue.size());
+      logger.trace("task added with {} messages, queue size is {}", future.getMessages().size(), taskQueue.size());
     } catch (IllegalStateException e) {
       throw new QueueIsFullException(e);
     }
