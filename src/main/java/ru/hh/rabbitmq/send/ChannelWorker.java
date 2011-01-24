@@ -35,10 +35,10 @@ class ChannelWorker extends AbstractService implements ReturnListener {
             try {
               while (isRunning()) {
                 PublishTaskFuture task = ChannelWorker.this.taskQueue.take();
-                transactionalChannel = ensureOpen(transactionalChannel, ChannelWorker.this.channelFactory, true);
-                plainChannel = ensureOpen(plainChannel, ChannelWorker.this.channelFactory, false);
                 if (!task.isCancelled()) {
                   try {
+                    transactionalChannel = ensureOpen(transactionalChannel, true);
+                    plainChannel = ensureOpen(plainChannel, false);
                     if (task.isTransactional()) {
                       publishMessages(transactionalChannel, task.getMessages());
                       if (!task.isCancelled()) {
@@ -77,7 +77,7 @@ class ChannelWorker extends AbstractService implements ReturnListener {
     };
   }
 
-  private Channel ensureOpen(Channel channel, ChannelFactory factory, boolean transactional) throws IOException {
+  private Channel ensureOpen(Channel channel, boolean transactional) throws IOException {
     if (channel == null || !channel.isOpen()) {
       channel = channelFactory.getChannel();
       channel.setReturnListener(this);
