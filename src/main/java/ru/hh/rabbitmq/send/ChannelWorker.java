@@ -15,7 +15,7 @@ import ru.hh.rabbitmq.simple.Message;
 
 class ChannelWorker extends AbstractService implements ReturnListener {
   public static final Logger logger = LoggerFactory.getLogger(ChannelWorker.class);
-
+  
   private final ChannelFactory channelFactory;
   private final BlockingQueue<PublishTaskFuture> taskQueue;
   private final Thread thread;
@@ -29,47 +29,12 @@ class ChannelWorker extends AbstractService implements ReturnListener {
         try {
           notifyStarted();
           logger.info("worker started");
-          while(isRunning()) {
-            Channel plainChannel = null;
-            Channel transactionalChannel = null;
-            try {
-              while(isRunning()) {
-                PublishTaskFuture task = ChannelWorker.this.taskQueue.take();
-                try {
-                  transactionalChannel = ensureOpen(transactionalChannel, ChannelWorker.this.channelFactory, true);
-                  plainChannel = ensureOpen(plainChannel, ChannelWorker.this.channelFactory, false);
-                  if(!task.isCancelled()) {
-                    if(task.isTransactional()) {
-                      publishMessages(transactionalChannel, task.getMessages());
-                      if(!task.isCancelled()) {
-                        transactionalChannel.txCommit();
-                      } else {
-                        transactionalChannel.txRollback();
-                      }
-                    } else {
-                      publishMessages(plainChannel, task.getMessages());
-                    }
-                    task.complete();
-                    logger.trace("task completed, sent {} messages, queue size is {}", task.getMessages().size(),
-                       ChannelWorker.this.taskQueue.size());
-                  }
-                } catch(Exception e) {
-                  task.fail(e);
-                  logger.warn("failed to execute task. Reason: {}", e.getMessage());
-                }
-              }
-            } catch(InterruptedException e) {
-              logger.debug("worker interrupted, stopping");
-            } catch(Exception e) {
-              logger.error("failed to execute task", e);
-            } finally {
-              ChannelWorker.this.channelFactory.returnChannel(plainChannel);
-              ChannelWorker.this.channelFactory.returnChannel(transactionalChannel);
-            }
+          while (isRunning()) {
+            withNewConnection();
           }
           logger.info("worker stopped");
           notifyStopped();
-        } catch(Throwable t) {
+        } catch (Throwable t) {
           notifyFailed(t);
           throw Throwables.propagate(t);
         }
@@ -77,21 +42,64 @@ class ChannelWorker extends AbstractService implements ReturnListener {
     };
   }
 
-  private Channel ensureOpen(Channel channel, ChannelFactory factory, boolean transactional) throws IOException {
-    if(channel == null || !channel.isOpen()) {
+  private void withNewConnection() {
+    Channel plainChannel = null;
+    Channel transactionalChannel = null;
+    try {
+      while (isRunning()) {
+        PublishTaskFuture task = this.taskQueue.take();
+        if (!task.isCancelled()) {
+          try {
+            transactionalChannel = ensureOpen(transactionalChannel, true);
+            plainChannel = ensureOpen(plainChannel, false);
+            executeTask(plainChannel, transactionalChannel, task);
+          } catch (Exception e) {
+            task.fail(e);
+            throw e;
+          }
+        }
+      }
+    } catch (InterruptedException e) {
+      logger.debug("worker interrupted, stopping");
+    } catch (Exception e) {
+      logger.error("failed to execute task", e);
+    } finally {
+      this.channelFactory.returnChannel(plainChannel);
+      this.channelFactory.returnChannel(transactionalChannel);
+    }
+  }
+
+  private void executeTask(Channel plainChannel, Channel transactionalChannel, PublishTaskFuture task) throws IOException {
+    if (task.isTransactional()) {
+      publishMessages(transactionalChannel, task.getMessages());
+      if (!task.isCancelled()) {
+        transactionalChannel.txCommit();
+      } else {
+        transactionalChannel.txRollback();
+      }
+    } else {
+      publishMessages(plainChannel, task.getMessages());
+    }
+    task.complete();
+    logger.trace("task completed, sent {} messages, queue size is {}", task.getMessages().size(), 
+      this.taskQueue.size());
+  }
+
+  private Channel ensureOpen(Channel channel, boolean transactional) throws IOException {
+    if (channel == null || !channel.isOpen()) {
       channel = channelFactory.getChannel();
       channel.setReturnListener(this);
-      if(transactional) {
+      if (transactional) {
         channel.txSelect();
       }
     }
     return channel;
   }
-
+  
   private void publishMessages(Channel channel, Map<Message, Destination> messages) throws IOException {
-    for(Map.Entry<Message, Destination> entry : messages.entrySet()) {
-      channel.basicPublish(entry.getValue().getExchange(), entry.getValue().getRoutingKey(), entry.getValue().isMandatory(),
-         entry.getValue().isImmediate(), entry.getKey().getProperties(), entry.getKey().getBody());
+    for (Map.Entry<Message, Destination> entry : messages.entrySet()) {
+      channel.basicPublish(entry.getValue().getExchange(), entry.getValue().getRoutingKey(), entry.getValue().isMandatory(), 
+        entry.getValue().isImmediate(), entry.getKey().getProperties(), entry.getKey().getBody());
     }
   }
 
@@ -107,9 +115,9 @@ class ChannelWorker extends AbstractService implements ReturnListener {
   }
 
   @Override
-  public void handleBasicReturn(int replyCode, String replyText, String exchange, String routingKey,
+  public void handleBasicReturn(int replyCode, String replyText, String exchange, String routingKey, 
                                 AMQP.BasicProperties properties, byte[] body) throws IOException {
     logger.error("message returned, replyCode {}, replyText '{}', exchange {}, routingKey {}, properties {}",
-       new Object[]{replyCode, replyText, exchange, routingKey, properties});
+      new Object[]{replyCode, replyText, exchange, routingKey, properties});
   }
 }
