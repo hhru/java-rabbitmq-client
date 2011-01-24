@@ -43,7 +43,7 @@ public class PublisherTest {
       futures.add(publisher.send(destination, messages));
     }
     for (Future<Void> future : futures) {
-      future.get(100, TimeUnit.MILLISECONDS);
+      future.get(1000, TimeUnit.MILLISECONDS);
     }
     publisher.close();
     mocks.verify();
