@@ -5,8 +5,6 @@ import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ShutdownListener;
 import com.rabbitmq.client.ShutdownSignalException;
 import java.io.IOException;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,7 +59,7 @@ public class SingleConnectionFactory implements ConnectionFactory, ShutdownListe
         if (shuttingDown) {
           // nothing to do, will bail out later
         } else if (remains > 0) {
-          logger.warn("connection attempt failed, retrying", connectionError);
+          logger.warn("connection attempt failed, retrying, reason {}", connectionError.getMessage());
           try {
             retryUnit.sleep(retryDelay);
           } catch (InterruptedException interrupt) {
