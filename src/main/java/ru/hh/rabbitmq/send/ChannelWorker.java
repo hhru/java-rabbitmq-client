@@ -30,42 +30,7 @@ class ChannelWorker extends AbstractService implements ReturnListener {
           notifyStarted();
           logger.info("worker started");
           while (isRunning()) {
-            Channel plainChannel = null;
-            Channel transactionalChannel = null;
-            try {
-              while (isRunning()) {
-                PublishTaskFuture task = ChannelWorker.this.taskQueue.take();
-                if (!task.isCancelled()) {
-                  try {
-                    transactionalChannel = ensureOpen(transactionalChannel, true);
-                    plainChannel = ensureOpen(plainChannel, false);
-                    if (task.isTransactional()) {
-                      publishMessages(transactionalChannel, task.getMessages());
-                      if (!task.isCancelled()) {
-                        transactionalChannel.txCommit();
-                      } else {
-                        transactionalChannel.txRollback();
-                      }
-                    } else {
-                      publishMessages(plainChannel, task.getMessages());
-                    }
-                    task.complete();
-                    logger.trace("task completed, sent {} messages, queue size is {}", task.getMessages().size(), 
-                      ChannelWorker.this.taskQueue.size());
-                  } catch (Exception e) {
-                    task.fail(e);
-                    throw e;
-                  }
-                }
-              }
-            } catch (InterruptedException e) {
-              logger.debug("worker interrupted, stopping");
-            } catch (Exception e) {
-              logger.error("failed to execute task", e);
-            } finally {
-              ChannelWorker.this.channelFactory.returnChannel(plainChannel);
-              ChannelWorker.this.channelFactory.returnChannel(transactionalChannel);
-            }
+            withNewConnection();
           }
           logger.info("worker stopped");
           notifyStopped();
@@ -75,6 +40,49 @@ class ChannelWorker extends AbstractService implements ReturnListener {
         }
       }
     };
+  }
+
+  private void withNewConnection() {
+    Channel plainChannel = null;
+    Channel transactionalChannel = null;
+    try {
+      while (isRunning()) {
+        PublishTaskFuture task = this.taskQueue.take();
+        if (!task.isCancelled()) {
+          try {
+            transactionalChannel = ensureOpen(transactionalChannel, true);
+            plainChannel = ensureOpen(plainChannel, false);
+            executeTask(plainChannel, transactionalChannel, task);
+          } catch (Exception e) {
+            task.fail(e);
+            throw e;
+          }
+        }
+      }
+    } catch (InterruptedException e) {
+      logger.debug("worker interrupted, stopping");
+    } catch (Exception e) {
+      logger.error("failed to execute task", e);
+    } finally {
+      this.channelFactory.returnChannel(plainChannel);
+      this.channelFactory.returnChannel(transactionalChannel);
+    }
+  }
+
+  private void executeTask(Channel plainChannel, Channel transactionalChannel, PublishTaskFuture task) throws IOException {
+    if (task.isTransactional()) {
+      publishMessages(transactionalChannel, task.getMessages());
+      if (!task.isCancelled()) {
+        transactionalChannel.txCommit();
+      } else {
+        transactionalChannel.txRollback();
+      }
+    } else {
+      publishMessages(plainChannel, task.getMessages());
+    }
+    task.complete();
+    logger.trace("task completed, sent {} messages, queue size is {}", task.getMessages().size(), 
+      this.taskQueue.size());
   }
 
   private Channel ensureOpen(Channel channel, boolean transactional) throws IOException {
