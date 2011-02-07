@@ -59,14 +59,18 @@ public class Receiver {
   public boolean receiveSingle(MessageReceiver receiver, String queueName) throws IOException, InterruptedException {
     checkQueueName(queueName);
     ensureConnected();
-    GetResponse response = channel.basicGet(queueName, false);
-    if (response == null) {
-      return false;
+    try {
+      GetResponse response = channel.basicGet(queueName, false);
+      if (response == null) {
+        return false;
+      }
+      Message message = Message.fromGetResponse(response);
+      receiver.receive(message);
+      long deliveryTag = response.getEnvelope().getDeliveryTag();
+      channel.basicAck(deliveryTag, false);
+    } finally {
+      channel.close();
     }
-    Message message = Message.fromGetResponse(response);
-    receiver.receive(message);
-    long deliveryTag = response.getEnvelope().getDeliveryTag();
-    channel.basicAck(deliveryTag, false);
     return true;
   }
 
@@ -102,7 +106,7 @@ public class Receiver {
           delivery = consumer.nextDelivery();
         }
         if (delivery == null) {
-          break;
+          continue;
         }
         message = Message.fromDelivery(delivery);
 
@@ -124,6 +128,7 @@ public class Receiver {
       } while (!receiver.isEnough() && !Thread.currentThread().isInterrupted());
     } finally {
       channel.basicCancel(consumerTag);
+      channel.close();
       receiver.onFinish();
     }
   }
