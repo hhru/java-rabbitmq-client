@@ -32,6 +32,15 @@
                     <target>1.6</target>
                 </configuration>
             </plugin>
+            <plugin> 
+                <groupId>org.apache.maven.plugins</groupId> 
+                <artifactId>maven-release-plugin</artifactId> 
+                <version>2.1</version> 
+                <configuration> 
+                    <localCheckout>true</localCheckout> 
+                    <pushChanges>true</pushChanges> 
+                </configuration> 
+            </plugin> 
         </plugins>
     </build>
     <reporting>
@@ -110,7 +119,7 @@
     </properties>
         
     <scm>
-        <connection>scm:svn:https://svn.hh.ru/headhunter.ru/commons/rabbitmq-client/trunk</connection>
-        <developerConnection>scm:svn:https://svn.hh.ru/headhunter.ru/commons/rabbitmq-client/trunk</developerConnection>
+        <connection>scm:git:git@github.com:hhru/java-rabbitmq-client.git</connection>
+        <developerConnection>scm:git:git@github.com:hhru/java-rabbitmq-client.git</developerConnection>
     </scm>
 </project>
