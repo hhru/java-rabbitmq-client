@@ -62,6 +62,7 @@
         <dependency>
             <groupId>com.rabbitmq</groupId>
             <artifactId>amqp-client</artifactId>
+            <!-- TODO update to 2.4.0 when it is available on central -->
             <version>2.3.1</version>
         </dependency>
         
@@ -89,7 +90,7 @@
         <dependency>
           <groupId>com.google.guava</groupId>
           <artifactId>guava</artifactId>
-          <version>r07</version>
+          <version>r08</version>
         </dependency>
 
         <!-- testing -->
@@ -97,7 +98,7 @@
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
             <scope>test</scope>
-            <version>4.8.1</version>
+            <version>4.8.2</version>
         </dependency>
         <dependency>
             <groupId>ru.headhunter.commons</groupId>
@@ -109,12 +110,12 @@
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
             <scope>test</scope>
-            <version>0.9.26</version>
+            <version>0.9.28</version>
         </dependency>
     </dependencies>
     
     <properties>
-        <jackson.version>1.5.4</jackson.version>
+        <jackson.version>1.7.4</jackson.version>
         <slf4j.version>1.6.1</slf4j.version>
     </properties>
         
