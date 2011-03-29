@@ -58,7 +58,7 @@ public class SingleConnectionFactory implements ConnectionFactory, ShutdownListe
       } catch (IOException connectionError) {
         if (shuttingDown) {
           // nothing to do, will bail out later
-        } else if (remains > 0) {
+        } else if (remains > 0 || attempts == 0) {
           logger.warn("connection attempt failed, retrying, reason {}", connectionError.getMessage());
           try {
             retryUnit.sleep(retryDelay);
