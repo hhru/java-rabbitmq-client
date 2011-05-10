@@ -9,7 +9,7 @@
     <groupId>ru.hh.rabbitmq</groupId>
     <artifactId>rabbitmq-client</artifactId>
     <packaging>jar</packaging>
-    <version>18785.4-SNAPSHOT</version>
+    <version>18785.5-SNAPSHOT</version>
     <name>RabbitMQ client and utilities</name>
     <build>
         <plugins>
@@ -38,7 +38,7 @@
                 <artifactId>maven-release-plugin</artifactId> 
                 <version>2.1</version> 
                 <configuration> 
-                    <localCheckout>false</localCheckout> 
+                    <localCheckout>true</localCheckout> 
                     <pushChanges>false</pushChanges> 
                 </configuration> 
             </plugin> 
