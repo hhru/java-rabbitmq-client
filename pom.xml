@@ -8,7 +8,7 @@
     <groupId>ru.hh.rabbitmq</groupId>
     <artifactId>rabbitmq-client</artifactId>
     <packaging>jar</packaging>
-    <version>0.0.30-SNAPSHOT</version>
+    <version>18897.1-SNAPSHOT</version>
     <name>RabbitMQ client and utilities</name>
     <build>
         <plugins>
@@ -62,8 +62,7 @@
         <dependency>
             <groupId>com.rabbitmq</groupId>
             <artifactId>amqp-client</artifactId>
-            <!-- TODO update to 2.4.0 when it is available on central -->
-            <version>2.3.1</version>
+            <version>2.4.0</version>
         </dependency>
         
         <!-- Jackson -->
