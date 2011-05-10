@@ -8,7 +8,7 @@
     <groupId>ru.hh.rabbitmq</groupId>
     <artifactId>rabbitmq-client</artifactId>
     <packaging>jar</packaging>
-    <version>0.0.30-SNAPSHOT</version>
+    <version>18785.1-SNAPSHOT</version>
     <name>RabbitMQ client and utilities</name>
     <build>
         <plugins>
@@ -118,9 +118,10 @@
         <jackson.version>1.7.4</jackson.version>
         <slf4j.version>1.6.1</slf4j.version>
     </properties>
+    
         
     <scm>
-        <connection>scm:git:git@github.com:hhru/java-rabbitmq-client.git</connection>
-        <developerConnection>scm:git:git@github.com:hhru/java-rabbitmq-client.git</developerConnection>
+        <connection>scm:git:ssh://git@github.com/hhru/java-rabbitmq-client.git</connection>
+        <developerConnection>scm:git:ssh://git@github.com/hhru/java-rabbitmq-client.git</developerConnection>    
     </scm>
 </project>
