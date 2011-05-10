@@ -6,9 +6,8 @@ import com.rabbitmq.client.Address;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Map;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import ru.hh.rabbitmq.ConnectionFactory;
@@ -17,35 +16,39 @@ import ru.hh.rabbitmq.impl.SingleConnectionFactory;
 import ru.hh.rabbitmq.simple.Message;
 import ru.hh.rabbitmq.util.Addresses;
 
-public class Publisher {
-  public static final Logger logger = LoggerFactory.getLogger(Publisher.class);
+public class BalancingPublisher implements FailedTaskProcessor {
+  public static final Logger logger = LoggerFactory.getLogger(BalancingPublisher.class);
 
   private final ConnectionFactory[] connectionFactories;
-  private final Service[] workers;
-  private final BlockingQueue<PublishTaskFuture> taskQueue;
+  private final BalancingChannelWorker[] workers;
+  private AtomicInteger balancerIndex = new AtomicInteger();
 
-  public Publisher(
+  public BalancingPublisher(
       com.rabbitmq.client.ConnectionFactory connectionFactory, TimeUnit retryUnit, long retryDelay, int attempts,
-      int maxQueueLength, Address... addresses) {
+      int maxQueueLength, long restoreIntervalMs, Address... addresses) {
     if (addresses.length < 1) {
       throw new IllegalArgumentException("no connection addresses");
     }
+
     connectionFactories = new ConnectionFactory[addresses.length];
-    workers = new Service[addresses.length];
-    taskQueue = new ArrayBlockingQueue<PublishTaskFuture>(maxQueueLength);
+    workers = new BalancingChannelWorker[addresses.length];
+
+    ChannelFactoryImpl channelFactory;
+
     for (int i = 0; i < addresses.length; i++) {
       connectionFactories[i] = new SingleConnectionFactory(connectionFactory, retryUnit, retryDelay, attempts, addresses[i]);
+      channelFactory = new ChannelFactoryImpl(connectionFactories[i]);
       workers[i] =
-        new ChannelWorker(
-          new ChannelFactoryImpl(connectionFactories[i]), taskQueue, addresses[i].toString() + "-publisher-worker");
+        new BalancingChannelWorker(
+          channelFactory, maxQueueLength, this, addresses[i].toString() + "-publisher-worker", restoreIntervalMs);
       workers[i].start();
     }
   }
 
-  public Publisher(
+  public BalancingPublisher(
       com.rabbitmq.client.ConnectionFactory connectionFactory, TimeUnit retryUnit, long retryDelay, int attempts, int queueLength,
-      String hosts, int port) {
-    this(connectionFactory, retryUnit, retryDelay, attempts, queueLength, Addresses.split(hosts, port));
+      long restoreIntervalMillis, String hosts, int port) {
+    this(connectionFactory, retryUnit, retryDelay, attempts, queueLength, restoreIntervalMillis, Addresses.split(hosts, port));
   }
 
   public void close() {
@@ -120,20 +123,43 @@ public class Publisher {
   }
 
   /**
-   * Checks whether internal queue is full or not.
+   * Walk over all workers. For each one check if worker is not broken, then offer future. If all workers are either broken or not
+   * accepting new future, throw QueueIsFullException.
    *
-   * @return  true if internal queue has space for more messages, false otherwise
+   * @param  future
    */
-  public boolean canAcceptMessages() {
-    return taskQueue.remainingCapacity() > 0;
+  private void addFuture(PublishTaskFuture future) {
+    int cycle = 0;
+    BalancingChannelWorker worker;
+    do {
+      worker = getWorker();
+      if (worker.isBroken()) {
+        continue;
+      }
+      if (worker.offerFuture(future)) {
+        return;
+      }
+    } while (++cycle < workers.length);
+    throw new QueueIsFullException();
   }
 
-  private void addFuture(PublishTaskFuture future) {
+  /**
+   * Cyclicly return next worker.
+   *
+   * @return
+   */
+  private BalancingChannelWorker getWorker() {
+    // simple round-robin
+    return workers[Math.abs(balancerIndex.getAndIncrement()) % workers.length];
+  }
+
+  @Override
+  public void returnFuture(PublishTaskFuture future) {
     try {
-      taskQueue.add(future);
-      logger.trace("task added with {} messages, queue size is {}", future.getMessages().size(), taskQueue.size());
-    } catch (IllegalStateException e) {
-      throw new QueueIsFullException(e);
+      addFuture(future);
+    } catch (Exception e) {
+      logger.warn("Failed to re-add future returned by one of workers, dropping it", e);
+      future.fail(e);
     }
   }
 }
