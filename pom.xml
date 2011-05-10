@@ -9,7 +9,7 @@
     <groupId>ru.hh.rabbitmq</groupId>
     <artifactId>rabbitmq-client</artifactId>
     <packaging>jar</packaging>
-    <version>18785.3-SNAPSHOT</version>
+    <version>18785.3</version>
     <name>RabbitMQ client and utilities</name>
     <build>
         <plugins>
