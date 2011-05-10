@@ -119,7 +119,7 @@
     </properties>
         
     <scm>
-        <connection>scm:git:git@github.com:hhru/java-rabbitmq-client.git</connection>
-        <developerConnection>scm:git:git@github.com:hhru/java-rabbitmq-client.git</developerConnection>
+        <connection>scm:git:ssh://git@github.com/hhru/java-rabbitmq-client.git</connection>
+        <developerConnection>scm:git:ssh://git@github.com/hhru/java-rabbitmq-client.git</developerConnection>        
     </scm>
 </project>
