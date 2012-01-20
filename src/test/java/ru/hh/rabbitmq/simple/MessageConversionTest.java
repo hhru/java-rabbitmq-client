@@ -73,4 +73,17 @@ public class MessageConversionTest {
 
     Assert.assertEquals(obj, receiver.getBody());
   }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testInvalidJsonMessage() throws InterruptedException {
+    String body = "{";
+
+    Map<String, Object> headers = new HashMap<String, Object>();
+    headers.put("someInt2", 2);
+    headers.put("someString2", "test2");
+
+    Message message = new Message(body.getBytes(), headers);
+    DummyJsonMessageReceiver receiver = new DummyJsonMessageReceiver();
+    receiver.receive(message);
+  }
 }
