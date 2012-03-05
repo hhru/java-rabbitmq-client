@@ -1,7 +1,7 @@
 package ru.hh.rabbitmq.send;
 
-import com.google.common.base.Service;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.Service;
 import com.rabbitmq.client.Address;
 import java.util.Arrays;
 import java.util.Collection;
@@ -19,7 +19,7 @@ import ru.hh.rabbitmq.util.Addresses;
 
 public class Publisher {
   public static final Logger logger = LoggerFactory.getLogger(Publisher.class);
-  
+
   private final ConnectionFactory[] connectionFactories;
   private final Service[] workers;
   private final BlockingQueue<PublishTaskFuture> taskQueue;
