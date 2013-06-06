@@ -11,11 +11,13 @@ import java.util.concurrent.TimeUnit;
 import ru.hh.rabbitmq.ChannelFactory;
 import ru.hh.rabbitmq.ConnectionFactory;
 import ru.hh.rabbitmq.ConnectionFailedException;
+import ru.hh.rabbitmq.NackException;
 import ru.hh.rabbitmq.impl.ChannelFactoryImpl;
 import ru.hh.rabbitmq.impl.SingleConnectionFactory;
 import ru.hh.rabbitmq.simple.Message;
 import ru.hh.rabbitmq.simple.MessageReceiver;
 import ru.hh.rabbitmq.simple.MessagesReceiver;
+import ru.hh.rabbitmq.util.ExceptionUtils;
 
 public class Receiver {
   private Integer prefetchCount;
@@ -65,8 +67,15 @@ public class Receiver {
         return false;
       }
       Message message = Message.fromGetResponse(response);
-      receiver.receive(message);
       long deliveryTag = response.getEnvelope().getDeliveryTag();
+      try {
+        receiver.receive(message);
+      } catch (NackException e) {
+        channel.basicNack(deliveryTag, false, e.getReQueue());
+        if (e.getCause() != null) {
+          throw ExceptionUtils.unchecked(e.getCause());
+        }
+      }
       channel.basicAck(deliveryTag, false);
     } finally {
       channel.close();
@@ -109,19 +118,27 @@ public class Receiver {
           continue;
         }
         message = Message.fromDelivery(delivery);
-
+        long deliveryTag = delivery.getEnvelope().getDeliveryTag();
         if (Thread.currentThread().isInterrupted()) {
           return;
         }
 
-        receiver.receive(message);
-
-        // if we got the message and processed it we need to send ack even if thread was interrupted
-        // so we save interrupted flag after receiver action and restore it after ack action because sometimes RabbitMQ resets it somewhere inside.
-        boolean interrupted = Thread.currentThread().isInterrupted();
-        long deliveryTag = delivery.getEnvelope().getDeliveryTag();
-        channel.basicAck(deliveryTag, false);
-
+        boolean interrupted;
+        try {
+          receiver.receive(message);
+          interrupted = Thread.currentThread().isInterrupted();
+          channel.basicAck(deliveryTag, false);
+        } catch (NackException e) {
+          interrupted = Thread.currentThread().isInterrupted();
+          channel.basicNack(deliveryTag, false, e.getReQueue());
+          if (e.getCause() != null) {
+            throw ExceptionUtils.unchecked(e.getCause());
+          }
+        }
+        // If we got the message and processed it we need to send ack even if thread was interrupted.
+        // We save interrupted flag after receiver action and restore it after ack/nack action because RabbitMQ resets it.
+        // RabbitMQ calls Object.wait() which throws InterruptedException in case thread was interrupted before or during wait
+        // and resets thread interrupted state. RabbitMQ then catches and ignores InterruptedException.
         if (interrupted && !Thread.currentThread().isInterrupted()) {
           Thread.currentThread().interrupt();
         }
