@@ -11,6 +11,7 @@ import junit.framework.Assert;
 import org.codehaus.jackson.JsonGenerationException;
 import org.codehaus.jackson.map.JsonMappingException;
 import org.junit.Test;
+import ru.hh.rabbitmq.NackException;
 
 public class MessageConversionTest {
   @Test
@@ -42,7 +43,7 @@ public class MessageConversionTest {
   }
 
   @Test
-  public void testJsonMessage() throws JsonGenerationException, JsonMappingException, IOException, InterruptedException {
+  public void testJsonMessage() throws IOException, InterruptedException, NackException {
     Map<String, Object> body = new HashMap<String, Object>();
     body.put("someInt1", 1);
     body.put("someString1", "test");
@@ -60,7 +61,7 @@ public class MessageConversionTest {
   }
 
   @Test
-  public void testJsonObject() throws JsonGenerationException, JsonMappingException, IOException, InterruptedException {
+  public void testJsonObject() throws IOException, InterruptedException, NackException {
     DummyJsonObject obj = new DummyJsonObject();
 
     Map<String, Object> headers = new HashMap<String, Object>();
@@ -75,7 +76,7 @@ public class MessageConversionTest {
   }
 
   @Test(expected = IllegalArgumentException.class)
-  public void testInvalidJsonMessage() throws InterruptedException {
+  public void testInvalidJsonMessage() throws InterruptedException, NackException {
     String body = "{";
 
     Map<String, Object> headers = new HashMap<String, Object>();
