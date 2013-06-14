@@ -34,12 +34,12 @@ public abstract class JsonMessageReceiver<T> implements MessageReceiver {
 
   public abstract void receive(T body, Map<String, Object> headers, Envelope envelope) throws InterruptedException, NackException;
 
-  public static abstract class MapMessage<K,V> extends JsonMessageReceiver<Map<K,V>> {
-    public MapMessage() {
+  public static abstract class JsonMessageReceiverForMap<K,V> extends JsonMessageReceiver<Map<K,V>> {
+    public JsonMessageReceiverForMap() {
       super(Map.class);
     }
   }
 
-  public static abstract class StringObjectMap extends MapMessage<String, Object> {
+  public static abstract class JsonReceiverForStringObjectMap extends JsonMessageReceiverForMap<String, Object> {
   }
 }
