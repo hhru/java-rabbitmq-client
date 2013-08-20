@@ -67,15 +67,14 @@
         </dependency>
         
         <!-- Jackson -->
-        <!--  jackson-core and jackson-mapper will be fetched via jaxrs -->
         <dependency>
-            <groupId>org.codehaus.jackson</groupId>
-            <artifactId>jackson-jaxrs</artifactId>
+            <groupId>com.fasterxml.jackson.jaxrs</groupId>
+            <artifactId>jackson-jaxrs-json-provider</artifactId>
             <version>${jackson.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.codehaus.jackson</groupId>
-            <artifactId>jackson-xc</artifactId>
+            <groupId>com.fasterxml.jackson.module</groupId>
+            <artifactId>jackson-module-jaxb-annotations</artifactId>
             <version>${jackson.version}</version>
         </dependency>
 
@@ -115,7 +114,7 @@
     </dependencies>
     
     <properties>
-        <jackson.version>1.7.4</jackson.version>
+        <jackson.version>2.2.2</jackson.version>
         <slf4j.version>1.6.1</slf4j.version>
     </properties>
         
