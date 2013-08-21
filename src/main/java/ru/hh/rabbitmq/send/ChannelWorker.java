@@ -6,6 +6,7 @@ import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.ReturnListener;
 import java.io.IOException;
+import java.util.Date;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import org.slf4j.Logger;
@@ -18,11 +19,13 @@ class ChannelWorker extends AbstractService implements ReturnListener {
   
   private final ChannelFactory channelFactory;
   private final BlockingQueue<PublishTaskFuture> taskQueue;
+  private final String name;
   private final Thread thread;
 
   ChannelWorker(ChannelFactory channelFactory, BlockingQueue<PublishTaskFuture> taskQueue, final String name) {
     this.channelFactory = channelFactory;
     this.taskQueue = taskQueue;
+    this.name = name;
     this.thread = new Thread(name) {
       @Override
       public void run() {
@@ -87,10 +90,16 @@ class ChannelWorker extends AbstractService implements ReturnListener {
 
   private Channel ensureOpen(Channel channel, boolean transactional) throws IOException {
     if (channel == null || !channel.isOpen()) {
+      Date start = new Date();
       channel = channelFactory.getChannel();
       channel.setReturnListener(this);
       if (transactional) {
         channel.txSelect();
+      }
+      if(shouldLogMetrics()) {
+        long openTime = new Date().getTime() - start.getTime();
+        logger.warn("Inner queue of '{}' is too big (size {}, remain capacity {}). Channel opened in {} millis",
+                new Object[]{name, taskQueue.size(), taskQueue.remainingCapacity(), openTime});
       }
     }
     return channel;
@@ -98,8 +107,16 @@ class ChannelWorker extends AbstractService implements ReturnListener {
   
   private void publishMessages(Channel channel, Map<Message, Destination> messages) throws IOException {
     for (Map.Entry<Message, Destination> entry : messages.entrySet()) {
-      channel.basicPublish(entry.getValue().getExchange(), entry.getValue().getRoutingKey(), entry.getValue().isMandatory(), 
-        entry.getValue().isImmediate(), entry.getKey().getProperties(), entry.getKey().getBody());
+      Date start = new Date();
+      Message message = entry.getKey();
+      Destination destination = entry.getValue();
+      channel.basicPublish(destination.getExchange(), destination.getRoutingKey(), destination.isMandatory(),
+              destination.isImmediate(), message.getProperties(), message.getBody());
+      if(shouldLogMetrics()) {
+        long sendTime = new Date().getTime() - start.getTime();
+        logger.warn("Inner queue of '{}' is too big (size {}, remain capacity {}). Message sent to exchange '{}' with routing key '{}' in {} millis.",
+                new Object[]{name, taskQueue.size(), taskQueue.remainingCapacity(), destination.getExchange(), destination.getRoutingKey(), sendTime});
+      }
     }
   }
 
@@ -119,5 +136,9 @@ class ChannelWorker extends AbstractService implements ReturnListener {
                                 AMQP.BasicProperties properties, byte[] body) throws IOException {
     logger.error("message returned, replyCode {}, replyText '{}', exchange {}, routingKey {}, properties {}",
       new Object[]{replyCode, replyText, exchange, routingKey, properties});
+  }
+
+  private boolean shouldLogMetrics() {
+    return taskQueue.size() > taskQueue.remainingCapacity() * 2;
   }
 }
