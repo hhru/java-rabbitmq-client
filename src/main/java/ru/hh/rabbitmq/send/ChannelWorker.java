@@ -20,7 +20,17 @@ class ChannelWorker extends AbstractService implements ReturnListener {
   private final BlockingQueue<PublishTaskFuture> taskQueue;
   private final Thread thread;
 
+  private final Long connectTimeTolerance;
+  private final Long sendTimeTolerance;
+
   ChannelWorker(ChannelFactory channelFactory, BlockingQueue<PublishTaskFuture> taskQueue, final String name) {
+    this(channelFactory, taskQueue, name, null, null);
+  }
+
+  ChannelWorker(ChannelFactory channelFactory, BlockingQueue<PublishTaskFuture> taskQueue, final String name,
+                Long connectTimeTolerance, Long sendTimeTolerance) {
+    this.connectTimeTolerance = connectTimeTolerance;
+    this.sendTimeTolerance = sendTimeTolerance;
     this.channelFactory = channelFactory;
     this.taskQueue = taskQueue;
     this.thread = new Thread(name) {
@@ -87,10 +97,15 @@ class ChannelWorker extends AbstractService implements ReturnListener {
 
   private Channel ensureOpen(Channel channel, boolean transactional) throws IOException {
     if (channel == null || !channel.isOpen()) {
+      long start = System.nanoTime();
       channel = channelFactory.getChannel();
       channel.setReturnListener(this);
       if (transactional) {
         channel.txSelect();
+      }
+      if(shouldLogMetrics(start, connectTimeTolerance)) {
+        logger.warn("Channel to {}:{} opened in {} millis", new Object[]{channel.getConnection().getHost(),
+                channel.getConnection().getPort(), toMillis(System.nanoTime() - start)});
       }
     }
     return channel;
@@ -98,8 +113,15 @@ class ChannelWorker extends AbstractService implements ReturnListener {
   
   private void publishMessages(Channel channel, Map<Message, Destination> messages) throws IOException {
     for (Map.Entry<Message, Destination> entry : messages.entrySet()) {
-      channel.basicPublish(entry.getValue().getExchange(), entry.getValue().getRoutingKey(), entry.getValue().isMandatory(), 
-        entry.getValue().isImmediate(), entry.getKey().getProperties(), entry.getKey().getBody());
+      long start = System.nanoTime();
+      Message message = entry.getKey();
+      Destination destination = entry.getValue();
+      channel.basicPublish(destination.getExchange(), destination.getRoutingKey(), destination.isMandatory(),
+              destination.isImmediate(), message.getProperties(), message.getBody());
+      if(shouldLogMetrics(start, sendTimeTolerance)) {
+        logger.warn("Message sent to exchange '{}' with routing key '{}' in {} millis.",
+                new Object[]{destination.getExchange(), destination.getRoutingKey(), toMillis(System.nanoTime() - start)});
+      }
     }
   }
 
@@ -119,5 +141,16 @@ class ChannelWorker extends AbstractService implements ReturnListener {
                                 AMQP.BasicProperties properties, byte[] body) throws IOException {
     logger.error("message returned, replyCode {}, replyText '{}', exchange {}, routingKey {}, properties {}",
       new Object[]{replyCode, replyText, exchange, routingKey, properties});
+  }
+
+  private boolean shouldLogMetrics(long start, Long timeTolerance) {
+    if(timeTolerance == null) {
+      return false;
+    }
+    return toMillis(System.nanoTime() - start) > timeTolerance;
+  }
+
+  private long toMillis(long nanoTime) {
+    return nanoTime/(10^6);
   }
 }
