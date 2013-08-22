@@ -127,4 +127,12 @@ public class Publisher {
       throw new QueueIsFullException(e);
     }
   }
+
+  public int getInnerQueueSize() {
+    return taskQueue.size();
+  }
+
+  public int getInnerQueueRemainingCapacity() {
+    return taskQueue.remainingCapacity();
+  }
 }
