@@ -27,8 +27,9 @@ public class Publisher {
 
   public static final Logger logger = LoggerFactory.getLogger(Publisher.class);
 
-  private com.rabbitmq.client.ConnectionFactory connectionFactory;
-  private List<Address> addresses = new ArrayList<Address>();
+  private final com.rabbitmq.client.ConnectionFactory connectionFactory;
+  private final List<Address> addresses = new ArrayList<Address>();
+
   private long retryDelay = DEFAULT_RETRY_DELAY;
   private TimeUnit retryDelayUnits = TimeUnit.MILLISECONDS;
   private int attemptsNumber = DEFAULT_ATTEMPTS_NUMBER;
@@ -181,11 +182,28 @@ public class Publisher {
   }
 
   private void addFuture(PublishTaskFuture future) {
+    checkStarted();
     try {
       taskQueue.add(future);
       logger.trace("task added with {} messages, queue size is {}", future.getMessages().size(), taskQueue.size());
     } catch (IllegalStateException e) {
       throw new QueueIsFullException(e);
+    }
+  }
+
+  public int getInnerQueueSize() {
+    checkStarted();
+    return taskQueue.size();
+  }
+
+  public int getInnerQueueRemainingCapacity() {
+    checkStarted();
+    return taskQueue.remainingCapacity();
+  }
+
+  private void checkStarted() {
+    if(taskQueue == null) {
+      throw new IllegalStateException("Publisher was not started");
     }
   }
 }
