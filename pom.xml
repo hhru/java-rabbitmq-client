@@ -3,12 +3,12 @@
     <parent>
         <groupId>ru.headhunter.commons</groupId>
         <artifactId>common-pom</artifactId>
-        <version>1.23</version>
+        <version>1.24</version>
     </parent>
     <groupId>ru.hh.rabbitmq</groupId>
     <artifactId>rabbitmq-client</artifactId>
     <packaging>jar</packaging>
-    <version>0.0.39-SNAPSHOT</version>
+    <version>1.0.1-SNAPSHOT</version>
     <name>RabbitMQ client and utilities</name>
     <build>
         <plugins>
@@ -60,10 +60,9 @@
     <dependencies>
         <!-- messaging -->
         <dependency>
-            <groupId>com.rabbitmq</groupId>
-            <artifactId>amqp-client</artifactId>
-            <!-- TODO update to 2.4.0 when it is available on central -->
-            <version>2.3.1</version>
+          <groupId>org.springframework.amqp</groupId>
+          <artifactId>spring-rabbit</artifactId>
+          <version>1.2.1.RELEASE</version>
         </dependency>
         
         <!-- Jackson -->

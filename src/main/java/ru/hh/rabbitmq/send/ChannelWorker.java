@@ -2,14 +2,17 @@ package ru.hh.rabbitmq.send;
 
 import com.google.common.base.Throwables;
 import com.google.common.util.concurrent.AbstractService;
-import com.rabbitmq.client.AMQP;
+import com.rabbitmq.client.AMQP.BasicProperties;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.ReturnListener;
+
 import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import ru.hh.rabbitmq.ChannelFactory;
 import ru.hh.rabbitmq.simple.Message;
 
@@ -99,13 +102,13 @@ class ChannelWorker extends AbstractService implements ReturnListener {
     if (channel == null || !channel.isOpen()) {
       long start = System.nanoTime();
       channel = channelFactory.getChannel();
-      channel.setReturnListener(this);
+      channel.addReturnListener(this);
       if (transactional) {
         channel.txSelect();
       }
       if(shouldLogMetrics(start, connectTimeTolerance)) {
-        logger.warn("Channel to {}:{} opened in {} millis", new Object[]{channel.getConnection().getHost(),
-                channel.getConnection().getPort(), toMillis(System.nanoTime() - start)});
+        logger.warn("Channel to {}:{} opened in {} millis", new Object[] { channel.getConnection().getAddress().getHostName(),
+            channel.getConnection().getPort(), toMillis(System.nanoTime() - start) });
       }
     }
     return channel;
@@ -136,9 +139,10 @@ class ChannelWorker extends AbstractService implements ReturnListener {
     thread.interrupt();
   }
 
+  @SuppressWarnings("unused")
   @Override
-  public void handleBasicReturn(int replyCode, String replyText, String exchange, String routingKey, 
-                                AMQP.BasicProperties properties, byte[] body) throws IOException {
+  public void handleReturn(int replyCode, String replyText, String exchange, String routingKey, BasicProperties properties, byte[] body)
+      throws IOException {
     logger.error("message returned, replyCode {}, replyText '{}', exchange {}, routingKey {}, properties {}",
       new Object[]{replyCode, replyText, exchange, routingKey, properties});
   }
