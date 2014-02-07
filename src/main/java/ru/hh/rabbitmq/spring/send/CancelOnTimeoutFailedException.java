@@ -1,4 +1,4 @@
-package ru.hh.rabbitmq.send;
+package ru.hh.rabbitmq.spring.send;
 
 import java.util.concurrent.TimeoutException;
 
