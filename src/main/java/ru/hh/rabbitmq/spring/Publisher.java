@@ -1,10 +1,10 @@
 package ru.hh.rabbitmq.spring;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-
 import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_EXCHANGE;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_INNER_QUEUE_SIZE;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_MANDATORY;
+import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_RECONNECTION_DELAY;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_ROUTING_KEY;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_TRANSACTIONAL;
 
@@ -58,6 +58,8 @@ public class Publisher {
   private final List<Service> workers = new ArrayList<Service>();
   private BlockingQueue<PublishTaskFuture> taskQueue;
 
+  private int reconnectionDelay = 1000;
+
   Publisher(List<ConnectionFactory> connectionFactories, Properties properties) {
     PropertiesHelper props = new PropertiesHelper(properties);
     List<RabbitTemplate> templates = Lists.newArrayList();
@@ -87,6 +89,11 @@ public class Publisher {
       }
 
       templates.add(template);
+
+      Integer reconnectionDelay = props.integer(PUBLISHER_RECONNECTION_DELAY);
+      if (reconnectionDelay != null) {
+        this.reconnectionDelay = reconnectionDelay;
+      }
     }
     this.templates = ImmutableList.copyOf(templates);
   }
@@ -176,7 +183,7 @@ public class Publisher {
     taskQueue = new ArrayBlockingQueue<PublishTaskFuture>(innerQueueSize);
     for (RabbitTemplate template : templates) {
       ConnectionFactory factory = template.getConnectionFactory();
-      Service worker = new ChannelWorker(template, taskQueue, "rabbit-publisher-" + factory.getHost() + ":" + factory.getPort());
+      Service worker = new ChannelWorker(template, taskQueue, "rabbit-publisher-" + factory.getHost() + ":" + factory.getPort(), reconnectionDelay);
       workers.add(worker);
       worker.start();
     }
