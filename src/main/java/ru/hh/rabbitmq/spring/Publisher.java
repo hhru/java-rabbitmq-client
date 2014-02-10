@@ -33,6 +33,7 @@ import ru.hh.rabbitmq.spring.send.PublishTaskFuture;
 import ru.hh.rabbitmq.spring.send.QueueIsFullException;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.util.concurrent.AbstractService;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.Service;
 
@@ -45,7 +46,7 @@ import com.google.common.util.concurrent.Service;
  * See {@link ConfigKeys} constants for configuration options.
  * </p>
  */
-public class Publisher {
+public class Publisher extends AbstractService {
 
   public static final Logger logger = LoggerFactory.getLogger(Publisher.class);
 
@@ -172,12 +173,8 @@ public class Publisher {
     return this;
   }
 
-  /**
-   * Starting publisher, includes starting threads that process inner queue.
-   * 
-   * @return this
-   */
-  public Publisher start() {
+  @Override
+  protected void doStart() {
     checkNotStarted();
     taskQueue = new ArrayBlockingQueue<PublishTaskFuture>(innerQueueSize);
     for (RabbitTemplate template : templates) {
@@ -186,13 +183,11 @@ public class Publisher {
       workers.add(worker);
       worker.start();
     }
-    return this;
+    notifyStarted();
   }
 
-  /**
-   * Stop processing inner queue, release all connections and thread pools.
-   */
-  public void shutdown() {
+  @Override
+  protected void doStop() {
     checkStarted();
     for (Service worker : workers) {
       worker.stopAndWait();
@@ -202,7 +197,9 @@ public class Publisher {
       factory.destroy();
     }
     taskQueue = null;
+    notifyStopped();
   }
+
 
   /**
    * Nonblocking method, enqueues messages internally, throws exception if local queue is full
@@ -301,4 +298,5 @@ public class Publisher {
       throw new IllegalStateException("Publisher was already started");
     }
   }
+
 }

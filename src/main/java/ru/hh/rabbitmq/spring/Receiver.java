@@ -23,6 +23,7 @@ import org.springframework.util.ErrorHandler;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
+import com.google.common.util.concurrent.AbstractService;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 /**
@@ -34,7 +35,7 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
  * See {@link ConfigKeys} constants for configuration options.
  * </p>
  */
-public class Receiver {
+public class Receiver extends AbstractService {
 
   private Map<SimpleMessageListenerContainer, ExecutorService> containers;
 
@@ -148,38 +149,6 @@ public class Receiver {
     return withListener(adapter);
   }
 
-  /**
-   * Start receiving messages.
-   * 
-   * @return this
-   */
-  public Receiver start() {
-    checkNotStarted();
-    for (SimpleMessageListenerContainer container : containers.keySet()) {
-      container.start();
-    }
-    return this;
-  }
-
-
-  /**
-   * Stop receiving messages, release all connections and thread pools.
-   * 
-   * @return this
-   */
-  public Receiver shutdown() {
-    checkStarted();
-    for (SimpleMessageListenerContainer container : containers.keySet()) {
-      container.shutdown();
-      CachingConnectionFactory factory = (CachingConnectionFactory) container.getConnectionFactory();
-      factory.destroy();
-    }
-    for (ExecutorService executor : containers.values()) {
-      executor.shutdown();
-    }
-    return this;
-  }
-
   private void checkStarted() {
     for (SimpleMessageListenerContainer container : containers.keySet()) {
       if (!container.isActive()) {
@@ -194,5 +163,28 @@ public class Receiver {
         throw new IllegalStateException("Publisher was already started");
       }
     }
+  }
+
+  @Override
+  protected void doStart() {
+    checkNotStarted();
+    for (SimpleMessageListenerContainer container : containers.keySet()) {
+      container.start();
+    }
+    notifyStarted();
+  }
+
+  @Override
+  protected void doStop() {
+    checkStarted();
+    for (SimpleMessageListenerContainer container : containers.keySet()) {
+      container.shutdown();
+      CachingConnectionFactory factory = (CachingConnectionFactory) container.getConnectionFactory();
+      factory.destroy();
+    }
+    for (ExecutorService executor : containers.values()) {
+      executor.shutdown();
+    }
+    notifyStopped();
   }
 }

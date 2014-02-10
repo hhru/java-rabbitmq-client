@@ -77,6 +77,7 @@ public class ChannelWorker extends AbstractService implements ConnectionListener
             this.taskQueue.add(task);
             continue;
           }
+          // from now on we can't requeue - that might lead to duplicate messages
           if (!task.isCancelled()) {
             try {
               executeTask(template, task);
