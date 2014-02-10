@@ -90,4 +90,8 @@ public class ConfigKeys {
    * Configure transactional mode of publisher.
    */
   public static final String PUBLISHER_TRANSACTIONAL = "publisher.transactional";
+  /**
+   * Set how long publisher will wait before attempt to reconnect after connection failure.
+   */
+  public static final String PUBLISHER_RECONNECTION_DELAY = "publisher.reconnection.delay.millis";
 }

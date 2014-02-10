@@ -1,5 +1,6 @@
 package ru.hh.rabbitmq.spring;
 
+import static ru.hh.rabbitmq.spring.ConfigKeys.HEARTBIT;
 import static ru.hh.rabbitmq.spring.ConfigKeys.HOSTS;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PASSWORD;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_EXCHANGE;
@@ -30,6 +31,7 @@ public class AmqpTest {
     properties.setProperty(USERNAME, "guest");
     properties.setProperty(PASSWORD, "guest");
     properties.setProperty(RECEIVER_QUEUES, "springq");
+    properties.setProperty(HEARTBIT, "1");
 
     ClientFactory factory = new ClientFactory(properties);
     Receiver receiver = factory.createReceiver();
@@ -75,6 +77,7 @@ public class AmqpTest {
     for (int i = 0; i < 100; i++) {
       send(publisher1, "loc", i);
       send(publisher2, "dev", i);
+      Thread.sleep(10000);
     }
 
     // shutdown
