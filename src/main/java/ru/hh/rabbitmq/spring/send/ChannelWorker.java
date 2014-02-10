@@ -4,7 +4,7 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,16 +26,16 @@ public class ChannelWorker extends AbstractService implements ConnectionListener
   private final BlockingQueue<PublishTaskFuture> taskQueue;
   private final Thread thread;
 
-  // connection state
-
+  // connection state fields. RabbitTemplate does not reconnect automatically, so have to handle it manually
   private long reconnectionDelay;
-  private final ConnectionChecker connectionChecker = new ConnectionChecker();
-  private AtomicBoolean connectionActive = new AtomicBoolean(true);
+  private final ConnectionOpener connectionOpener = new ConnectionOpener();
+  private AtomicReference<Connection> currentConnection = new AtomicReference<Connection>();
   private Monitor connectionMonitor = new Monitor();
   private Monitor.Guard connected = new Monitor.Guard(connectionMonitor) {
     @Override
     public boolean isSatisfied() {
-      return connectionActive.get();
+      Connection connection = currentConnection.get();
+      return connection != null && connection.isOpen();
     }
   };
 
@@ -65,16 +65,17 @@ public class ChannelWorker extends AbstractService implements ConnectionListener
   private void processQueue() {
     try {
       while (isRunning()) {
-        tryConnection();
+        ensureOpen();
+        if (!isRunning()) {
+          continue;
+        }
         try {
           PublishTaskFuture task = this.taskQueue.take();
-          try {
-            ensureOpen();
-            System.out.println("still open");
-          }
-          catch (AmqpConnectException e) {
-            // connection is broken, requeue
+          // after possibly long waiting for new task, re-check connection, requeue if connection is broken
+          if (!connected.isSatisfied()) {
+            logger.debug("requeued message");
             this.taskQueue.add(task);
+            continue;
           }
           if (!task.isCancelled()) {
             try {
@@ -97,23 +98,25 @@ public class ChannelWorker extends AbstractService implements ConnectionListener
     }
   }
 
-  private void tryConnection() throws InterruptedException {
+  private void ensureOpen() throws InterruptedException {
     boolean entered = false;
     while (isRunning() && !entered) {
+      // wait until connected or timeout
       entered = connectionMonitor.enterWhen(connected, reconnectionDelay, TimeUnit.MILLISECONDS);
+      // if still not in, force open connection
       if (!entered) {
+        logger.debug("forcing connection open");
         try {
-          ensureOpen();
+          template.execute(connectionOpener);
         }
         catch (AmqpConnectException e) {
           // swallow, we're not interested in connection problems here
         }
       }
+      else {
+        logger.debug("monitor has entered");
+      }
     }
-  }
-
-  private void ensureOpen() {
-    template.execute(connectionChecker);
   }
 
   private void executeTask(RabbitTemplate template, PublishTaskFuture task) throws IOException {
@@ -127,7 +130,6 @@ public class ChannelWorker extends AbstractService implements ConnectionListener
     for (Map.Entry<Object, Destination> entry : messages.entrySet()) {
       Object message = entry.getKey();
       Destination destination = entry.getValue();
-      // System.out.println("------ sending " + message);
       if (destination != null) {
         template.convertAndSend(destination.getExchange(), destination.getRoutingKey(), message);
       }
@@ -150,18 +152,18 @@ public class ChannelWorker extends AbstractService implements ConnectionListener
   }
 
   @Override
-  public void onCreate(@SuppressWarnings("unused") Connection connection) {
-    System.out.println("connected");
-    connectionActive.set(true);
+  public void onCreate(Connection connection) {
+    logger.debug("connection has been established");
+    this.currentConnection.set(connection);
   }
 
   @Override
   public void onClose(@SuppressWarnings("unused") Connection connection) {
-    System.out.println("disconnected");
-    connectionActive.set(false);
+    logger.debug("connection has been closed");
+    this.currentConnection.set(null);
   }
 
-  private static class ConnectionChecker implements ChannelCallback<Void> {
+  private static class ConnectionOpener implements ChannelCallback<Void> {
     @Override
     public Void doInRabbit(Channel channel) throws Exception {
       channel.isOpen();

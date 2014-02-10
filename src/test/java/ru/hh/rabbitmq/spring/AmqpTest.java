@@ -27,7 +27,7 @@ public class AmqpTest {
   public static void main(String[] args) throws InterruptedException {
     // create receiver
     Properties properties = new Properties();
-    properties.setProperty(HOSTS, "localhost,dev");
+    properties.setProperty(HOSTS, "voznesenskiy.pyn.ru,dev");
     properties.setProperty(USERNAME, "guest");
     properties.setProperty(PASSWORD, "guest");
     properties.setProperty(RECEIVER_QUEUES, "springq");
@@ -65,7 +65,7 @@ public class AmqpTest {
     properties.setProperty(PUBLISHER_EXCHANGE, "spring");
     properties.setProperty(PUBLISHER_ROUTING_KEY, "do");
 
-    properties.setProperty(HOSTS, "localhost");
+    properties.setProperty(HOSTS, "voznesenskiy.pyn.ru");
     factory = new ClientFactory(properties);
     Publisher publisher1 = factory.createPublisher().withJsonMessageConverter().start();
 
@@ -77,7 +77,7 @@ public class AmqpTest {
     for (int i = 0; i < 100; i++) {
       send(publisher1, "loc", i);
       send(publisher2, "dev", i);
-      Thread.sleep(10000);
+      Thread.sleep(500);
     }
 
     // shutdown

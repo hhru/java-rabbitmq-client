@@ -33,7 +33,6 @@ import ru.hh.rabbitmq.spring.send.PublishTaskFuture;
 import ru.hh.rabbitmq.spring.send.QueueIsFullException;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.Service;
 
@@ -54,15 +53,15 @@ public class Publisher {
 
   private int innerQueueSize;
 
-  private List<RabbitTemplate> templates;
-  private final List<Service> workers = new ArrayList<Service>();
+  private final List<RabbitTemplate> templates;
+  private final List<Service> workers = new ArrayList<>();
   private BlockingQueue<PublishTaskFuture> taskQueue;
 
   private int reconnectionDelay = 1000;
 
   Publisher(List<ConnectionFactory> connectionFactories, Properties properties) {
     PropertiesHelper props = new PropertiesHelper(properties);
-    List<RabbitTemplate> templates = Lists.newArrayList();
+    List<RabbitTemplate> templates = new ArrayList<>();
     for (ConnectionFactory factory : connectionFactories) {
       RabbitTemplate template = new RabbitTemplate(factory);
 
