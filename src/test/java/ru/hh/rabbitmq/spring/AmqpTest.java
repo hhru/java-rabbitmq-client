@@ -67,25 +67,28 @@ public class AmqpTest {
 
     properties.setProperty(HOSTS, "voznesenskiy.pyn.ru");
     factory = new ClientFactory(properties);
-    Publisher publisher1 = factory.createPublisher().withJsonMessageConverter().start();
+    Publisher publisher1 = factory.createPublisher().withJsonMessageConverter();
 
     properties.setProperty(HOSTS, "dev");
     factory = new ClientFactory(properties);
-    Publisher publisher2 = factory.createPublisher().withJsonMessageConverter().start();
+    Publisher publisher2 = factory.createPublisher().withJsonMessageConverter();
+
+    publisher1.start();
+    publisher2.start();
 
     // send something
     for (int i = 0; i < 100; i++) {
       send(publisher1, "loc", i);
       send(publisher2, "dev", i);
-      Thread.sleep(500);
+      Thread.sleep(100);
     }
 
     // shutdown
     Thread.sleep(5000);
 
-    publisher1.shutdown();
-    publisher2.shutdown();
-    receiver.shutdown();
+    publisher1.stop();
+    publisher2.stop();
+    receiver.stop();
   }
 
   private static void send(Publisher publisher, String id, int counter) {
