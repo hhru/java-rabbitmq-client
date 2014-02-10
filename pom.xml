@@ -5,7 +5,7 @@
         <artifactId>common-pom</artifactId>
         <version>1.24</version>
     </parent>
-    <groupId>ru.hh.rabbitmq.spring.spring</groupId>
+    <groupId>ru.hh.rabbitmq.spring</groupId>
     <artifactId>rabbitmq-client</artifactId>
     <packaging>jar</packaging>
     <version>1.0.1-SNAPSHOT</version>
