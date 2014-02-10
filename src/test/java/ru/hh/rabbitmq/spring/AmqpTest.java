@@ -12,6 +12,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 
+import org.junit.Ignore;
 import org.springframework.amqp.AmqpRejectAndDontRequeueException;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.core.MessageListener;
@@ -22,6 +23,7 @@ import ru.hh.rabbitmq.spring.Publisher;
 import ru.hh.rabbitmq.spring.Receiver;
 
 // not a unit test, just some manually-runned test with working environment
+@Ignore
 public class AmqpTest {
   
   public static void main(String[] args) throws InterruptedException {
