@@ -14,6 +14,7 @@ import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_RETURNS;
 import static ru.hh.rabbitmq.spring.ConfigKeys.USERNAME;
 import static ru.hh.rabbitmq.spring.ConfigKeys.VIRTUALHOST;
 
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
@@ -23,7 +24,6 @@ import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 
 import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
-import com.google.common.primitives.Ints;
 
 /**
  * <p>
@@ -62,7 +62,7 @@ public class ClientFactory {
   }
 
   private List<ConnectionFactory> createConnectionFactories() {
-    List<ConnectionFactory> factories = Lists.newArrayList();
+    List<ConnectionFactory> factories = new ArrayList<>();
     Integer commonPort = properties.integer(PORT);
 
     String hosts = properties.string(HOSTS);
@@ -77,7 +77,7 @@ public class ClientFactory {
       String host = hostAndPort.next();
       Integer port = commonPort;
       if (hostAndPort.hasNext()) {
-        port = Ints.tryParse(hostAndPort.next());
+        port = Integer.parseInt(hostAndPort.next());
       }
       factories.add(createConnectionFactory(host, port));
     }

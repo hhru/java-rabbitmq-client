@@ -6,6 +6,7 @@ import static ru.hh.rabbitmq.spring.ConfigKeys.RECEIVER_QUEUES;
 import static ru.hh.rabbitmq.spring.ConfigKeys.RECEIVER_QUEUES_SEPARATOR;
 import static ru.hh.rabbitmq.spring.ConfigKeys.RECEIVER_THREADPOOL;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -22,7 +23,6 @@ import org.springframework.util.ErrorHandler;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 /**
@@ -40,7 +40,7 @@ public class Receiver {
 
   Receiver(List<ConnectionFactory> connectionFactories, Properties properties) {
     PropertiesHelper props = new PropertiesHelper(properties);
-    Map<SimpleMessageListenerContainer, ExecutorService> containers = Maps.newHashMap();
+    Map<SimpleMessageListenerContainer, ExecutorService> containers = new HashMap<>();
     for (ConnectionFactory factory : connectionFactories) {
       SimpleMessageListenerContainer container = new SimpleMessageListenerContainer(factory);
 
