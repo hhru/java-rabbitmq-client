@@ -18,6 +18,8 @@ import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.listener.SimpleMessageListenerContainer;
 import org.springframework.amqp.rabbit.listener.adapter.MessageListenerAdapter;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
+import org.springframework.amqp.support.converter.MessageConverter;
+import org.springframework.amqp.support.converter.SimpleMessageConverter;
 import org.springframework.util.ErrorHandler;
 
 import com.google.common.base.Splitter;
@@ -101,6 +103,8 @@ public class Receiver extends AbstractService {
    * Set listener that will receive and process messages. If listener implements {@link ErrorHandler}, it will be set to handle errors as well. Must
    * be called before {@link #start()}.
    * 
+   * Conversion of messages is performed using {@link SimpleMessageConverter}.
+   * 
    * @param listener
    *          listener to set
    * @return this
@@ -114,6 +118,25 @@ public class Receiver extends AbstractService {
       container.setMessageListener(listener);
     }
     return this;
+  }
+
+  /**
+   * Set listener and converter that will receive and process messages. If listener implements {@link ErrorHandler}, it will be set to handle errors
+   * as well. Must be called before {@link #start()}.
+   * 
+   * @param listener
+   *          listener to set
+   * @param converter
+   *          converter to use
+   * @return this
+   */
+  public Receiver withListenerAndConverter(Object listener, MessageConverter converter) {
+    checkNotStarted();
+    MessageListenerAdapter adapter = new MessageListenerAdapter(listener, converter);
+    if (ErrorHandler.class.isAssignableFrom(listener.getClass())) {
+      withErrorHandler((ErrorHandler) listener);
+    }
+    return withListener(adapter);
   }
 
   /**
