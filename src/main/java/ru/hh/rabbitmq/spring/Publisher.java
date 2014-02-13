@@ -114,6 +114,7 @@ public class Publisher extends AbstractService {
    * @return this
    */
   public Publisher setTransactional(boolean transactional) {
+    checkNotStarted();
     for (RabbitTemplate template : templates) {
       template.setChannelTransacted(transactional);
     }
