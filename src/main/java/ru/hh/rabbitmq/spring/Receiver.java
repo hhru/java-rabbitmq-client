@@ -1,18 +1,21 @@
 package ru.hh.rabbitmq.spring;
 
 import static java.util.concurrent.Executors.newFixedThreadPool;
+import static ru.hh.rabbitmq.spring.ConfigKeys.RECEIVER_NAME;
 import static ru.hh.rabbitmq.spring.ConfigKeys.RECEIVER_PREFETCH_COUNT;
 import static ru.hh.rabbitmq.spring.ConfigKeys.RECEIVER_QUEUES;
 import static ru.hh.rabbitmq.spring.ConfigKeys.RECEIVER_QUEUES_SEPARATOR;
 import static ru.hh.rabbitmq.spring.ConfigKeys.RECEIVER_THREADPOOL;
 
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadFactory;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.connection.CachingConnectionFactory;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.listener.SimpleMessageListenerContainer;
@@ -22,6 +25,7 @@ import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.amqp.support.converter.SimpleMessageConverter;
 import org.springframework.util.ErrorHandler;
 
+import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
@@ -39,11 +43,18 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
  */
 public class Receiver extends AbstractService {
 
+  private static final Logger LOGGER = LoggerFactory.getLogger(Receiver.class);
+
   private Map<SimpleMessageListenerContainer, ExecutorService> containers;
+  private Map<SimpleMessageListenerContainer, String> names;
 
   Receiver(List<ConnectionFactory> connectionFactories, Properties properties) {
     PropertiesHelper props = new PropertiesHelper(properties);
-    Map<SimpleMessageListenerContainer, ExecutorService> containers = new HashMap<>();
+    Map<SimpleMessageListenerContainer, ExecutorService> containers = new LinkedHashMap<>(connectionFactories.size());
+    Map<SimpleMessageListenerContainer, String> names = new LinkedHashMap<>(connectionFactories.size());
+
+    String commonName = props.string(RECEIVER_NAME, "");
+
     for (ConnectionFactory factory : connectionFactories) {
       SimpleMessageListenerContainer container = new SimpleMessageListenerContainer(factory);
 
@@ -55,10 +66,10 @@ public class Receiver extends AbstractService {
       }
 
       // configure thread pool
+      String name = "rabbit-receiver-" + commonName + "-" + factory.getHost() + ":" + factory.getPort();
+
       Integer threadPoolSize = props.integer(RECEIVER_THREADPOOL, 1);
-      ThreadFactory threadFactory = new ThreadFactoryBuilder()
-          .setNameFormat("rabbit-receiver-" + factory.getHost() + ":" + factory.getPort() + "-%d")
-          .build();
+      ThreadFactory threadFactory = new ThreadFactoryBuilder().setNameFormat(name + "-%d").build();
       ExecutorService executor = newFixedThreadPool(threadPoolSize, threadFactory);
       container.setTaskExecutor(executor);
 
@@ -69,8 +80,10 @@ public class Receiver extends AbstractService {
       }
 
       containers.put(container, executor);
+      names.put(container, name);
     }
     this.containers = ImmutableMap.copyOf(containers);
+    this.names = ImmutableMap.copyOf(names);
   }
 
   /**
@@ -172,19 +185,23 @@ public class Receiver extends AbstractService {
     return withListener(adapter);
   }
 
-  private void checkStarted() {
+  private boolean isStarted() {
+    boolean started = true;
     for (SimpleMessageListenerContainer container : containers.keySet()) {
-      if (!container.isActive()) {
-        throw new IllegalStateException("Publisher was not started");
-      }
+      started &= container.isActive();
+    }
+    return started;
+  }
+
+  private void checkStarted() {
+    if (!isStarted()) {
+      throw new IllegalStateException("Receiver was not started for " + toString());
     }
   }
 
   private void checkNotStarted() {
-    for (SimpleMessageListenerContainer container : containers.keySet()) {
-      if (container.isActive()) {
-        throw new IllegalStateException("Publisher was already started");
-      }
+    if (isStarted()) {
+      throw new IllegalStateException("Receiver was already started for " + toString());
     }
   }
 
@@ -195,6 +212,7 @@ public class Receiver extends AbstractService {
       container.start();
     }
     notifyStarted();
+    LOGGER.debug("started " + toString());
   }
 
   @Override
@@ -209,5 +227,15 @@ public class Receiver extends AbstractService {
       executor.shutdown();
     }
     notifyStopped();
+    LOGGER.debug("stopped " + toString());
   }
+
+  @Override
+  public String toString() {
+    if (names == null) {
+      return "uninitialized";
+    }
+    return Joiner.on(',').join(names.values());
+  }
+
 }

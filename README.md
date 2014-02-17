@@ -31,10 +31,12 @@ rabbit.server.heartbit.interval.seconds=5
 rabbit.server.channel.cache.size=1
 rabbit.server.close.timeout.millis=100
 
+rabbit.server.receiver.name=myreceiver
 rabbit.server.reciever.queues=myqueue1,myqueue2
 rabbit.server.receiver.threadpool=1
 rabbit.server.receiver.prefetch.count=1
 
+rabbit.server.publisher.name=mypublisher
 rabbit.server.publisher.confirms=false
 rabbit.server.publisher.returns=false
 rabbit.server.publisher.innerqueue.size=1

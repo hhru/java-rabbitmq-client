@@ -42,16 +42,58 @@ public class ClientFactory {
     this.properties = new PropertiesHelper(properties);
   }
 
+  /**
+   * Create new receiver. Reuse connections to brokers.
+   * 
+   * @return new receiver
+   */
   public Receiver createReceiver() {
-    List<ConnectionFactory> factories = getOrCreateConnectionFactories();
-    Receiver receiver = new Receiver(factories, properties.getProperties());
-    return receiver;
+    return createReceiver(true);
   }
 
+  /**
+   * Create new receiver.
+   * 
+   * @param reuseConnections
+   *          whether to reuse connections to brokers or not
+   * @return new receiver
+   */
+  public Receiver createReceiver(boolean reuseConnections) {
+    List<ConnectionFactory> factories;
+    if (reuseConnections) {
+      factories = getOrCreateConnectionFactories();
+    }
+    else {
+      factories = createConnectionFactories();
+    }
+    return new Receiver(factories, properties.getProperties());
+  }
+
+  /**
+   * Create new publisher. Reuse connections to brokers.
+   * 
+   * @return new publisher
+   */
   public Publisher createPublisher() {
-    List<ConnectionFactory> factories = getOrCreateConnectionFactories();
-    Publisher publisher = new Publisher(factories, properties.getProperties());
-    return publisher;
+    return createPublisher(true);
+  }
+
+  /**
+   * Create new publisher.
+   * 
+   * @param reuseConnections
+   *          whether to resue connections to brokers or not
+   * @return new publisher
+   */
+  public Publisher createPublisher(boolean reuseConnections) {
+    List<ConnectionFactory> factories;
+    if (reuseConnections) {
+      factories = getOrCreateConnectionFactories();
+    }
+    else {
+      factories = createConnectionFactories();
+    }
+    return new Publisher(factories, properties.getProperties());
   }
 
   private List<ConnectionFactory> getOrCreateConnectionFactories() {
@@ -85,37 +127,42 @@ public class ClientFactory {
   }
 
   private ConnectionFactory createConnectionFactory(String host, Integer port) {
-    CachingConnectionFactory factory = new CachingConnectionFactory();
-    factory.setHost(host);
-    if (port != null) {
-      factory.setPort(port);
+    try {
+      CachingConnectionFactory factory = new CachingConnectionFactory();
+      factory.setHost(host);
+      if (port != null) {
+        factory.setPort(port);
+      }
+      factory.setUsername(properties.notNullString(USERNAME));
+      factory.setPassword(properties.notNullString(PASSWORD));
+      String virtualhost = properties.string(VIRTUALHOST);
+      if (virtualhost != null) {
+        factory.setVirtualHost(virtualhost);
+      }
+      Integer heartbit = properties.integer(HEARTBIT);
+      if (heartbit != null) {
+        factory.setRequestedHeartBeat(heartbit);
+      }
+      Integer channelCacheSize = properties.integer(CHANNEL_CACHE_SIZE);
+      if (channelCacheSize != null) {
+        factory.setChannelCacheSize(channelCacheSize);
+      }
+      Integer closeTimeout = properties.integer(CLOSE_TIMEOUT);
+      if (closeTimeout != null) {
+        factory.setCloseTimeout(closeTimeout);
+      }
+      Boolean publisherConfirms = properties.bool(PUBLISHER_CONFIRMS);
+      if (publisherConfirms != null) {
+        factory.setPublisherConfirms(publisherConfirms);
+      }
+      Boolean publisherReturns = properties.bool(PUBLISHER_RETURNS);
+      if (publisherReturns != null) {
+        factory.setPublisherReturns(publisherReturns);
+      }
+      return factory;
     }
-    factory.setUsername(properties.notNullString(USERNAME));
-    factory.setPassword(properties.notNullString(PASSWORD));
-    String virtualhost = properties.string(VIRTUALHOST);
-    if (virtualhost != null) {
-      factory.setVirtualHost(virtualhost);
+    catch (Exception e) {
+      throw new ConfigException(String.format("Failed to create ConnectionFactory (%s)", host), e);
     }
-    Integer heartbit = properties.integer(HEARTBIT);
-    if (heartbit != null) {
-      factory.setRequestedHeartBeat(heartbit);
-    }
-    Integer channelCacheSize = properties.integer(CHANNEL_CACHE_SIZE);
-    if (channelCacheSize != null) {
-      factory.setChannelCacheSize(channelCacheSize);
-    }
-    Integer closeTimeout = properties.integer(CLOSE_TIMEOUT);
-    if (closeTimeout != null) {
-      factory.setCloseTimeout(closeTimeout);
-    }
-    Boolean publisherConfirms = properties.bool(PUBLISHER_CONFIRMS);
-    if (publisherConfirms != null) {
-      factory.setPublisherConfirms(publisherConfirms);
-    }
-    Boolean publisherReturns = properties.bool(PUBLISHER_RETURNS);
-    if (publisherReturns != null) {
-      factory.setPublisherReturns(publisherReturns);
-    }
-    return factory;
   }
 }

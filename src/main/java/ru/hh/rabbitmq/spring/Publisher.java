@@ -4,6 +4,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_EXCHANGE;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_INNER_QUEUE_SIZE;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_MANDATORY;
+import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_NAME;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_RECONNECTION_DELAY;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_ROUTING_KEY;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_TRANSACTIONAL;
@@ -11,8 +12,10 @@ import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_TRANSACTIONAL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
@@ -32,7 +35,8 @@ import ru.hh.rabbitmq.spring.send.Destination;
 import ru.hh.rabbitmq.spring.send.PublishTaskFuture;
 import ru.hh.rabbitmq.spring.send.QueueIsFullException;
 
-import com.google.common.collect.ImmutableList;
+import com.google.common.base.Joiner;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.AbstractService;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.Service;
@@ -48,13 +52,13 @@ import com.google.common.util.concurrent.Service;
  */
 public class Publisher extends AbstractService {
 
-  public static final Logger logger = LoggerFactory.getLogger(Publisher.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(Publisher.class);
 
   private static final int DEFAULT_INNER_QUEUE_SIZE = 1000;
 
   private int innerQueueSize;
 
-  private final List<RabbitTemplate> templates;
+  private final Map<RabbitTemplate, String> templates;
   private final List<Service> workers = new ArrayList<>();
   private BlockingQueue<PublishTaskFuture> taskQueue;
 
@@ -62,11 +66,12 @@ public class Publisher extends AbstractService {
 
   Publisher(List<ConnectionFactory> connectionFactories, Properties properties) {
     PropertiesHelper props = new PropertiesHelper(properties);
-    List<RabbitTemplate> templates = new ArrayList<>();
+    Map<RabbitTemplate, String> templates = new LinkedHashMap<>(connectionFactories.size());
+
+    String commonName = props.string(PUBLISHER_NAME, "");
+
     for (ConnectionFactory factory : connectionFactories) {
       RabbitTemplate template = new RabbitTemplate(factory);
-
-      innerQueueSize = props.integer(PUBLISHER_INNER_QUEUE_SIZE, DEFAULT_INNER_QUEUE_SIZE);
 
       String exchange = props.string(PUBLISHER_EXCHANGE);
       if (exchange != null) {
@@ -88,23 +93,28 @@ public class Publisher extends AbstractService {
         template.setChannelTransacted(transactional);
       }
 
-      templates.add(template);
-
-      Integer reconnectionDelay = props.integer(PUBLISHER_RECONNECTION_DELAY);
-      if (reconnectionDelay != null) {
-        this.reconnectionDelay = reconnectionDelay;
-      }
+      String name = "rabbit-publisher-" + commonName + "-" + factory.getHost() + ":" + factory.getPort();
+      templates.put(template, name);
     }
-    this.templates = ImmutableList.copyOf(templates);
+
+    innerQueueSize = props.integer(PUBLISHER_INNER_QUEUE_SIZE, DEFAULT_INNER_QUEUE_SIZE);
+
+    Integer reconnectionDelay = props.integer(PUBLISHER_RECONNECTION_DELAY);
+    if (reconnectionDelay != null) {
+      this.reconnectionDelay = reconnectionDelay;
+    }
+
+    this.templates = ImmutableMap.copyOf(templates);
   }
 
   /**
-   * Returns immutable list of all rabbit templates for additional configuration. Doing this after {@link #start()} might lead to unexpected behavior.
+   * Returns immutable collection of all rabbit templates for additional configuration. Doing this after {@link #start()} might lead to unexpected
+   * behavior.
    * 
    * @return list of all rabbit templates
    */
-  public List<RabbitTemplate> getRabbitTemplates() {
-    return templates;
+  public Collection<RabbitTemplate> getRabbitTemplates() {
+    return templates.keySet();
   }
 
   /**
@@ -115,7 +125,7 @@ public class Publisher extends AbstractService {
    */
   public Publisher setTransactional(boolean transactional) {
     checkNotStarted();
-    for (RabbitTemplate template : templates) {
+    for (RabbitTemplate template : templates.keySet()) {
       template.setChannelTransacted(transactional);
     }
     return this;
@@ -129,7 +139,7 @@ public class Publisher extends AbstractService {
    */
   public Publisher withMessageConverter(MessageConverter converter) {
     checkNotStarted();
-    for (RabbitTemplate template : templates) {
+    for (RabbitTemplate template : templates.keySet()) {
       template.setMessageConverter(converter);
     }
     return this;
@@ -154,7 +164,7 @@ public class Publisher extends AbstractService {
    */
   public Publisher withConfirmCallback(ConfirmCallback callback) {
     checkNotStarted();
-    for (RabbitTemplate template : templates) {
+    for (RabbitTemplate template : templates.keySet()) {
       template.setConfirmCallback(callback);
     }
     return this;
@@ -168,7 +178,7 @@ public class Publisher extends AbstractService {
    */
   public Publisher withReturnCallback(ReturnCallback callback) {
     checkNotStarted();
-    for (RabbitTemplate template : templates) {
+    for (RabbitTemplate template : templates.keySet()) {
       template.setReturnCallback(callback);
     }
     return this;
@@ -178,13 +188,15 @@ public class Publisher extends AbstractService {
   protected void doStart() {
     checkNotStarted();
     taskQueue = new ArrayBlockingQueue<PublishTaskFuture>(innerQueueSize);
-    for (RabbitTemplate template : templates) {
-      ConnectionFactory factory = template.getConnectionFactory();
-      Service worker = new ChannelWorker(template, taskQueue, "rabbit-publisher-" + factory.getHost() + ":" + factory.getPort(), reconnectionDelay);
+    for (Entry<RabbitTemplate, String> entry : templates.entrySet()) {
+      RabbitTemplate template = entry.getKey();
+      String name = entry.getValue();
+      Service worker = new ChannelWorker(template, taskQueue, name, reconnectionDelay);
       workers.add(worker);
       worker.start();
     }
     notifyStarted();
+    LOGGER.debug("started " + toString());
   }
 
   @Override
@@ -193,12 +205,13 @@ public class Publisher extends AbstractService {
     for (Service worker : workers) {
       worker.stopAndWait();
     }
-    for (RabbitTemplate template : templates) {
+    for (RabbitTemplate template : templates.keySet()) {
       CachingConnectionFactory factory = (CachingConnectionFactory) template.getConnectionFactory();
       factory.destroy();
     }
     taskQueue = null;
     notifyStopped();
+    LOGGER.debug("stopped " + toString());
   }
 
 
@@ -271,10 +284,10 @@ public class Publisher extends AbstractService {
     checkStarted();
     try {
       taskQueue.add(future);
-      logger.trace("task added with {} messages, queue size is {}", future.getMessages().size(), taskQueue.size());
+      LOGGER.trace("task added with {} messages, queue size is {}", future.getMessages().size(), taskQueue.size());
     }
     catch (IllegalStateException e) {
-      throw new QueueIsFullException(e);
+      throw new QueueIsFullException(toString(), e);
     }
   }
 
@@ -288,16 +301,28 @@ public class Publisher extends AbstractService {
     return taskQueue.remainingCapacity();
   }
 
+  private boolean isStarted() {
+    return taskQueue != null;
+  }
+
   private void checkStarted() {
-    if (taskQueue == null) {
-      throw new IllegalStateException("Publisher was not started");
+    if (!isStarted()) {
+      throw new IllegalStateException("Publisher was not started for " + toString());
     }
   }
 
   private void checkNotStarted() {
-    if (taskQueue != null) {
-      throw new IllegalStateException("Publisher was already started");
+    if (isStarted()) {
+      throw new IllegalStateException("Publisher was already started for " + toString());
     }
+  }
+
+  @Override
+  public String toString() {
+    if (templates == null) {
+      return "uninitialized";
+    }
+    return Joiner.on(',').join(templates.values());
   }
 
 }
