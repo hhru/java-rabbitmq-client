@@ -26,6 +26,11 @@ public class PropertiesHelper {
     return properties.getProperty(name);
   }
 
+  public String string(String name, String defaultName) {
+    String someName = string(name);
+    return someName == null ? defaultName : someName;
+  }
+
   public Integer integer(String name) {
     String value = string(name);
     if (value == null) {

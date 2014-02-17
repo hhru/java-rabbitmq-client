@@ -20,7 +20,7 @@ import com.google.common.util.concurrent.Monitor;
 import com.rabbitmq.client.Channel;
 
 public class ChannelWorker extends AbstractService implements ConnectionListener {
-  public static final Logger logger = LoggerFactory.getLogger(ChannelWorker.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(ChannelWorker.class);
   
   private final RabbitTemplate template;
   private final BlockingQueue<PublishTaskFuture> taskQueue;
@@ -48,11 +48,11 @@ public class ChannelWorker extends AbstractService implements ConnectionListener
       public void run() {
         try {
           notifyStarted();
-          logger.info("worker started");
+          LOGGER.debug("worker started");
           while (isRunning()) {
             processQueue();
           }
-          logger.info("worker stopped");
+          LOGGER.debug("worker stopped");
           notifyStopped();
         } catch (Throwable t) {
           notifyFailed(t);
@@ -73,7 +73,7 @@ public class ChannelWorker extends AbstractService implements ConnectionListener
           PublishTaskFuture task = this.taskQueue.take();
           // after possibly long waiting for new task, re-check connection, requeue if connection is broken
           if (!connected.isSatisfied()) {
-            logger.debug("requeued message");
+            LOGGER.warn("requeued message on connection loss");
             this.taskQueue.add(task);
             continue;
           }
@@ -93,9 +93,9 @@ public class ChannelWorker extends AbstractService implements ConnectionListener
         }
       }
     } catch (InterruptedException e) {
-      logger.debug("worker interrupted, stopping");
+      LOGGER.debug("worker interrupted, stopping");
     } catch (Exception e) {
-      logger.error("failed to execute task", e);
+      LOGGER.error("failed to execute task", e);
     }
   }
 
@@ -106,7 +106,7 @@ public class ChannelWorker extends AbstractService implements ConnectionListener
       entered = connectionMonitor.enterWhen(connected, reconnectionDelay, TimeUnit.MILLISECONDS);
       // if still not in, force open connection
       if (!entered) {
-        logger.debug("forcing connection open");
+        LOGGER.debug("forcing connection open");
         try {
           template.execute(connectionOpener);
         }
@@ -114,16 +114,13 @@ public class ChannelWorker extends AbstractService implements ConnectionListener
           // swallow, we're not interested in connection problems here
         }
       }
-      else {
-        logger.debug("monitor has entered");
-      }
     }
   }
 
   private void executeTask(RabbitTemplate template, PublishTaskFuture task) throws IOException {
     publishMessages(template, task.getMessages());
     task.complete();
-    logger.trace("task completed, sent {} messages, queue size is {}", task.getMessages().size(), 
+    LOGGER.trace("task completed, sent {} messages, queue size is {}", task.getMessages().size(), 
       this.taskQueue.size());
   }
 
@@ -148,19 +145,19 @@ public class ChannelWorker extends AbstractService implements ConnectionListener
 
   @Override
   protected void doStop() {
-    logger.debug("interrupting worker {}", thread.getName());
+    LOGGER.debug("interrupting worker {}", thread.getName());
     thread.interrupt();
   }
 
   @Override
   public void onCreate(Connection connection) {
-    logger.debug("connection has been established");
+    LOGGER.debug("connection has been established");
     this.currentConnection.set(connection);
   }
 
   @Override
   public void onClose(@SuppressWarnings("unused") Connection connection) {
-    logger.debug("connection has been closed");
+    LOGGER.debug("connection has been closed");
     this.currentConnection.set(null);
   }
 

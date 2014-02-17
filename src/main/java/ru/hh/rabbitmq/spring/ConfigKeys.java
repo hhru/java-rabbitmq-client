@@ -47,6 +47,10 @@ public interface ConfigKeys {
   String CLOSE_TIMEOUT = "close.timeout.millis";
 
   /**
+   * Name will be used in thread name of receiver workers.
+   */
+  String RECEIVER_NAME = "receiver.name";
+  /**
    * Set default queue names receiver will be listening. Multiple queue names are separated using {@link #RECEIVER_QUEUES_SEPARATOR}.
    */
   String RECEIVER_QUEUES = "reciever.queues";
@@ -62,6 +66,10 @@ public interface ConfigKeys {
    */
   String RECEIVER_PREFETCH_COUNT = "receiver.prefetch.count";
 
+  /**
+   * Name will be used in thread name of publisher workers.
+   */
+  String PUBLISHER_NAME = "publisher.name";
   /**
    * Configure publisher confirms, will be same for connections to all brokers. See {@link CachingConnectionFactory#setPublisherConfirms(boolean)}.
    */
