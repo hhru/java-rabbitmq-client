@@ -49,6 +49,7 @@ public class ChannelWorker extends AbstractService implements ConnectionListener
         try {
           notifyStarted();
           LOGGER.debug("worker started");
+          forceOpenConnection();
           while (isRunning()) {
             processQueue();
           }
@@ -106,14 +107,18 @@ public class ChannelWorker extends AbstractService implements ConnectionListener
       entered = connectionMonitor.enterWhen(connected, reconnectionDelay, TimeUnit.MILLISECONDS);
       // if still not in, force open connection
       if (!entered) {
-        LOGGER.debug("forcing connection open");
-        try {
-          template.execute(connectionOpener);
-        }
-        catch (AmqpConnectException e) {
-          // swallow, we're not interested in connection problems here
-        }
+        forceOpenConnection();
       }
+    }
+  }
+
+  private void forceOpenConnection() {
+    LOGGER.debug("forcing connection open");
+    try {
+      template.execute(connectionOpener);
+    }
+    catch (AmqpConnectException e) {
+      // swallow, we're not interested in connection problems here
     }
   }
 

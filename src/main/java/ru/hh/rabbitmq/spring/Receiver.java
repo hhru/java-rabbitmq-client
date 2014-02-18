@@ -72,6 +72,7 @@ public class Receiver extends AbstractService {
       ThreadFactory threadFactory = new ThreadFactoryBuilder().setNameFormat(name + "-%d").build();
       ExecutorService executor = newFixedThreadPool(threadPoolSize, threadFactory);
       container.setTaskExecutor(executor);
+      container.setConcurrentConsumers(threadPoolSize);
 
       // configure prefetch count
       Integer prefetchCount = props.integer(RECEIVER_PREFETCH_COUNT);
