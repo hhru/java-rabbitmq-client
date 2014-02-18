@@ -16,8 +16,10 @@ import java.util.concurrent.ThreadFactory;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.amqp.core.MessageListener;
 import org.springframework.amqp.rabbit.connection.CachingConnectionFactory;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
+import org.springframework.amqp.rabbit.core.ChannelAwareMessageListener;
 import org.springframework.amqp.rabbit.listener.SimpleMessageListenerContainer;
 import org.springframework.amqp.rabbit.listener.adapter.MessageListenerAdapter;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
@@ -120,7 +122,7 @@ public class Receiver extends AbstractService {
    * Conversion of messages is performed using {@link SimpleMessageConverter}.
    * 
    * @param listener
-   *          listener to set
+   *          listener to set, can either be {@link MessageListener} or {@link ChannelAwareMessageListener} implementation
    * @return this
    */
   public Receiver withListener(Object listener) {
@@ -137,6 +139,8 @@ public class Receiver extends AbstractService {
   /**
    * Set listener and converter that will receive and process messages. If listener implements {@link ErrorHandler}, it will be set to handle errors
    * as well. Must be called before {@link #start()}.
+   * 
+   * See {@link MessageListenerAdapter} documentation on how to name listener handling method.
    * 
    * @param listener
    *          listener to set
