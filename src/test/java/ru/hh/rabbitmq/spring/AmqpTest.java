@@ -8,7 +8,9 @@ import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_ROUTING_KEY;
 import static ru.hh.rabbitmq.spring.ConfigKeys.RECEIVER_QUEUES;
 import static ru.hh.rabbitmq.spring.ConfigKeys.USERNAME;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
@@ -56,7 +58,12 @@ public class AmqpTest {
 
       @SuppressWarnings("unused")
       public void handleMessage(Map<String, Object> object) {
-        System.out.println(object);
+        System.out.println("Map: " + object);
+      }
+
+      @SuppressWarnings("unused")
+      public void handleMessage(List<Object> object) {
+        System.out.println("List: " + object);
       }
     };
 
@@ -98,5 +105,10 @@ public class AmqpTest {
     body.put("counter", counter);
     body.put("id", id);
     publisher.send(body);
+
+    List<Object> listBody = new ArrayList<Object>();
+    listBody.add(counter);
+    listBody.add(id);
+    publisher.send((Object) listBody);
   }
 }
