@@ -13,6 +13,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,7 +32,6 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
-import com.google.common.util.concurrent.AbstractService;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 /**
@@ -43,12 +43,14 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
  * See {@link ConfigKeys} constants for configuration options.
  * </p>
  */
-public class Receiver extends AbstractService {
+public class Receiver {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(Receiver.class);
 
   private Map<SimpleMessageListenerContainer, ExecutorService> containers;
   private Map<SimpleMessageListenerContainer, String> names;
+
+  private AtomicBoolean shutDown = new AtomicBoolean(false);
 
   Receiver(List<ConnectionFactory> connectionFactories, Properties properties) {
     PropertiesHelper props = new PropertiesHelper(properties);
@@ -96,6 +98,7 @@ public class Receiver extends AbstractService {
    * @return list of all broker containers
    */
   public Iterable<SimpleMessageListenerContainer> getContainers() {
+    checkNotShutDown();
     return containers.keySet();
   }
 
@@ -190,7 +193,7 @@ public class Receiver extends AbstractService {
     return withListener(adapter);
   }
 
-  private boolean isStarted() {
+  public boolean isActive() {
     boolean started = true;
     for (SimpleMessageListenerContainer container : containers.keySet()) {
       started &= container.isActive();
@@ -198,31 +201,67 @@ public class Receiver extends AbstractService {
     return started;
   }
 
+  public boolean isShutDown() {
+    return shutDown.get();
+  }
+
   private void checkStarted() {
-    if (!isStarted()) {
+    checkNotShutDown();
+    if (!isActive()) {
       throw new IllegalStateException("Receiver was not started for " + toString());
     }
   }
 
   private void checkNotStarted() {
-    if (isStarted()) {
+    checkNotShutDown();
+    if (isActive()) {
       throw new IllegalStateException("Receiver was already started for " + toString());
     }
   }
 
-  @Override
-  protected void doStart() {
+  private void checkNotShutDown() {
+    if (shutDown.get()) {
+      throw new IllegalStateException("Receiver was shut down for " + toString());
+    }
+  }
+
+  /**
+   * Start receiving messages.
+   */
+  public void start() {
     checkNotStarted();
     for (SimpleMessageListenerContainer container : containers.keySet()) {
       container.start();
     }
-    notifyStarted();
     LOGGER.debug("started " + toString());
   }
 
-  @Override
-  protected void doStop() {
+  /**
+   * Stop (pause) receiving messages. Once this is called, configuration methods can be used again. Previously set configuration parameters are
+   * preserved.
+   */
+  public void stop() {
     checkStarted();
+    doStop();
+  }
+
+  private void doStop() {
+    for (SimpleMessageListenerContainer container : containers.keySet()) {
+      container.stop();
+    }
+    LOGGER.debug("stopped " + toString());
+  }
+
+  /**
+   * Stop receiving messages, release all resources. Once called, this instance can't be used again.
+   */
+  public void shutdown() {
+    if (!shutDown.compareAndSet(false, true)) {
+      throw new IllegalStateException("Already shut down: " + toString());
+    }
+    if (isActive()) {
+      doStop();
+    }
     for (SimpleMessageListenerContainer container : containers.keySet()) {
       container.shutdown();
       CachingConnectionFactory factory = (CachingConnectionFactory) container.getConnectionFactory();
@@ -231,8 +270,7 @@ public class Receiver extends AbstractService {
     for (ExecutorService executor : containers.values()) {
       executor.shutdown();
     }
-    notifyStopped();
-    LOGGER.debug("stopped " + toString());
+    LOGGER.debug("shut down " + toString());
   }
 
   @Override

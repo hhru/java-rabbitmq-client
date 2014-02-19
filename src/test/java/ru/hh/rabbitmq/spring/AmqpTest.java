@@ -86,7 +86,29 @@ public class AmqpTest {
     publisher2.start();
 
     // send something
-    for (int i = 0; i < 100; i++) {
+    for (int i = 0; i < 50; i++) {
+      send(publisher1, "loc", i);
+      send(publisher2, "dev", i);
+      Thread.sleep(100);
+    }
+
+    // pause receiver
+    receiver.stop();
+
+    for (int i = 0; i < 10; i++) {
+      send(publisher1, "loc", i);
+      send(publisher2, "dev", i);
+      Thread.sleep(100);
+    }
+
+    Thread.sleep(5000);
+
+    // resume receiver
+    receiver.start();
+
+    Thread.sleep(5000);
+
+    for (int i = 0; i < 50; i++) {
       send(publisher1, "loc", i);
       send(publisher2, "dev", i);
       Thread.sleep(100);
@@ -97,7 +119,7 @@ public class AmqpTest {
 
     publisher1.stop();
     publisher2.stop();
-    receiver.stop();
+    receiver.shutdown();
   }
 
   private static void send(Publisher publisher, String id, int counter) {
