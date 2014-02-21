@@ -10,6 +10,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.junit.Test;
 
+import ru.hh.rabbitmq.spring.receive.MapMessageListener;
 import ru.hh.rabbitmq.spring.send.Destination;
 
 public class RabbitIntegrationTest extends RabbitIntegrationTestBase {
@@ -138,10 +139,9 @@ public class RabbitIntegrationTest extends RabbitIntegrationTestBase {
     receiver.shutdown();
   }
 
-  private static class MessageHandler {
+  private static class MessageHandler implements MapMessageListener {
     private ArrayBlockingQueue<Map<String, Object>> queue = new ArrayBlockingQueue<Map<String, Object>>(1);
 
-    @SuppressWarnings("unused")
     public void handleMessage(Map<String, Object> data) {
       queue.add(data);
     }
