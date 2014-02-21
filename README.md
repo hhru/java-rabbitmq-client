@@ -47,7 +47,22 @@ rabbit.server.publisher.transactional=false
 rabbit.server.publisher.reconnection.delay.millis=60000
 ```
 
-# Usage example:
+# Testing
+
+There are integration tests that are disabled by default as they require special environment.
+To run integration tests you must have the following:
+
+- RabbitMQ broker running at 'localhost:5672', with username 'guest' and password 'guest';
+- RabbitMQ broker running at 'dev:5672', with username 'guest' and password 'guest'.
+
+You don't have to configure any exchanges, bindings or queues because tests will create and remove it automatically.
+
+Use the following command to run tests:
+```
+mvn-hh install -P test
+```
+
+# Usage example
 
 ```java
     // create receiver

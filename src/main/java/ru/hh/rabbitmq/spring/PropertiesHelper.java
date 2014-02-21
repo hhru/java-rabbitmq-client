@@ -1,7 +1,5 @@
 package ru.hh.rabbitmq.spring;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-
 import java.util.Properties;
 
 import com.google.common.primitives.Ints;
@@ -19,7 +17,11 @@ public class PropertiesHelper {
   }
 
   public String notNullString(String name) {
-    return checkNotNull(properties.getProperty(name), "Property '" + name + "' must be set");
+    String value = properties.getProperty(name);
+    if (value == null || value.trim().length() == 0) {
+      throw new NullPointerException("Property '" + name + "' must be set and not empty");
+    }
+    return value;
   }
 
   public String string(String name) {

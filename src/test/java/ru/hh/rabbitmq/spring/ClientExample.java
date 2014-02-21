@@ -14,19 +14,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
-import org.junit.Ignore;
 import org.springframework.amqp.AmqpRejectAndDontRequeueException;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.core.MessageListener;
 import org.springframework.util.ErrorHandler;
 
-import ru.hh.rabbitmq.spring.ClientFactory;
-import ru.hh.rabbitmq.spring.Publisher;
-import ru.hh.rabbitmq.spring.Receiver;
-
-// not a unit test, just some manually-runned test with working environment
-@Ignore
-public class AmqpTest {
+// not a test, just some manually-run example
+public class ClientExample {
   
   public static void main(String[] args) throws InterruptedException {
     // create receiver

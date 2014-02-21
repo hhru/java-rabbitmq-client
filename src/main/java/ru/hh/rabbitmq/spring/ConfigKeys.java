@@ -11,21 +11,21 @@ public interface ConfigKeys {
    */
   String PORT = "port";
   /**
-   * Single rabbitmq broker host. Is used if {@link #HOSTS} is not specified.
+   * Single rabbitmq broker host. Is used if {@link #HOSTS} is not specified. Either this or {@link #HOSTS} is required.
    */
   String HOST = "host";
   /**
-   * Multiple rabbitmq broker hosts in the form of 'host:port,host:port' or 'host,host'.
+   * Multiple rabbitmq broker hosts in the form of 'host:port,host:port' or 'host,host'. Either this or {@link #HOST} is required.
    */
   String HOSTS = "hosts";
   String HOSTS_SEPARATOR = ",";
   String HOSTS_PORT_SEPARATOR = ":";
   /**
-   * Username, must be same for all brokers.
+   * Username (required), must be same for all brokers.
    */
   String USERNAME = "username";
   /**
-   * Password, must be same for all brokers.
+   * Password (required), must be same for all brokers.
    */
   String PASSWORD = "password";
   /**

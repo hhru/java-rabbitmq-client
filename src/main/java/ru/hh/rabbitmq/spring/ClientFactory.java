@@ -105,25 +105,36 @@ public class ClientFactory {
 
   private List<ConnectionFactory> createConnectionFactories() {
     List<ConnectionFactory> factories = new ArrayList<>();
-    Integer commonPort = properties.integer(PORT);
+    try {
+      Integer commonPort = properties.integer(PORT);
 
-    String hosts = properties.string(HOSTS);
-    if (hosts == null) {
-      String host = properties.notNullString(HOST);
-      return Lists.newArrayList(createConnectionFactory(host, commonPort));
-    }
-
-    Iterable<String> hostsList = Splitter.on(HOSTS_SEPARATOR).split(hosts);
-    for (String hostAndPortString : hostsList) {
-      Iterator<String> hostAndPort = Splitter.on(HOSTS_PORT_SEPARATOR).split(hostAndPortString).iterator();
-      String host = hostAndPort.next();
-      Integer port = commonPort;
-      if (hostAndPort.hasNext()) {
-        port = Integer.parseInt(hostAndPort.next());
+      String hosts = properties.string(HOSTS);
+      if (isEmpty(hosts)) {
+        String host = properties.string(HOST);
+        if (isEmpty(host)) {
+          throw new ConfigException(String.format("Either '%s' or '%s' must be set and not empty", HOSTS, HOST));
+        }
+        return Lists.newArrayList(createConnectionFactory(host, commonPort));
       }
-      factories.add(createConnectionFactory(host, port));
+
+      Iterable<String> hostsList = Splitter.on(HOSTS_SEPARATOR).split(hosts);
+      for (String hostAndPortString : hostsList) {
+        Iterator<String> hostAndPort = Splitter.on(HOSTS_PORT_SEPARATOR).split(hostAndPortString).iterator();
+        String host = hostAndPort.next();
+        Integer port = commonPort;
+        if (hostAndPort.hasNext()) {
+          port = Integer.parseInt(hostAndPort.next());
+        }
+        factories.add(createConnectionFactory(host, port));
+      }
+      return factories;
     }
-    return factories;
+    catch (ConfigException e) {
+      throw e;
+    }
+    catch (Exception e) {
+      throw new ConfigException("Failed to create connection factories", e);
+    }
   }
 
   private ConnectionFactory createConnectionFactory(String host, Integer port) {
@@ -164,5 +175,9 @@ public class ClientFactory {
     catch (Exception e) {
       throw new ConfigException(String.format("Failed to create ConnectionFactory (%s)", host), e);
     }
+  }
+
+  private boolean isEmpty(String value) {
+    return value == null || value.trim().length() == 0;
   }
 }
