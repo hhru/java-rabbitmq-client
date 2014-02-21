@@ -49,6 +49,8 @@ import com.google.common.util.concurrent.Service;
  * <p>
  * See {@link ConfigKeys} constants for configuration options.
  * </p>
+ * <p>
+ * Publisher is not restartable - once {@link #stop()} is called, calling {@link #start()} will do nothing.
  */
 public class Publisher extends AbstractService {
 

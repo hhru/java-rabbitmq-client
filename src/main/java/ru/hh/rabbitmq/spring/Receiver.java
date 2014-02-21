@@ -228,21 +228,23 @@ public class Receiver {
   /**
    * Start receiving messages.
    */
-  public void start() {
+  public Receiver start() {
     checkNotStarted();
     for (SimpleMessageListenerContainer container : containers.keySet()) {
       container.start();
     }
     LOGGER.debug("started " + toString());
+    return this;
   }
 
   /**
    * Stop (pause) receiving messages. Once this is called, configuration methods can be used again. Previously set configuration parameters are
    * preserved.
    */
-  public void stop() {
+  public Receiver stop() {
     checkStarted();
     doStop();
+    return this;
   }
 
   private void doStop() {
