@@ -28,6 +28,8 @@ import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.amqp.support.converter.SimpleMessageConverter;
 import org.springframework.util.ErrorHandler;
 
+import ru.hh.rabbitmq.spring.receive.GenericMessageListener;
+
 import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableMap;
@@ -125,10 +127,28 @@ public class Receiver {
    * Conversion of messages is performed using {@link SimpleMessageConverter}.
    * 
    * @param listener
-   *          listener to set, can either be {@link MessageListener} or {@link ChannelAwareMessageListener} implementation
+   *          listener to set
    * @return this
    */
-  public Receiver withListener(Object listener) {
+  public Receiver withListener(MessageListener listener) {
+    return withListenerObject(listener);
+  }
+
+  /**
+   * Set listener that will receive and process messages. If listener implements {@link ErrorHandler}, it will be set to handle errors as well. Must
+   * be called before {@link #start()}.
+   * 
+   * Conversion of messages is performed using {@link SimpleMessageConverter}.
+   * 
+   * @param listener
+   *          listener to set
+   * @return this
+   */
+  public Receiver withListener(ChannelAwareMessageListener listener) {
+    return withListenerObject(listener);
+  }
+
+  private Receiver withListenerObject(Object listener) {
     checkNotStarted();
     if (ErrorHandler.class.isAssignableFrom(listener.getClass())) {
       withErrorHandler((ErrorHandler) listener);
@@ -151,13 +171,13 @@ public class Receiver {
    *          converter to use
    * @return this
    */
-  public Receiver withListenerAndConverter(Object listener, MessageConverter converter) {
+  public Receiver withListenerAndConverter(GenericMessageListener<?> listener, MessageConverter converter) {
     checkNotStarted();
     MessageListenerAdapter adapter = new MessageListenerAdapter(listener, converter);
     if (ErrorHandler.class.isAssignableFrom(listener.getClass())) {
       withErrorHandler((ErrorHandler) listener);
     }
-    return withListener(adapter);
+    return withListenerObject(adapter);
   }
 
   /**
@@ -183,14 +203,14 @@ public class Receiver {
    *          listener to set
    * @return this
    */
-  public Receiver withJsonListener(Object listener) {
+  public Receiver withJsonListener(GenericMessageListener<?> listener) {
     checkNotStarted();
     Jackson2JsonMessageConverter converter = new Jackson2JsonMessageConverter();
     MessageListenerAdapter adapter = new MessageListenerAdapter(listener, converter);
     if (ErrorHandler.class.isAssignableFrom(listener.getClass())) {
       withErrorHandler((ErrorHandler) listener);
     }
-    return withListener(adapter);
+    return withListenerObject(adapter);
   }
 
   public boolean isActive() {

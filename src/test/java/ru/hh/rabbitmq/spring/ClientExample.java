@@ -8,9 +8,7 @@ import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_ROUTING_KEY;
 import static ru.hh.rabbitmq.spring.ConfigKeys.RECEIVER_QUEUES;
 import static ru.hh.rabbitmq.spring.ConfigKeys.USERNAME;
 
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
@@ -18,6 +16,8 @@ import org.springframework.amqp.AmqpRejectAndDontRequeueException;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.core.MessageListener;
 import org.springframework.util.ErrorHandler;
+
+import ru.hh.rabbitmq.spring.receive.MapMessageListener;
 
 // not a test, just some manually-run example
 public class ClientExample {
@@ -44,23 +44,7 @@ public class ClientExample {
       }
     };
 
-    Object jsonListener = new ErrorHandler() {
-      @Override
-      public void handleError(Throwable t) {
-        throw new AmqpRejectAndDontRequeueException(t.getMessage());
-      }
-
-      @SuppressWarnings("unused")
-      public void handleMessage(Map<String, Object> object) {
-        System.out.println("Map: " + object);
-      }
-
-      @SuppressWarnings("unused")
-      public void handleMessage(List<Object> object) {
-        System.out.println("List: " + object);
-      }
-    };
-
+    MessageHandler jsonListener = new MessageHandler();
     receiver.withJsonListener(jsonListener).start();
     // receiver.withListener(listener).start();
 
@@ -121,10 +105,19 @@ public class ClientExample {
     body.put("counter", counter);
     body.put("id", id);
     publisher.send(body);
+  }
 
-    List<Object> listBody = new ArrayList<Object>();
-    listBody.add(counter);
-    listBody.add(id);
-    publisher.send((Object) listBody);
+  private static class MessageHandler implements MapMessageListener, ErrorHandler {
+
+    @Override
+    public void handleError(Throwable t) {
+      throw new AmqpRejectAndDontRequeueException(t.getMessage());
+    }
+
+    @Override
+    public void handleMessage(Map<String, Object> t) {
+      System.out.println("Map: " + t);
+    }
+
   }
 }
