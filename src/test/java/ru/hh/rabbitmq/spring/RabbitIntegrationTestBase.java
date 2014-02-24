@@ -14,9 +14,9 @@ import org.springframework.amqp.rabbit.core.RabbitAdmin;
 
 public class RabbitIntegrationTestBase {
 
-  public static final String HOST1 = "localhost";
-  public static final String HOST2 = "dev";
-  public static final String[] HOSTS = new String[] { HOST1, HOST2 };
+  public static String HOST1 = "localhost";
+  public static String HOST2 = "dev";
+  public static String[] HOSTS;
   public static final String USERNAME = "guest";
   public static final String PASSWORD = "guest";
 
@@ -28,7 +28,15 @@ public class RabbitIntegrationTestBase {
 
   @BeforeClass
   public static void beforeClass() {
-
+    String host1 = System.getProperty("rabbit.integrationtest.host1");
+    String host2 = System.getProperty("rabbit.integrationtest.host2");
+    if (host1 != null) {
+      HOST1 = host1;
+    }
+    if (host2 != null) {
+      HOST2 = host2;
+    }
+    HOSTS = new String[] { HOST1, HOST2 };
     for (String host : HOSTS) {
       setUp(getConnectionFactory(host));
     }
