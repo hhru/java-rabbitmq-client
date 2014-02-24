@@ -76,17 +76,7 @@ mvn-hh install -P test
     Receiver receiver = factory.createReceiver();
 
     // listener and error handler in one object
-    Object jsonListener = new ErrorHandler() {
-    
-      public void handleError(Throwable t) {
-        throw new AmqpRejectAndDontRequeueException(t.getMessage());
-      }
-
-      public void handleMessage(Map<String, Object> object) {
-        System.out.println(object);
-      }
-    };
-
+    MessageHandler jsonListener = new MessageHandler();
     receiver.withJsonListener(jsonListener).start();
 
     // create publishers
@@ -123,5 +113,19 @@ mvn-hh install -P test
     body.put("counter", counter);
     body.put("id", id);
     publisher.send(body);
+  }
+...
+  private static class MessageHandler implements MapMessageListener, ErrorHandler {
+
+    @Override
+    public void handleError(Throwable t) {
+      throw new AmqpRejectAndDontRequeueException(t.getMessage());
+    }
+
+    @Override
+    public void handleMessage(Map<String, Object> t) {
+      System.out.println("Map: " + t);
+    }
+
   }
 ```
