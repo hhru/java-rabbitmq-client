@@ -138,7 +138,7 @@ public class ReceiverTest {
     mocks.expectLastCall().andReturn(true).anyTimes();
     channel.basicQos(eq(1));
     mocks.expectLastCall().anyTimes();
-    channel.setReturnListener(EasyMock.<ReturnListener>anyObject());
+    channel.addReturnListener(EasyMock.<ReturnListener> anyObject());
     mocks.expectLastCall().anyTimes();
     channel.close();
     mocks.expectLastCall().anyTimes();

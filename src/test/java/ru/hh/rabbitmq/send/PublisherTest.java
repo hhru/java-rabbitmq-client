@@ -61,7 +61,7 @@ public class PublisherTest {
     mocks.expectLastCall().andReturn(true).anyTimes();
     connection.createChannel();
     mocks.expectLastCall().andReturn(channel).anyTimes();
-    channel.setReturnListener(EasyMock.<ReturnListener>anyObject());
+    channel.addReturnListener(EasyMock.<ReturnListener> anyObject());
     mocks.expectLastCall().anyTimes();
     channel.txSelect();
     mocks.expectLastCall().andReturn(null).anyTimes();

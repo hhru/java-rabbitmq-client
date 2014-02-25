@@ -5,11 +5,15 @@ import com.google.common.util.concurrent.AbstractService;
 import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.ReturnListener;
+import com.rabbitmq.client.AMQP.BasicProperties;
+
 import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import ru.hh.rabbitmq.ChannelFactory;
 import ru.hh.rabbitmq.simple.Message;
 
@@ -99,12 +103,12 @@ class ChannelWorker extends AbstractService implements ReturnListener {
     if (channel == null || !channel.isOpen()) {
       long start = System.nanoTime();
       channel = channelFactory.getChannel();
-      channel.setReturnListener(this);
+      channel.addReturnListener(this);
       if (transactional) {
         channel.txSelect();
       }
       if(shouldLogMetrics(start, connectTimeTolerance)) {
-        logger.warn("Channel to {}:{} opened in {} millis", new Object[]{channel.getConnection().getHost(),
+        logger.warn("Channel to {}:{} opened in {} millis", new Object[] { channel.getConnection().getAddress().getHostAddress(),
                 channel.getConnection().getPort(), toMillis(System.nanoTime() - start)});
       }
     }
@@ -137,7 +141,7 @@ class ChannelWorker extends AbstractService implements ReturnListener {
   }
 
   @Override
-  public void handleBasicReturn(int replyCode, String replyText, String exchange, String routingKey, 
+  public void handleReturn(int replyCode, String replyText, String exchange, String routingKey,
                                 AMQP.BasicProperties properties, byte[] body) throws IOException {
     logger.error("message returned, replyCode {}, replyText '{}', exchange {}, routingKey {}, properties {}",
       new Object[]{replyCode, replyText, exchange, routingKey, properties});
