@@ -1,16 +1,24 @@
 package ru.hh.rabbitmq.spring;
 
+import static junit.framework.Assert.assertTrue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.Test;
+import org.springframework.amqp.rabbit.core.RabbitTemplate.ConfirmCallback;
+import org.springframework.amqp.rabbit.support.CorrelationData;
+
+import com.google.common.collect.ImmutableMap;
 
 import ru.hh.rabbitmq.spring.receive.MapMessageListener;
+import ru.hh.rabbitmq.spring.send.CorrelatedMessage;
 import ru.hh.rabbitmq.spring.send.Destination;
 
 public class RabbitIntegrationTest extends RabbitIntegrationTestBase {
@@ -139,6 +147,29 @@ public class RabbitIntegrationTest extends RabbitIntegrationTestBase {
     receiver.shutdown();
   }
 
+  @Test
+  public void testPublisherConfirms() throws InterruptedException, ExecutionException {
+    TestConfirmCallback callback = new TestConfirmCallback();
+    Publisher publisher = publisher(HOST2, true, true).withJsonMessageConverter().withConfirmCallback(callback);
+    publisher.startAndWait();
+
+    Map<String, Object> sentMessage = new HashMap<>();
+    CorrelationData correlationData;
+
+    Map<String, String> data = ImmutableMap.of("1", "corr1", "2", "corr2", "3", "corr3");
+
+    for (Entry<String, String> entry : data.entrySet()) {
+      sentMessage.put("data", entry.getKey());
+      correlationData = new CorrelationData(entry.getValue());
+      publisher.send(new CorrelatedMessage(correlationData, sentMessage)).get();
+    }
+
+    assertTrue(data.values().contains(callback.get()));
+    assertTrue(data.values().contains(callback.get()));
+
+    publisher.stopAndWait();
+  }
+
   private static class MessageHandler implements MapMessageListener {
     private ArrayBlockingQueue<Map<String, Object>> queue = new ArrayBlockingQueue<Map<String, Object>>(1);
 
@@ -146,6 +177,19 @@ public class RabbitIntegrationTest extends RabbitIntegrationTestBase {
       queue.add(data);
     }
     public Map<String, Object> get() throws InterruptedException {
+      return queue.poll(TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
+    }
+  }
+
+  private static class TestConfirmCallback implements ConfirmCallback {
+    private ArrayBlockingQueue<String> queue = new ArrayBlockingQueue<String>(2);
+
+    @SuppressWarnings("unused")
+    @Override
+    public void confirm(CorrelationData correlationData, boolean ack) {
+      queue.add(correlationData.getId());
+    }
+    public String get() throws InterruptedException {
       return queue.poll(TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
     }
   }

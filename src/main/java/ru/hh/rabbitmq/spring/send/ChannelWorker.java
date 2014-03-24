@@ -13,6 +13,7 @@ import org.springframework.amqp.rabbit.connection.Connection;
 import org.springframework.amqp.rabbit.connection.ConnectionListener;
 import org.springframework.amqp.rabbit.core.ChannelCallback;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.amqp.rabbit.support.CorrelationData;
 
 import com.google.common.base.Throwables;
 import com.google.common.util.concurrent.AbstractService;
@@ -133,11 +134,28 @@ public class ChannelWorker extends AbstractService implements ConnectionListener
     for (Map.Entry<Object, Destination> entry : messages.entrySet()) {
       Object message = entry.getKey();
       Destination destination = entry.getValue();
+      CorrelationData correlationData = null;
+      if (message instanceof CorrelatedMessage) {
+        CorrelatedMessage correlated = (CorrelatedMessage) message;
+        correlationData = correlated.getCorrelationData();
+        message = correlated.getMessage();
+      }
+
       if (destination != null) {
-        template.convertAndSend(destination.getExchange(), destination.getRoutingKey(), message);
+        if (correlationData != null) {
+          template.convertAndSend(destination.getExchange(), destination.getRoutingKey(), message, correlationData);
+        }
+        else {
+          template.convertAndSend(destination.getExchange(), destination.getRoutingKey(), message);
+        }
       }
       else {
-        template.convertAndSend(message);
+        if (correlationData != null) {
+          template.correlationconvertAndSend(message, correlationData);
+        }
+        else {
+          template.convertAndSend(message);
+        }
       }
     }
   }

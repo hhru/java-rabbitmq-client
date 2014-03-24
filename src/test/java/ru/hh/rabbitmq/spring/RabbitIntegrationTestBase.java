@@ -14,7 +14,7 @@ import org.springframework.amqp.rabbit.core.RabbitAdmin;
 
 public class RabbitIntegrationTestBase {
 
-  public static String HOST1 = "localhost";
+  public static String HOST1 = "voznesenskiy.pyn.ru";
   public static String HOST2 = "dev";
   public static String[] HOSTS;
   public static final String USERNAME = "guest";
@@ -127,6 +127,18 @@ public class RabbitIntegrationTestBase {
     Properties properties = properties(host);
     if (withDirections) {
       appendDirections(properties);
+    }
+    ClientFactory factory = new ClientFactory(properties);
+    return factory.createPublisher();
+  }
+
+  protected static Publisher publisher(String host, boolean withDirections, boolean withConfirms) {
+    Properties properties = properties(host);
+    if (withDirections) {
+      appendDirections(properties);
+    }
+    if (withConfirms) {
+      properties.setProperty(ConfigKeys.PUBLISHER_CONFIRMS, "true");
     }
     ClientFactory factory = new ClientFactory(properties);
     return factory.createPublisher();

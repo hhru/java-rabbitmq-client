@@ -27,10 +27,12 @@ import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.amqp.rabbit.core.RabbitTemplate.ConfirmCallback;
 import org.springframework.amqp.rabbit.core.RabbitTemplate.ReturnCallback;
+import org.springframework.amqp.rabbit.support.CorrelationData;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
 
 import ru.hh.rabbitmq.spring.send.ChannelWorker;
+import ru.hh.rabbitmq.spring.send.CorrelatedMessage;
 import ru.hh.rabbitmq.spring.send.Destination;
 import ru.hh.rabbitmq.spring.send.PublishTaskFuture;
 import ru.hh.rabbitmq.spring.send.QueueIsFullException;
@@ -218,7 +220,10 @@ public class Publisher extends AbstractService {
 
 
   /**
-   * Nonblocking method, enqueues messages internally, throws exception if local queue is full
+   * Nonblocking method, enqueues messages internally, throws exception if local queue is full.
+   * <p>
+   * Wrap message with {@link CorrelatedMessage} to attach {@link CorrelationData} for publisher confirms.
+   * </p>
    * 
    * @return ListenableFuture that gets completed after successful sending
    */
@@ -227,7 +232,10 @@ public class Publisher extends AbstractService {
   }
 
   /**
-   * Nonblocking method, enqueues messages internally, throws exception if local queue is full
+   * Nonblocking method, enqueues messages internally, throws exception if local queue is full.
+   * <p>
+   * Wrap message with {@link CorrelatedMessage} to attach {@link CorrelationData} for publisher confirms.
+   * </p>
    * 
    * @return ListenableFuture that gets completed after successful sending
    */
@@ -239,7 +247,10 @@ public class Publisher extends AbstractService {
   }
 
   /**
-   * Nonblocking method, enqueues messages internally, throws exception if local queue is full
+   * Nonblocking method, enqueues messages internally, throws exception if local queue is full.
+   * <p>
+   * Wrap message with {@link CorrelatedMessage} to attach {@link CorrelationData} for publisher confirms.
+   * </p>
    * 
    * @return ListenableFuture that gets completed after successful sending
    */
@@ -254,7 +265,10 @@ public class Publisher extends AbstractService {
 
   /**
    * <p>
-   * Nonblocking method, enqueues messages internally, throws exception if local queue is full
+   * Nonblocking method, enqueues messages internally, throws exception if local queue is full.
+   * </p>
+   * <p>
+   * Wrap message with {@link CorrelatedMessage} to attach {@link CorrelationData} for publisher confirms.
    * </p>
    * <p>
    * Configuration options {@link ConfigKeys#PUBLISHER_EXCHANGE} and {@link ConfigKeys#PUBLISHER_ROUTING_KEY} must be set.
@@ -268,7 +282,10 @@ public class Publisher extends AbstractService {
 
   /**
    * <p>
-   * Nonblocking method, enqueues messages internally, throws exception if local queue is full
+   * Nonblocking method, enqueues messages internally, throws exception if local queue is full.
+   * </p>
+   * <p>
+   * Wrap message with {@link CorrelatedMessage} to attach {@link CorrelationData} for publisher confirms.
    * </p>
    * <p>
    * Configuration options {@link ConfigKeys#PUBLISHER_EXCHANGE} and {@link ConfigKeys#PUBLISHER_ROUTING_KEY} must be set.
