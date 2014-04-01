@@ -166,8 +166,16 @@ public class RabbitIntegrationTest extends RabbitIntegrationTestBase {
 
     assertTrue(data.values().contains(callback.get()));
     assertTrue(data.values().contains(callback.get()));
+    assertTrue(data.values().contains(callback.get()));
+
+    MessageHandler handler = new MessageHandler();
+    Receiver receiver = receiverAllHosts(true).withJsonListener(handler).forQueues(QUEUE1).start();
+    handler.get();
+    handler.get();
+    handler.get();
 
     publisher.stopAndWait();
+    receiver.shutdown();
   }
 
   private static class MessageHandler implements MapMessageListener {
