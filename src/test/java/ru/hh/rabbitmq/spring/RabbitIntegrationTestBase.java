@@ -52,6 +52,15 @@ public class RabbitIntegrationTestBase {
   private static void setUp(CachingConnectionFactory connectionFactory) {
     RabbitAdmin admin = new RabbitAdmin(connectionFactory);
     admin.afterPropertiesSet();
+
+    // purge if previous test failed to remove queues
+    if (admin.getQueueProperties(QUEUE1) != null) {
+      admin.purgeQueue(QUEUE1, false);
+    }
+    if (admin.getQueueProperties(QUEUE2) != null) {
+      admin.purgeQueue(QUEUE2, false);
+    }
+
     admin.declareExchange(getExchange());
     // q1
     admin.declareQueue(getQueue(QUEUE1));

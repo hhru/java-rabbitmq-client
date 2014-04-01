@@ -182,7 +182,7 @@ public class RabbitIntegrationTest extends RabbitIntegrationTestBase {
   }
 
   private static class TestConfirmCallback implements ConfirmCallback {
-    private ArrayBlockingQueue<String> queue = new ArrayBlockingQueue<String>(2);
+    private ArrayBlockingQueue<String> queue = new ArrayBlockingQueue<String>(3);
 
     @SuppressWarnings("unused")
     @Override
