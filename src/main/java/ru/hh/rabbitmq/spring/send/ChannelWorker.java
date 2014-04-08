@@ -8,6 +8,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.amqp.AmqpConnectException;
 import org.springframework.amqp.rabbit.connection.Connection;
 import org.springframework.amqp.rabbit.connection.ConnectionListener;
@@ -124,6 +125,12 @@ public class ChannelWorker extends AbstractService implements ConnectionListener
   }
 
   private void executeTask(RabbitTemplate template, PublishTaskFuture task) throws IOException {
+    if (task.getMDCContext() != null) {
+      MDC.clear();
+      if (task.getMDCContext().isPresent()) {
+        MDC.setContextMap(task.getMDCContext().get());
+      }
+    }
     publishMessages(template, task.getMessages());
     task.complete();
     LOGGER.trace("task completed, sent {} messages, queue size is {}", task.getMessages().size(), 

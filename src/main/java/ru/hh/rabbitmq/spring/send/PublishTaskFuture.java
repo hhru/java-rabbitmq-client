@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Future;
 
+import com.google.common.base.Optional;
 import com.google.common.util.concurrent.ForwardingFuture;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
@@ -13,6 +14,7 @@ import com.google.common.util.concurrent.SettableFuture;
 public class PublishTaskFuture extends ForwardingFuture<Void> implements ListenableFuture<Void> {
   private final Map<Object, Destination> messages;
   private final SettableFuture<Void> future = SettableFuture.create();
+  private Optional<Map<String, String>> MDCContext;
 
   public PublishTaskFuture(Destination destination, Collection<Object> messages) {
     this.messages = new HashMap<Object, Destination>();
@@ -37,6 +39,14 @@ public class PublishTaskFuture extends ForwardingFuture<Void> implements Listena
 
   public Map<Object, Destination> getMessages() {
     return messages;
+  }
+
+  public Optional<Map<String, String>> getMDCContext() {
+    return MDCContext;
+  }
+
+  public void setMDCContext(Map<String, String> MDCContext) {
+    this.MDCContext = Optional.fromNullable(MDCContext);
   }
 
   public void complete() {

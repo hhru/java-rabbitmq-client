@@ -6,6 +6,7 @@ import static ru.hh.rabbitmq.spring.ConfigKeys.RECEIVER_PREFETCH_COUNT;
 import static ru.hh.rabbitmq.spring.ConfigKeys.RECEIVER_QUEUES;
 import static ru.hh.rabbitmq.spring.ConfigKeys.RECEIVER_QUEUES_SEPARATOR;
 import static ru.hh.rabbitmq.spring.ConfigKeys.RECEIVER_THREADPOOL;
+import static ru.hh.rabbitmq.spring.ConfigKeys.RECEIVER_USE_MDC;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -60,12 +61,15 @@ public class Receiver {
     Map<SimpleMessageListenerContainer, String> names = new LinkedHashMap<>(connectionFactories.size());
 
     String commonName = props.string(RECEIVER_NAME, "");
+    String queueNames = props.string(RECEIVER_QUEUES);
+    int threadPoolSize = props.integer(RECEIVER_THREADPOOL, 1);
+    Integer prefetchCount = props.integer(RECEIVER_PREFETCH_COUNT);
+    boolean useMDC = props.bool(RECEIVER_USE_MDC, false);
 
     for (ConnectionFactory factory : connectionFactories) {
       SimpleMessageListenerContainer container = new SimpleMessageListenerContainer(factory);
 
       // set default queue names
-      String queueNames = props.string(RECEIVER_QUEUES);
       if (queueNames != null) {
         Iterable<String> queueNamesList = Splitter.on(RECEIVER_QUEUES_SEPARATOR).split(queueNames);
         container.setQueueNames(Iterables.toArray(queueNamesList, String.class));
@@ -74,16 +78,18 @@ public class Receiver {
       // configure thread pool
       String name = "rabbit-receiver-" + commonName + "-" + factory.getHost() + ":" + factory.getPort();
 
-      Integer threadPoolSize = props.integer(RECEIVER_THREADPOOL, 1);
       ThreadFactory threadFactory = new ThreadFactoryBuilder().setNameFormat(name + "-%d").build();
       ExecutorService executor = newFixedThreadPool(threadPoolSize, threadFactory);
       container.setTaskExecutor(executor);
       container.setConcurrentConsumers(threadPoolSize);
 
       // configure prefetch count
-      Integer prefetchCount = props.integer(RECEIVER_PREFETCH_COUNT);
       if (prefetchCount != null) {
         container.setPrefetchCount(prefetchCount);
+      }
+
+      if (useMDC) {
+        container.setMessagePropertiesConverter(new MDCMessagePropertiesConverter());
       }
 
       containers.put(container, executor);

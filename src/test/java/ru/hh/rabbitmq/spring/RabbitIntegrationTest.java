@@ -3,6 +3,7 @@ package ru.hh.rabbitmq.spring;
 import static junit.framework.Assert.assertTrue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -12,6 +13,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.Test;
+import org.slf4j.MDC;
 import org.springframework.amqp.rabbit.core.RabbitTemplate.ConfirmCallback;
 import org.springframework.amqp.rabbit.support.CorrelationData;
 
@@ -178,14 +180,65 @@ public class RabbitIntegrationTest extends RabbitIntegrationTestBase {
     receiver.shutdown();
   }
 
+  @Test
+  public void testMDC() throws InterruptedException {
+    String MDCKey = "mdctestkey";
+    String MDCValue = "mdctestvalue"; 
+    
+    MDC.put(MDCKey, MDCValue);
+    Publisher publisherHost1 = publisherMDC(HOST1).withJsonMessageConverter();
+    publisherHost1.startAndWait();
+
+    MessageHandler handler = new MessageHandler(true);
+    Receiver receiver = receiverMDC().withJsonListener(handler).start();
+
+    Map<String, Object> sentMessage = new HashMap<>();
+    Map<String, Object> receivedMessage;
+
+    sentMessage.put("data", HOST1);
+    publisherHost1.send(sentMessage);
+    assertEquals(MDCValue, MDC.get(MDCKey));
+    MDC.clear();
+
+    receivedMessage = handler.get();
+    assertNull(MDC.getCopyOfContextMap()); // listener does not set mdc context to this thread, all happens in one of receiver internal threads
+    assertNotNull(receivedMessage);
+    assertEquals(sentMessage, receivedMessage);
+    Map<String, String> messageMDCContext = handler.getMDC();
+    assertNotNull(messageMDCContext);
+    assertEquals(MDCValue, messageMDCContext.get(MDCKey));
+
+    publisherHost1.stopAndWait();
+    receiver.shutdown();
+  }
+
   private static class MessageHandler implements MapMessageListener {
     private ArrayBlockingQueue<Map<String, Object>> queue = new ArrayBlockingQueue<Map<String, Object>>(1);
+    private ArrayBlockingQueue<Map<String, String>> mdcContextQueue = new ArrayBlockingQueue<Map<String, String>>(1);
 
+    private boolean useMDC;
+
+    public MessageHandler() {
+      this.useMDC = false;
+    }
+
+    public MessageHandler(boolean useMDC) {
+      this.useMDC = useMDC;
+    }
+
+    @SuppressWarnings("unchecked")
     public void handleMessage(Map<String, Object> data) {
       queue.add(data);
+      if (useMDC) {
+        mdcContextQueue.add(MDC.getCopyOfContextMap());
+      }
     }
     public Map<String, Object> get() throws InterruptedException {
       return queue.poll(TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
+    }
+
+    public Map<String, String> getMDC() throws InterruptedException {
+      return mdcContextQueue.poll(TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
     }
   }
 

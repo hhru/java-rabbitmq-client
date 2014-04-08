@@ -41,7 +41,7 @@ public class PropertiesHelper {
     return Ints.tryParse(value);
   }
 
-  public Integer integer(String name, int defaultValue) {
+  public int integer(String name, int defaultValue) {
     Integer value = integer(name);
     return value == null ? defaultValue : value;
   }
@@ -52,5 +52,10 @@ public class PropertiesHelper {
       return null;
     }
     return Boolean.valueOf(value);
+  }
+
+  public boolean bool(String name, boolean defaultValue) {
+    Boolean value = bool(name);
+    return value == null ? defaultValue : value;
   }
 }

@@ -53,7 +53,7 @@ public interface ConfigKeys {
   /**
    * Set default queue names receiver will be listening. Multiple queue names are separated using {@link #RECEIVER_QUEUES_SEPARATOR}.
    */
-  String RECEIVER_QUEUES = "reciever.queues";
+  String RECEIVER_QUEUES = "receiver.queues";
   String RECEIVER_QUEUES_SEPARATOR = ",";
   /**
    * Set the size of receiver's executor threadpool. Will be same for connections to all brokers. See
@@ -65,6 +65,10 @@ public interface ConfigKeys {
    * {@link SimpleMessageListenerContainer#setPrefetchCount(int)}.
    */
   String RECEIVER_PREFETCH_COUNT = "receiver.prefetch.count";
+  /**
+   * Whether or not receiver should use MDC-related headers in message and put them to MDC context
+   */
+  String RECEIVER_USE_MDC = "receiver.use.mdc";
 
   /**
    * Name will be used in thread name of publisher workers.
@@ -102,4 +106,8 @@ public interface ConfigKeys {
    * Set how long publisher will wait before attempt to reconnect after connection failure.
    */
   String PUBLISHER_RECONNECTION_DELAY = "publisher.reconnection.delay.millis";
+  /**
+   * Whether or not publisher should store MDC context to message
+   */
+  String PUBLISHER_USE_MDC = "publisher.use.mdc";
 }

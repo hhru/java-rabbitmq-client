@@ -8,6 +8,7 @@ import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_NAME;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_RECONNECTION_DELAY;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_ROUTING_KEY;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_TRANSACTIONAL;
+import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_USE_MDC;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -22,6 +23,7 @@ import java.util.concurrent.BlockingQueue;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.amqp.rabbit.connection.CachingConnectionFactory;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -66,6 +68,8 @@ public class Publisher extends AbstractService {
   private final List<Service> workers = new ArrayList<>();
   private BlockingQueue<PublishTaskFuture> taskQueue;
 
+  private boolean useMDC;
+
   private int reconnectionDelay = 1000;
 
   Publisher(List<ConnectionFactory> connectionFactories, Properties properties) {
@@ -74,27 +78,33 @@ public class Publisher extends AbstractService {
 
     String commonName = props.string(PUBLISHER_NAME, "");
 
+    String exchange = props.string(PUBLISHER_EXCHANGE);
+    String routingKey = props.string(PUBLISHER_ROUTING_KEY);
+    Boolean mandatory = props.bool(PUBLISHER_MANDATORY);
+    Boolean transactional = props.bool(PUBLISHER_TRANSACTIONAL);
+    useMDC = props.bool(PUBLISHER_USE_MDC, false);
+
     for (ConnectionFactory factory : connectionFactories) {
       RabbitTemplate template = new RabbitTemplate(factory);
 
-      String exchange = props.string(PUBLISHER_EXCHANGE);
       if (exchange != null) {
         template.setExchange(exchange);
       }
 
-      String routingKey = props.string(PUBLISHER_ROUTING_KEY);
       if (routingKey != null) {
         template.setRoutingKey(routingKey);
       }
 
-      Boolean mandatory = props.bool(PUBLISHER_MANDATORY);
       if (mandatory != null) {
         template.setMandatory(mandatory);
       }
 
-      Boolean transactional = props.bool(PUBLISHER_TRANSACTIONAL);
       if (transactional != null) {
         template.setChannelTransacted(transactional);
+      }
+
+      if (useMDC) {
+        template.setMessagePropertiesConverter(new MDCMessagePropertiesConverter());
       }
 
       String name = "rabbit-publisher-" + commonName + "-" + factory.getHost() + ":" + factory.getPort();
@@ -299,8 +309,12 @@ public class Publisher extends AbstractService {
     return future;
   }
 
+  @SuppressWarnings("unchecked")
   private void addFuture(PublishTaskFuture future) {
     checkStarted();
+    if (useMDC) {
+      future.setMDCContext(MDC.getCopyOfContextMap());
+    }
     try {
       taskQueue.add(future);
       LOGGER.trace("task added with {} messages, queue size is {}", future.getMessages().size(), taskQueue.size());

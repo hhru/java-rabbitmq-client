@@ -32,7 +32,7 @@ rabbit.server.channel.cache.size=1
 rabbit.server.close.timeout.millis=100
 
 rabbit.server.receiver.name=myreceiver
-rabbit.server.reciever.queues=myqueue1,myqueue2
+rabbit.server.receiver.queues=myqueue1,myqueue2
 rabbit.server.receiver.threadpool=1
 rabbit.server.receiver.prefetch.count=1
 
@@ -61,6 +61,20 @@ Use the following command to run tests:
 ```
 mvn-hh install -P test
 ```
+
+# MDC
+
+If following property is set:
+```
+...publisher.use.mdc=true
+```
+publisher will copy MDC context of current thread and put it to the message headers.
+
+If following property is set and message contains MDC headers:
+```
+...receiver.use.mdc=true
+```
+receiver's message converter thread will have MDC context filled from message headers.
 
 # Usage example
 

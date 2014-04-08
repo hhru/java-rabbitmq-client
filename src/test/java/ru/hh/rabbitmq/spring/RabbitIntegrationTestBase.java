@@ -3,6 +3,7 @@ package ru.hh.rabbitmq.spring;
 import java.util.Properties;
 
 import org.junit.AfterClass;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
@@ -49,17 +50,25 @@ public class RabbitIntegrationTestBase {
     }
   }
 
+  @Before
+  public void purgeQueues() {
+    for (String host : HOSTS) {
+      CachingConnectionFactory connectionFactory = getConnectionFactory(host);
+      RabbitAdmin admin = new RabbitAdmin(connectionFactory);
+      admin.afterPropertiesSet();
+      if (admin.getQueueProperties(QUEUE1) != null) {
+        admin.purgeQueue(QUEUE1, false);
+      }
+      if (admin.getQueueProperties(QUEUE2) != null) {
+        admin.purgeQueue(QUEUE2, false);
+      }
+      connectionFactory.destroy();
+    }
+  }
+
   private static void setUp(CachingConnectionFactory connectionFactory) {
     RabbitAdmin admin = new RabbitAdmin(connectionFactory);
     admin.afterPropertiesSet();
-
-    // purge if previous test failed to remove queues
-    if (admin.getQueueProperties(QUEUE1) != null) {
-      admin.purgeQueue(QUEUE1, false);
-    }
-    if (admin.getQueueProperties(QUEUE2) != null) {
-      admin.purgeQueue(QUEUE2, false);
-    }
 
     admin.declareExchange(getExchange());
     // q1
@@ -153,11 +162,27 @@ public class RabbitIntegrationTestBase {
     return factory.createPublisher();
   }
 
+  protected static Publisher publisherMDC(String host) {
+    Properties properties = properties(host);
+    appendDirections(properties);
+    properties.setProperty(ConfigKeys.PUBLISHER_USE_MDC, "true");
+    ClientFactory factory = new ClientFactory(properties);
+    return factory.createPublisher();
+  }
+
   protected static Receiver receiverAllHosts(boolean withDirections) {
     Properties properties = propertiesAllHosts();
     if (withDirections) {
       appendDirections(properties);
     }
+    ClientFactory factory = new ClientFactory(properties);
+    return factory.createReceiver();
+  }
+
+  protected static Receiver receiverMDC() {
+    Properties properties = propertiesAllHosts();
+    appendDirections(properties);
+    properties.setProperty(ConfigKeys.RECEIVER_USE_MDC, "true");
     ClientFactory factory = new ClientFactory(properties);
     return factory.createReceiver();
   }
