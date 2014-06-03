@@ -44,7 +44,7 @@ public class ClientFactory {
   }
 
   /**
-   * Create new receiver. Reuse connections to brokers.
+   * Create new receiver. Reuse connections to brokers. Won't use {@link ConfigKeys#RECEIVER_HOSTS}.
    * 
    * @return new receiver
    */
@@ -56,7 +56,7 @@ public class ClientFactory {
    * Create new receiver.
    * 
    * @param reuseConnections
-   *          whether to reuse connections to brokers or not
+   *          whether to reuse connections to brokers or not. If true, won't use {@link ConfigKeys#RECEIVER_HOSTS}.
    * @return new receiver
    */
   public Receiver createReceiver(boolean reuseConnections) {
@@ -71,7 +71,7 @@ public class ClientFactory {
   }
 
   /**
-   * Create new publisher. Reuse connections to brokers.
+   * Create new publisher. Reuse connections to brokers. Won't use {@link ConfigKeys#PUBLISHER_HOSTS}.
    * 
    * @return new publisher
    */
@@ -83,7 +83,7 @@ public class ClientFactory {
    * Create new publisher.
    * 
    * @param reuseConnections
-   *          whether to resue connections to brokers or not
+   *          whether to resue connections to brokers or not. If true, won't use {@link ConfigKeys#PUBLISHER_HOSTS}.
    * @return new publisher
    */
   public Publisher createPublisher(boolean reuseConnections) {
