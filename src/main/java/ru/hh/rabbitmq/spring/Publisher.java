@@ -70,7 +70,7 @@ public class Publisher extends AbstractService {
 
   private boolean useMDC;
 
-  private int reconnectionDelay = 1000;
+  private int reconnectionDelay = 100;
 
   Publisher(List<ConnectionFactory> connectionFactories, Properties properties) {
     PropertiesHelper props = new PropertiesHelper(properties);

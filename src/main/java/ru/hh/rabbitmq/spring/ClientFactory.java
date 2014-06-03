@@ -10,7 +10,9 @@ import static ru.hh.rabbitmq.spring.ConfigKeys.HOSTS_SEPARATOR;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PASSWORD;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PORT;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_CONFIRMS;
+import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_HOSTS;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_RETURNS;
+import static ru.hh.rabbitmq.spring.ConfigKeys.RECEIVER_HOSTS;
 import static ru.hh.rabbitmq.spring.ConfigKeys.USERNAME;
 import static ru.hh.rabbitmq.spring.ConfigKeys.VIRTUALHOST;
 
@@ -23,7 +25,6 @@ import org.springframework.amqp.rabbit.connection.CachingConnectionFactory;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 
 import com.google.common.base.Splitter;
-import com.google.common.collect.Lists;
 
 /**
  * <p>
@@ -64,7 +65,7 @@ public class ClientFactory {
       factories = getOrCreateConnectionFactories();
     }
     else {
-      factories = createConnectionFactories();
+      factories = createConnectionFactories(RECEIVER_HOSTS);
     }
     return new Receiver(factories, properties.getProperties());
   }
@@ -91,34 +92,40 @@ public class ClientFactory {
       factories = getOrCreateConnectionFactories();
     }
     else {
-      factories = createConnectionFactories();
+      factories = createConnectionFactories(PUBLISHER_HOSTS);
     }
     return new Publisher(factories, properties.getProperties());
   }
 
   private List<ConnectionFactory> getOrCreateConnectionFactories() {
     if (factories == null) {
-      factories = createConnectionFactories();
+      factories = createConnectionFactories(null);
     }
     return factories;
   }
 
-  private List<ConnectionFactory> createConnectionFactories() {
+  private Iterable<String> getHosts(String... settingNames) {
+    String value;
+    for (String settingName : settingNames) {
+      value = isEmpty(settingName) ? null : properties.string(settingName);
+      if (!isEmpty(value)) {
+        return splitHosts(value);
+      }
+    }
+    throw new ConfigException(String.format("Any of these properties must be set and not empty: %s", settingNames.toString()));
+  }
+
+  private Iterable<String> splitHosts(String hosts) {
+    return Splitter.on(HOSTS_SEPARATOR).split(hosts);
+  }
+
+  private List<ConnectionFactory> createConnectionFactories(String hostsSettingName) {
     List<ConnectionFactory> factories = new ArrayList<>();
     try {
       Integer commonPort = properties.integer(PORT);
-
-      String hosts = properties.string(HOSTS);
-      if (isEmpty(hosts)) {
-        String host = properties.string(HOST);
-        if (isEmpty(host)) {
-          throw new ConfigException(String.format("Either '%s' or '%s' must be set and not empty", HOSTS, HOST));
-        }
-        return Lists.newArrayList(createConnectionFactory(host, commonPort));
-      }
-
-      Iterable<String> hostsList = Splitter.on(HOSTS_SEPARATOR).split(hosts);
-      for (String hostAndPortString : hostsList) {
+      // something_HOSTS -> HOSTS -> HOST -> exception
+      Iterable<String> hosts = getHosts(hostsSettingName, HOSTS, HOST);
+      for (String hostAndPortString : hosts) {
         Iterator<String> hostAndPort = Splitter.on(HOSTS_PORT_SEPARATOR).split(hostAndPortString).iterator();
         String host = hostAndPort.next();
         Integer port = commonPort;

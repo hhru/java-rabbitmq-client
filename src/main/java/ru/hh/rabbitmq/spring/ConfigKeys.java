@@ -21,6 +21,14 @@ public interface ConfigKeys {
   String HOSTS_SEPARATOR = ",";
   String HOSTS_PORT_SEPARATOR = ":";
   /**
+   * Same as {{@link #HOSTS} but for publisher only.
+   */
+  String PUBLISHER_HOSTS = "publisher.hosts";
+  /**
+   * Same as {{@link #HOSTS} but for receiver only.
+   */
+  String RECEIVER_HOSTS = "receiver.hosts";
+  /**
    * Username (required), must be same for all brokers.
    */
   String USERNAME = "username";
