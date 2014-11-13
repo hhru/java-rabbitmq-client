@@ -9,7 +9,6 @@ import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_RECONNECTION_DELAY;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_ROUTING_KEY;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_TRANSACTIONAL;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_USE_MDC;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -20,7 +19,8 @@ import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
-
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -32,13 +32,11 @@ import org.springframework.amqp.rabbit.core.RabbitTemplate.ReturnCallback;
 import org.springframework.amqp.rabbit.support.CorrelationData;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
-
 import ru.hh.rabbitmq.spring.send.ChannelWorker;
 import ru.hh.rabbitmq.spring.send.CorrelatedMessage;
 import ru.hh.rabbitmq.spring.send.Destination;
 import ru.hh.rabbitmq.spring.send.PublishTaskFuture;
 import ru.hh.rabbitmq.spring.send.QueueIsFullException;
-
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.AbstractService;
@@ -198,6 +196,16 @@ public class Publisher extends AbstractService {
     return this;
   }
 
+  public void startSync() {
+    startAsync();
+    awaitRunning();
+  }
+
+  public void startSync(long timeout, TimeUnit timeUnit) throws TimeoutException {
+    startAsync();
+    awaitRunning(timeout, timeUnit);
+  }
+
   @Override
   protected void doStart() {
     checkNotStarted();
@@ -207,17 +215,28 @@ public class Publisher extends AbstractService {
       String name = entry.getValue();
       Service worker = new ChannelWorker(template, taskQueue, name, reconnectionDelay);
       workers.add(worker);
-      worker.start();
+      worker.startAsync();
     }
     notifyStarted();
     LOGGER.debug("started " + toString());
+  }
+
+  public void stopSync() {
+    stopAsync();
+    awaitTerminated();
+  }
+
+  public void stopSync(long timeout, TimeUnit timeUnit) throws TimeoutException {
+    stopAsync();
+    awaitTerminated(timeout, timeUnit);
   }
 
   @Override
   protected void doStop() {
     checkStarted();
     for (Service worker : workers) {
-      worker.stopAndWait();
+      worker.stopAsync();
+      worker.awaitTerminated();
     }
     for (RabbitTemplate template : templates.keySet()) {
       CachingConnectionFactory factory = (CachingConnectionFactory) template.getConnectionFactory();

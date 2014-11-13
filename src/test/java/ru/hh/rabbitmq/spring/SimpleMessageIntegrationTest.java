@@ -25,7 +25,7 @@ public class SimpleMessageIntegrationTest extends RabbitIntegrationTestBase {
     MessageConverter converter = new SimpleMessageConverter();
 
     Publisher publisherHost1 = publisher(HOST1, true).withMessageConverter(converter);
-    publisherHost1.startAndWait();
+    publisherHost1.startSync();
 
     MessageHandler handler = new MessageHandler();
     Receiver receiver = receiverAllHosts(true).withListenerAndConverter(handler, converter).start();
@@ -47,7 +47,7 @@ public class SimpleMessageIntegrationTest extends RabbitIntegrationTestBase {
     }
     assertEquals(sentMessage.getBody(), receivedMessage.getBody());
 
-    publisherHost1.stopAndWait();
+    publisherHost1.stopSync();
     receiver.shutdown();
   }
 

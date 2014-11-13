@@ -60,8 +60,8 @@ public class ClientExample {
     factory = new ClientFactory(properties);
     Publisher publisher2 = factory.createPublisher().withJsonMessageConverter();
 
-    publisher1.start();
-    publisher2.start();
+    publisher1.startSync();
+    publisher2.startSync();
 
     // send something
     for (int i = 0; i < 50; i++) {
@@ -95,8 +95,8 @@ public class ClientExample {
     // shutdown
     Thread.sleep(5000);
 
-    publisher1.stop();
-    publisher2.stop();
+    publisher1.stopSync();
+    publisher2.stopSync();
     receiver.shutdown();
   }
 
