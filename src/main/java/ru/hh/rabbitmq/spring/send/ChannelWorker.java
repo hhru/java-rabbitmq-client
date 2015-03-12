@@ -10,6 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 import org.springframework.amqp.AmqpConnectException;
+import org.springframework.amqp.AmqpIOException;
 import org.springframework.amqp.rabbit.connection.Connection;
 import org.springframework.amqp.rabbit.connection.ConnectionListener;
 import org.springframework.amqp.rabbit.core.ChannelCallback;
@@ -66,6 +67,7 @@ public class ChannelWorker extends AbstractService implements ConnectionListener
   }
 
   private void processQueue() {
+    PublishTaskFuture task = null;
     try {
       while (isRunning()) {
         ensureOpen();
@@ -73,30 +75,35 @@ public class ChannelWorker extends AbstractService implements ConnectionListener
           continue;
         }
         try {
-          PublishTaskFuture task = this.taskQueue.take();
+          task = this.taskQueue.take();
+          
           // after possibly long waiting for new task, re-check connection, requeue if connection is broken
           if (!connected.isSatisfied()) {
             LOGGER.warn("requeued message on connection loss");
             this.taskQueue.add(task);
             continue;
           }
+          
           // from now on we can't requeue - that might lead to duplicate messages
           if (!task.isCancelled()) {
             try {
               executeTask(template, task);
-            }
-            catch (Exception e) {
+            } catch (Exception e) {
               task.fail(e);
               throw e;
             }
           }
-        }
-        finally {
+        } finally {
           connectionMonitor.leave();
         }
       }
     } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
       LOGGER.debug("worker interrupted, stopping");
+    } catch (AmqpIOException e) { // Broken pipe, ...
+      if (!taskQueue.offer(task)) {
+        LOGGER.warn("network problem -- failed to execute task", e);
+      }
     } catch (Exception e) {
       LOGGER.error("failed to execute task", e);
     }
@@ -133,7 +140,7 @@ public class ChannelWorker extends AbstractService implements ConnectionListener
     }
     publishMessages(template, task.getMessages());
     task.complete();
-    LOGGER.trace("task completed, sent {} messages, queue size is {}", task.getMessages().size(), 
+    LOGGER.trace("task completed, sent {} messages, queue size is {}", task.getMessages().size(),
       this.taskQueue.size());
   }
 
