@@ -15,15 +15,13 @@ import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_RETURNS;
 import static ru.hh.rabbitmq.spring.ConfigKeys.RECEIVER_HOSTS;
 import static ru.hh.rabbitmq.spring.ConfigKeys.USERNAME;
 import static ru.hh.rabbitmq.spring.ConfigKeys.VIRTUALHOST;
-
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
-
 import org.springframework.amqp.rabbit.connection.CachingConnectionFactory;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
-
+import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 
 /**
@@ -112,7 +110,7 @@ public class ClientFactory {
         return splitHosts(value);
       }
     }
-    throw new ConfigException(String.format("Any of these properties must be set and not empty: %s", settingNames.toString()));
+    throw new ConfigException(String.format("Any of these properties must be set and not empty: %s", Joiner.on(',').join(settingNames)));
   }
 
   private Iterable<String> splitHosts(String hosts) {
