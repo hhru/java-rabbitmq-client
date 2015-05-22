@@ -259,7 +259,7 @@ public class Receiver {
     for (SimpleMessageListenerContainer container : containers.keySet()) {
       container.start();
     }
-    LOGGER.debug("started " + toString());
+    LOGGER.debug("started {}", toString());
     return this;
   }
 
@@ -277,13 +277,22 @@ public class Receiver {
     for (SimpleMessageListenerContainer container : containers.keySet()) {
       container.stop();
     }
-    LOGGER.debug("stopped " + toString());
+    LOGGER.debug("stopped {}", toString());
   }
 
   /**
    * Stop receiving messages, release all resources. Once called, this instance can't be used again.
    */
   public void shutdown() {
+    shutdown(false);
+  }
+
+  /**
+   * Stop receiving messages, release all resources. Once called, this instance can't be used again.
+   * @param now if true will attempts to stop all actively executing tasks, halts the processing of waiting tasks in underlying Executor Services
+   * that's it {@link java.util.concurrent.ExecutorService#shutdownNow()} vs {@link java.util.concurrent.ExecutorService#shutdown()}
+   */
+  public void shutdown(boolean now) {
     if (!shutDown.compareAndSet(false, true)) {
       throw new IllegalStateException("Already shut down: " + toString());
     }
@@ -296,9 +305,13 @@ public class Receiver {
       factory.destroy();
     }
     for (ExecutorService executor : containers.values()) {
-      executor.shutdown();
+      if (now) {
+        executor.shutdownNow();
+      } else {
+        executor.shutdown();
+      }
     }
-    LOGGER.debug("shut down " + toString());
+    LOGGER.debug("shut down {}", toString());
   }
 
   @Override

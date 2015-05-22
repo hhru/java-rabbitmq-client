@@ -165,7 +165,7 @@ public class ChannelWorker extends AbstractService implements ConnectionListener
       }
       else {
         if (correlationData != null) {
-          template.correlationconvertAndSend(message, correlationData);
+          template.correlationConvertAndSend(message, correlationData);
         }
         else {
           template.convertAndSend(message);
