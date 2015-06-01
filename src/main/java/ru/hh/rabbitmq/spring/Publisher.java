@@ -74,13 +74,13 @@ public class Publisher extends AbstractService {
     PropertiesHelper props = new PropertiesHelper(properties);
     Map<RabbitTemplate, String> templates = new LinkedHashMap<>(connectionFactories.size());
 
-    String commonName = props.string(PUBLISHER_NAME, "");
+    String commonName = props.getString(PUBLISHER_NAME, "");
 
-    String exchange = props.string(PUBLISHER_EXCHANGE);
-    String routingKey = props.string(PUBLISHER_ROUTING_KEY);
-    Boolean mandatory = props.bool(PUBLISHER_MANDATORY);
-    Boolean transactional = props.bool(PUBLISHER_TRANSACTIONAL);
-    useMDC = props.bool(PUBLISHER_USE_MDC, false);
+    String exchange = props.getString(PUBLISHER_EXCHANGE);
+    String routingKey = props.getString(PUBLISHER_ROUTING_KEY);
+    Boolean mandatory = props.getBoolean(PUBLISHER_MANDATORY);
+    Boolean transactional = props.getBoolean(PUBLISHER_TRANSACTIONAL);
+    useMDC = props.getBoolean(PUBLISHER_USE_MDC, false);
 
     for (ConnectionFactory factory : connectionFactories) {
       RabbitTemplate template = new RabbitTemplate(factory);
@@ -109,9 +109,9 @@ public class Publisher extends AbstractService {
       templates.put(template, name);
     }
 
-    innerQueueSize = props.integer(PUBLISHER_INNER_QUEUE_SIZE, DEFAULT_INNER_QUEUE_SIZE);
+    innerQueueSize = props.getInteger(PUBLISHER_INNER_QUEUE_SIZE, DEFAULT_INNER_QUEUE_SIZE);
 
-    Integer reconnectionDelay = props.integer(PUBLISHER_RECONNECTION_DELAY);
+    Integer reconnectionDelay = props.getInteger(PUBLISHER_RECONNECTION_DELAY);
     if (reconnectionDelay != null) {
       this.reconnectionDelay = reconnectionDelay;
     }

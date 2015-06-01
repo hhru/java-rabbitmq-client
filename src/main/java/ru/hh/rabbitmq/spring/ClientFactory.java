@@ -105,7 +105,7 @@ public class ClientFactory {
   private Iterable<String> getHosts(String... settingNames) {
     String value;
     for (String settingName : settingNames) {
-      value = isEmpty(settingName) ? null : properties.string(settingName);
+      value = isEmpty(settingName) ? null : properties.getString(settingName);
       if (!isEmpty(value)) {
         return splitHosts(value);
       }
@@ -120,7 +120,7 @@ public class ClientFactory {
   private List<ConnectionFactory> createConnectionFactories(String hostsSettingName) {
     List<ConnectionFactory> factories = new ArrayList<>();
     try {
-      Integer commonPort = properties.integer(PORT);
+      Integer commonPort = properties.getInteger(PORT);
       // something_HOSTS -> HOSTS -> HOST -> exception
       Iterable<String> hosts = getHosts(hostsSettingName, HOSTS, HOST);
       for (String hostAndPortString : hosts) {
@@ -149,29 +149,29 @@ public class ClientFactory {
       if (port != null) {
         factory.setPort(port);
       }
-      factory.setUsername(properties.notNullString(USERNAME));
-      factory.setPassword(properties.notNullString(PASSWORD));
-      String virtualhost = properties.string(VIRTUALHOST);
+      factory.setUsername(properties.getNotNullString(USERNAME));
+      factory.setPassword(properties.getNotNullString(PASSWORD));
+      String virtualhost = properties.getString(VIRTUALHOST);
       if (virtualhost != null) {
         factory.setVirtualHost(virtualhost);
       }
-      Integer heartbit = properties.integer(HEARTBIT);
+      Integer heartbit = properties.getInteger(HEARTBIT);
       if (heartbit != null) {
         factory.setRequestedHeartBeat(heartbit);
       }
-      Integer channelCacheSize = properties.integer(CHANNEL_CACHE_SIZE);
+      Integer channelCacheSize = properties.getInteger(CHANNEL_CACHE_SIZE);
       if (channelCacheSize != null) {
         factory.setChannelCacheSize(channelCacheSize);
       }
-      Integer closeTimeout = properties.integer(CLOSE_TIMEOUT);
+      Integer closeTimeout = properties.getInteger(CLOSE_TIMEOUT);
       if (closeTimeout != null) {
         factory.setCloseTimeout(closeTimeout);
       }
-      Boolean publisherConfirms = properties.bool(PUBLISHER_CONFIRMS);
+      Boolean publisherConfirms = properties.getBoolean(PUBLISHER_CONFIRMS);
       if (publisherConfirms != null) {
         factory.setPublisherConfirms(publisherConfirms);
       }
-      Boolean publisherReturns = properties.bool(PUBLISHER_RETURNS);
+      Boolean publisherReturns = properties.getBoolean(PUBLISHER_RETURNS);
       if (publisherReturns != null) {
         factory.setPublisherReturns(publisherReturns);
       }

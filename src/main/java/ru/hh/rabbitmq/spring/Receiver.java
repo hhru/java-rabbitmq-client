@@ -60,11 +60,12 @@ public class Receiver {
     Map<SimpleMessageListenerContainer, ExecutorService> containers = new LinkedHashMap<>(connectionFactories.size());
     Map<SimpleMessageListenerContainer, String> names = new LinkedHashMap<>(connectionFactories.size());
 
-    String commonName = props.string(RECEIVER_NAME, "");
-    String queueNames = props.string(RECEIVER_QUEUES);
-    int threadPoolSize = props.integer(RECEIVER_THREADPOOL, 1);
-    Integer prefetchCount = props.integer(RECEIVER_PREFETCH_COUNT);
-    boolean useMDC = props.bool(RECEIVER_USE_MDC, false);
+    String commonName = props.getString(RECEIVER_NAME, "");
+    String queueNames = props.getString(RECEIVER_QUEUES);
+    int threadPoolSize = props.getInteger(RECEIVER_THREADPOOL, 1);
+    Long shutdownTimeout = props.getLong(ConfigKeys.RECEIVER_SHUTDOWN_TIMEOUT);
+    Integer prefetchCount = props.getInteger(RECEIVER_PREFETCH_COUNT);
+    boolean useMDC = props.getBoolean(RECEIVER_USE_MDC, false);
 
     for (ConnectionFactory factory : connectionFactories) {
       SimpleMessageListenerContainer container = new SimpleMessageListenerContainer(factory);
@@ -82,6 +83,9 @@ public class Receiver {
       ExecutorService executor = newFixedThreadPool(threadPoolSize, threadFactory);
       container.setTaskExecutor(executor);
       container.setConcurrentConsumers(threadPoolSize);
+      if (shutdownTimeout != null) {
+        container.setShutdownTimeout(shutdownTimeout);
+      }
 
       // configure prefetch count
       if (prefetchCount != null) {
@@ -278,6 +282,14 @@ public class Receiver {
       container.stop();
     }
     LOGGER.debug("stopped {}", toString());
+  }
+
+  /**
+   * Stop receiving messages, release all resources. Once called, this instance can't be used again. Will attempt to stop all actively executing
+   * tasks, halts the processing of waiting tasks in underlying Executor Services
+   */
+  public void shutdownNow() {
+    shutdown(true);
   }
 
   /**

@@ -77,6 +77,10 @@ public interface ConfigKeys {
    * Whether or not receiver should use MDC-related headers in message and put them to MDC context
    */
   String RECEIVER_USE_MDC = "receiver.use.mdc";
+  /**
+   * @see SimpleMessageListenerContainer#setShutdownTimeout(long)
+   */
+  String RECEIVER_SHUTDOWN_TIMEOUT = "receiver.shutdown.timeout";
 
   /**
    * Name will be used in thread name of publisher workers.

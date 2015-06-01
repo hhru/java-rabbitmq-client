@@ -3,6 +3,7 @@ package ru.hh.rabbitmq.spring;
 import java.util.Properties;
 
 import com.google.common.primitives.Ints;
+import com.google.common.primitives.Longs;
 
 public class PropertiesHelper {
 
@@ -16,7 +17,7 @@ public class PropertiesHelper {
     return properties;
   }
 
-  public String notNullString(String name) {
+  public String getNotNullString(String name) {
     String value = properties.getProperty(name);
     if (value == null || value.trim().length() == 0) {
       throw new NullPointerException("Property '" + name + "' must be set and not empty");
@@ -24,38 +25,51 @@ public class PropertiesHelper {
     return value;
   }
 
-  public String string(String name) {
+  public String getString(String name) {
     return properties.getProperty(name);
   }
 
-  public String string(String name, String defaultName) {
-    String someName = string(name);
+  public String getString(String name, String defaultName) {
+    String someName = PropertiesHelper.this.getString(name);
     return someName == null ? defaultName : someName;
   }
 
-  public Integer integer(String name) {
-    String value = string(name);
+  public Integer getInteger(String name) {
+    String value = PropertiesHelper.this.getString(name);
     if (value == null) {
       return null;
     }
     return Ints.tryParse(value);
   }
 
-  public int integer(String name, int defaultValue) {
-    Integer value = integer(name);
+  public int getInteger(String name, int defaultValue) {
+    Integer value = PropertiesHelper.this.getInteger(name);
     return value == null ? defaultValue : value;
   }
 
-  public Boolean bool(String name) {
-    String value = string(name);
+  public Long getLong(String name) {
+    String value = PropertiesHelper.this.getString(name);
+    if (value == null) {
+      return null;
+    }
+    return Longs.tryParse(value);
+  }
+
+  public long getLong(String name, long defaultValue) {
+    Long value = PropertiesHelper.this.getLong(name);
+    return value == null ? defaultValue : value;
+  }
+
+  public Boolean getBoolean(String name) {
+    String value = PropertiesHelper.this.getString(name);
     if (value == null) {
       return null;
     }
     return Boolean.valueOf(value);
   }
 
-  public boolean bool(String name, boolean defaultValue) {
-    Boolean value = bool(name);
+  public boolean getBoolean(String name, boolean defaultValue) {
+    Boolean value = PropertiesHelper.this.getBoolean(name);
     return value == null ? defaultValue : value;
   }
 }
