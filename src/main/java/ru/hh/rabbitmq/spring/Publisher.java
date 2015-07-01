@@ -1,7 +1,10 @@
 package ru.hh.rabbitmq.spring;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_EXCHANGE;
+import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_INNER_QUEUE_SHUTDOWN_MS;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_INNER_QUEUE_SIZE;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_MANDATORY;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_NAME;
@@ -18,7 +21,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.slf4j.Logger;
@@ -64,11 +66,12 @@ public class Publisher extends AbstractService {
 
   private final Map<RabbitTemplate, String> templates;
   private final List<Service> workers = new ArrayList<>();
-  private BlockingQueue<PublishTaskFuture> taskQueue;
+  private ArrayBlockingQueue<PublishTaskFuture> taskQueue;
 
   private boolean useMDC;
 
-  private int reconnectionDelay = 100;
+  private int reconnectionDelayMs = 100;
+  private long innerQueueShutdownMs = 1000;
 
   Publisher(List<ConnectionFactory> connectionFactories, Properties properties) {
     PropertiesHelper props = new PropertiesHelper(properties);
@@ -111,9 +114,14 @@ public class Publisher extends AbstractService {
 
     innerQueueSize = props.getInteger(PUBLISHER_INNER_QUEUE_SIZE, DEFAULT_INNER_QUEUE_SIZE);
 
-    Integer reconnectionDelay = props.getInteger(PUBLISHER_RECONNECTION_DELAY);
-    if (reconnectionDelay != null) {
-      this.reconnectionDelay = reconnectionDelay;
+    Integer reconnectionDelayMs = props.getInteger(PUBLISHER_RECONNECTION_DELAY);
+    if (reconnectionDelayMs != null) {
+      this.reconnectionDelayMs = reconnectionDelayMs;
+    }
+
+    Long innerQueueShutdownMs = props.getLong(PUBLISHER_INNER_QUEUE_SHUTDOWN_MS);
+    if (innerQueueShutdownMs != null) {
+      this.innerQueueShutdownMs = innerQueueShutdownMs;
     }
 
     this.templates = ImmutableMap.copyOf(templates);
@@ -122,7 +130,7 @@ public class Publisher extends AbstractService {
   /**
    * Returns immutable collection of all rabbit templates for additional configuration. Doing this after {@link #start()} might lead to unexpected
    * behavior.
-   * 
+   *
    * @return list of all rabbit templates
    */
   public Collection<RabbitTemplate> getRabbitTemplates() {
@@ -131,7 +139,7 @@ public class Publisher extends AbstractService {
 
   /**
    * Set transactional mode. Must be called before {@link #start()}.
-   * 
+   *
    * @param transactional
    * @return this
    */
@@ -145,7 +153,7 @@ public class Publisher extends AbstractService {
 
   /**
    * Use provided converter for message conversion. Must be called before {@link #start()}.
-   * 
+   *
    * @param converter
    * @return this
    */
@@ -159,7 +167,7 @@ public class Publisher extends AbstractService {
 
   /**
    * Use {@link Jackson2JsonMessageConverter} for message conversion. Must be called before {@link #start()}.
-   * 
+   *
    * @return this
    */
   public Publisher withJsonMessageConverter() {
@@ -170,7 +178,7 @@ public class Publisher extends AbstractService {
 
   /**
    * Specify confirm callback. {@link ConfigKeys#PUBLISHER_CONFIRMS} should be set to true. Must be called before {@link #start()}.
-   * 
+   *
    * @param callback
    * @return this
    */
@@ -184,7 +192,7 @@ public class Publisher extends AbstractService {
 
   /**
    * Specify return callback. {@link ConfigKeys#PUBLISHER_RETURNS} should be set to true. Must be called before {@link #start()}.
-   * 
+   *
    * @param callback
    * @return
    */
@@ -213,7 +221,7 @@ public class Publisher extends AbstractService {
     for (Entry<RabbitTemplate, String> entry : templates.entrySet()) {
       RabbitTemplate template = entry.getKey();
       String name = entry.getValue();
-      Service worker = new ChannelWorker(template, taskQueue, name, reconnectionDelay);
+      Service worker = new ChannelWorker(template, taskQueue, name, reconnectionDelayMs);
       workers.add(worker);
       worker.startAsync();
     }
@@ -233,7 +241,16 @@ public class Publisher extends AbstractService {
 
   @Override
   protected void doStop() {
-    checkStarted();
+    // wait till inner queue is empty
+    long overallDelay = 0;
+    while (!taskQueue.isEmpty()) {
+      if (overallDelay > innerQueueShutdownMs) {
+        LOGGER.warn("Shutting down with {} tasks still in inner queue, they will be dropped", taskQueue.size());
+        break;
+      }
+      sleepUninterruptibly(100, MILLISECONDS);
+      overallDelay += 100;
+    }
     for (Service worker : workers) {
       worker.stopAsync();
       worker.awaitTerminated();
@@ -249,11 +266,105 @@ public class Publisher extends AbstractService {
 
 
   /**
+   * Potentially blocking method, enqueues messages internally, waiting if necessary, throws exception if local queue is full.
+   * <p>
+   * Wrap message with {@link CorrelatedMessage} to attach {@link CorrelationData} for publisher confirms.
+   * </p>
+   *
+   * @return ListenableFuture that gets completed after successful sending
+   * @throws InterruptedException
+   */
+  public ListenableFuture<Void> offer(long timeoutMs, Destination destination, Object... messages) throws InterruptedException {
+    return offer(timeoutMs, destination, Arrays.asList(messages));
+  }
+
+  /**
+   * Potentially blocking method, enqueues messages internally, waiting if necessary, throws exception if local queue is full.
+   * <p>
+   * Wrap message with {@link CorrelatedMessage} to attach {@link CorrelationData} for publisher confirms.
+   * </p>
+   *
+   * @return ListenableFuture that gets completed after successful sending
+   * @throws InterruptedException
+   */
+  public ListenableFuture<Void> offer(long timeoutMs, Destination destination, Collection<Object> messages) throws InterruptedException {
+    checkNotNull(destination, "Destination can't be null");
+    PublishTaskFuture future = new PublishTaskFuture(destination, messages);
+    offerFuture(future, timeoutMs);
+    return future;
+  }
+
+  /**
+   * Potentially blocking method, enqueues messages internally, waiting if necessary, throws exception if local queue is full.
+   * <p>
+   * Wrap message with {@link CorrelatedMessage} to attach {@link CorrelationData} for publisher confirms.
+   * </p>
+   *
+   * @return ListenableFuture that gets completed after successful sending
+   * @throws InterruptedException
+   */
+  public ListenableFuture<Void> offer(long timeoutMs, Map<Object, Destination> messages) throws InterruptedException {
+    for (Destination destination : messages.values()) {
+      checkNotNull(destination, "Destination can't be null");
+    }
+    PublishTaskFuture future = new PublishTaskFuture(messages);
+    offerFuture(future, timeoutMs);
+    return future;
+  }
+
+  /**
+   * <p>
+   * Potentially blocking method, enqueues messages internally, waiting if necessary, throws exception if local queue is full.
+   * </p>
+   * <p>
+   * Wrap message with {@link CorrelatedMessage} to attach {@link CorrelationData} for publisher confirms.
+   * </p>
+   * <p>
+   * Configuration options {@link ConfigKeys#PUBLISHER_EXCHANGE} and {@link ConfigKeys#PUBLISHER_ROUTING_KEY} must be set.
+   * </p>
+   *
+   * @return ListenableFuture that gets completed after successful sending
+   * @throws InterruptedException
+   */
+  public ListenableFuture<Void> offer(long timeoutMs, Object... messages) throws InterruptedException {
+    return offer(timeoutMs, Arrays.asList(messages));
+  }
+
+  /**
+   * <p>
+   * Potentially blocking method, enqueues messages internally, waiting if necessary, throws exception if local queue is full.
+   * </p>
+   * <p>
+   * Wrap message with {@link CorrelatedMessage} to attach {@link CorrelationData} for publisher confirms.
+   * </p>
+   * <p>
+   * Configuration options {@link ConfigKeys#PUBLISHER_EXCHANGE} and {@link ConfigKeys#PUBLISHER_ROUTING_KEY} must be set.
+   * </p>
+   *
+   * @return ListenableFuture that gets completed after successful sending
+   * @throws InterruptedException
+   */
+  public ListenableFuture<Void> offer(long timeoutMs, Collection<Object> messages) throws InterruptedException {
+    PublishTaskFuture future = new PublishTaskFuture(null, messages);
+    offerFuture(future, timeoutMs);
+    return future;
+  }
+
+  private void offerFuture(PublishTaskFuture future, long timeoutMs) throws InterruptedException {
+    checkAndCopyMDC(future);
+    boolean added = taskQueue.offer(future, timeoutMs, MILLISECONDS);
+    if (!added) {
+      throw new QueueIsFullException(toString());
+    }
+    LOGGER.trace("task added with {} messages, queue size is {}", future.getMessages().size(), taskQueue.size());
+  }
+
+  /**
    * Nonblocking method, enqueues messages internally, throws exception if local queue is full.
    * <p>
    * Wrap message with {@link CorrelatedMessage} to attach {@link CorrelationData} for publisher confirms.
    * </p>
-   * 
+   *
    * @return ListenableFuture that gets completed after successful sending
    */
   public ListenableFuture<Void> send(Destination destination, Object... messages) {
@@ -265,7 +376,7 @@ public class Publisher extends AbstractService {
    * <p>
    * Wrap message with {@link CorrelatedMessage} to attach {@link CorrelationData} for publisher confirms.
    * </p>
-   * 
+   *
    * @return ListenableFuture that gets completed after successful sending
    */
   public ListenableFuture<Void> send(Destination destination, Collection<Object> messages) {
@@ -280,7 +391,7 @@ public class Publisher extends AbstractService {
    * <p>
    * Wrap message with {@link CorrelatedMessage} to attach {@link CorrelationData} for publisher confirms.
    * </p>
-   * 
+   *
    * @return ListenableFuture that gets completed after successful sending
    */
   public ListenableFuture<Void> send(Map<Object, Destination> messages) {
@@ -302,7 +413,7 @@ public class Publisher extends AbstractService {
    * <p>
    * Configuration options {@link ConfigKeys#PUBLISHER_EXCHANGE} and {@link ConfigKeys#PUBLISHER_ROUTING_KEY} must be set.
    * </p>
-   * 
+   *
    * @return ListenableFuture that gets completed after successful sending
    */
   public ListenableFuture<Void> send(Object... messages) {
@@ -319,7 +430,7 @@ public class Publisher extends AbstractService {
    * <p>
    * Configuration options {@link ConfigKeys#PUBLISHER_EXCHANGE} and {@link ConfigKeys#PUBLISHER_ROUTING_KEY} must be set.
    * </p>
-   * 
+   *
    * @return ListenableFuture that gets completed after successful sending
    */
   public ListenableFuture<Void> send(Collection<Object> messages) {
@@ -328,18 +439,21 @@ public class Publisher extends AbstractService {
     return future;
   }
 
-  @SuppressWarnings("unchecked")
   private void addFuture(PublishTaskFuture future) {
-    checkStarted();
-    if (useMDC) {
-      future.setMDCContext(MDC.getCopyOfContextMap());
-    }
+    checkAndCopyMDC(future);
     try {
       taskQueue.add(future);
       LOGGER.trace("task added with {} messages, queue size is {}", future.getMessages().size(), taskQueue.size());
     }
     catch (IllegalStateException e) {
       throw new QueueIsFullException(toString(), e);
+    }
+  }
+
+  private void checkAndCopyMDC(PublishTaskFuture future) {
+    checkStarted();
+    if (useMDC) {
+      future.setMDCContext(MDC.getCopyOfContextMap());
     }
   }
 
@@ -354,7 +468,7 @@ public class Publisher extends AbstractService {
   }
 
   private boolean isStarted() {
-    return taskQueue != null;
+    return taskQueue != null && isRunning();
   }
 
   private void checkStarted() {

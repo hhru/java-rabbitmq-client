@@ -26,7 +26,6 @@ public class MDCMessagePropertiesConverter extends DefaultMessagePropertiesConve
 
   private static final String MDC_PREFIX = "_MDC_";
 
-  @SuppressWarnings("unchecked")
   @Override
   public BasicProperties fromMessageProperties(MessageProperties source, String charset) {
     BasicProperties properties = super.fromMessageProperties(source, charset);

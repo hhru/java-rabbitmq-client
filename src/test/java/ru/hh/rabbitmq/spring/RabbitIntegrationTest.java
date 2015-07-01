@@ -1,6 +1,6 @@
 package ru.hh.rabbitmq.spring;
 
-import static junit.framework.Assert.assertTrue;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -18,6 +18,7 @@ import com.google.common.collect.ImmutableMap;
 import ru.hh.rabbitmq.spring.receive.MapMessageListener;
 import ru.hh.rabbitmq.spring.send.CorrelatedMessage;
 import ru.hh.rabbitmq.spring.send.Destination;
+import ru.hh.rabbitmq.spring.send.QueueIsFullException;
 
 public class RabbitIntegrationTest extends RabbitIntegrationTestBase {
 
@@ -145,6 +146,68 @@ public class RabbitIntegrationTest extends RabbitIntegrationTestBase {
     receiver.shutdown();
   }
 
+  @Test(expected = IllegalStateException.class)
+  public void testStoppedPublisher() throws InterruptedException {
+    Publisher publisher = publisher(HOST1, true).withJsonMessageConverter();
+    publisher.startSync();
+
+    publisher.stopSync();
+
+    Map<String, Object> sentMessage = new HashMap<>();
+
+    sentMessage.put("data", "1");
+    publisher.send(sentMessage);
+  }
+
+  @Test(expected = QueueIsFullException.class)
+  public void testImmediateFullQueue() throws InterruptedException {
+
+    Publisher publisherHost1 = publisher("unknownhost_for_queue_is_full", true, 2).withJsonMessageConverter();
+    publisherHost1.startSync();
+
+    Map<String, Object> sentMessage = new HashMap<>();
+
+    sentMessage.put("data", "somedata1");
+    publisherHost1.send(sentMessage);
+
+    sentMessage.put("data", "somedata2");
+    publisherHost1.send(sentMessage);
+
+    assertEquals(publisherHost1.getInnerQueueRemainingCapacity(), 0);
+
+    sentMessage.put("data", "somedata3");
+    publisherHost1.send(sentMessage);
+  }
+
+  @Test
+  public void testTimedOutFullQueue() throws InterruptedException {
+
+    Publisher publisherHost1 = publisher("unknownhost_for_queue_is_full", true, 2).withJsonMessageConverter();
+    publisherHost1.startSync();
+
+    Map<String, Object> sentMessage = new HashMap<>();
+
+    sentMessage.put("data", "somedata1");
+    publisherHost1.send(sentMessage);
+
+    sentMessage.put("data", "somedata2");
+    publisherHost1.send(sentMessage);
+
+    assertEquals(publisherHost1.getInnerQueueRemainingCapacity(), 0);
+
+    sentMessage.put("data", "somedata3");
+    long start = System.currentTimeMillis();
+    boolean queueIsFull = false;
+    try {
+      publisherHost1.offer(1000, sentMessage);
+    }
+    catch (QueueIsFullException e) {
+      queueIsFull = true;
+    }
+    assertTrue(queueIsFull);
+    assertTrue((System.currentTimeMillis() - start) >= 1000);
+  }
+
   @Test
   public void testPublisherConfirms() throws InterruptedException, ExecutionException {
     TestConfirmCallback callback = new TestConfirmCallback();
@@ -188,8 +251,8 @@ public class RabbitIntegrationTest extends RabbitIntegrationTestBase {
   @Test
   public void testMDC() throws InterruptedException {
     String MDCKey = "mdctestkey";
-    String MDCValue = "mdctestvalue"; 
-    
+    String MDCValue = "mdctestvalue";
+
     MDC.put(MDCKey, MDCValue);
     Publisher publisherHost1 = publisherMDC(HOST1).withJsonMessageConverter();
     publisherHost1.startSync();
@@ -231,7 +294,7 @@ public class RabbitIntegrationTest extends RabbitIntegrationTestBase {
       this.useMDC = useMDC;
     }
 
-    @SuppressWarnings("unchecked")
+    @Override
     public void handleMessage(Map<String, Object> data) {
       queue.add(data);
       if (useMDC) {

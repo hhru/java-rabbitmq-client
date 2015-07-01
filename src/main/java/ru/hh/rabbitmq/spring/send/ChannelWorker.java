@@ -24,13 +24,13 @@ import com.rabbitmq.client.Channel;
 
 public class ChannelWorker extends AbstractService implements ConnectionListener {
   private static final Logger LOGGER = LoggerFactory.getLogger(ChannelWorker.class);
-  
+
   private final RabbitTemplate template;
   private final BlockingQueue<PublishTaskFuture> taskQueue;
   private final Thread thread;
 
   // connection state fields. RabbitTemplate does not reconnect automatically, so have to handle it manually
-  private long reconnectionDelay;
+  private long reconnectionDelayMs;
   private final ConnectionOpener connectionOpener = new ConnectionOpener();
   private AtomicReference<Connection> currentConnection = new AtomicReference<Connection>();
   private Monitor connectionMonitor = new Monitor();
@@ -42,10 +42,10 @@ public class ChannelWorker extends AbstractService implements ConnectionListener
     }
   };
 
-  public ChannelWorker(RabbitTemplate template, BlockingQueue<PublishTaskFuture> taskQueue, String name, long reconnectionDelay) {
+  public ChannelWorker(RabbitTemplate template, BlockingQueue<PublishTaskFuture> taskQueue, String name, long reconnectionDelayMs) {
     this.template = template;
     this.taskQueue = taskQueue;
-    this.reconnectionDelay = reconnectionDelay;
+    this.reconnectionDelayMs = reconnectionDelayMs;
     this.thread = new Thread(name) {
       @Override
       public void run() {
@@ -76,14 +76,14 @@ public class ChannelWorker extends AbstractService implements ConnectionListener
         }
         try {
           task = this.taskQueue.take();
-          
+
           // after possibly long waiting for new task, re-check connection, requeue if connection is broken
           if (!connected.isSatisfied()) {
             LOGGER.warn("requeued message on connection loss");
             this.taskQueue.add(task);
             continue;
           }
-          
+
           // from now on we can't requeue - that might lead to duplicate messages
           if (!task.isCancelled()) {
             try {
@@ -113,7 +113,7 @@ public class ChannelWorker extends AbstractService implements ConnectionListener
     boolean entered = false;
     while (isRunning() && !entered) {
       // wait until connected or timeout
-      entered = connectionMonitor.enterWhen(connected, reconnectionDelay, TimeUnit.MILLISECONDS);
+      entered = connectionMonitor.enterWhen(connected, reconnectionDelayMs, TimeUnit.MILLISECONDS);
       // if still not in, force open connection
       if (!entered) {
         forceOpenConnection();

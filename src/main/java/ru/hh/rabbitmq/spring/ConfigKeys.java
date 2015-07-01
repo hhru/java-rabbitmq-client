@@ -122,4 +122,8 @@ public interface ConfigKeys {
    * Whether or not publisher should store MDC context to message
    */
   String PUBLISHER_USE_MDC = "publisher.use.mdc";
+  /**
+   * How long publisher will wait for inner queue to clear when shutting down
+   */
+  String PUBLISHER_INNER_QUEUE_SHUTDOWN_MS = "publisher.innerqueue.shutdown.ms";
 }

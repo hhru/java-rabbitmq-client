@@ -141,17 +141,23 @@ public class RabbitIntegrationTestBase {
     return properties;
   }
 
+  protected static Publisher publisher(String host, boolean withDirections, int innerQueueSize) {
+    Properties properties = properties(host);
+    properties.setProperty(ConfigKeys.PUBLISHER_INNER_QUEUE_SIZE, Integer.toString(innerQueueSize));
+    return publisher(properties, withDirections, false);
+  }
+
   protected static Publisher publisher(String host, boolean withDirections) {
     Properties properties = properties(host);
-    if (withDirections) {
-      appendDirections(properties);
-    }
-    ClientFactory factory = new ClientFactory(properties);
-    return factory.createPublisher();
+    return publisher(properties, withDirections, false);
   }
 
   protected static Publisher publisher(String host, boolean withDirections, boolean withConfirms) {
     Properties properties = properties(host);
+    return publisher(properties, withDirections, withConfirms);
+  }
+
+  protected static Publisher publisher(Properties properties, boolean withDirections, boolean withConfirms) {
     if (withDirections) {
       appendDirections(properties);
     }
