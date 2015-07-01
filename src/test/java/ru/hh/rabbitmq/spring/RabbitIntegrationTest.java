@@ -162,50 +162,50 @@ public class RabbitIntegrationTest extends RabbitIntegrationTestBase {
   @Test(expected = QueueIsFullException.class)
   public void testImmediateFullQueue() throws InterruptedException {
 
-    Publisher publisherHost1 = publisher("unknownhost_for_queue_is_full", true, 2).withJsonMessageConverter();
-    publisherHost1.startSync();
+    Publisher publisher = publisher("unknownhost_for_queue_is_full", true, 2).withJsonMessageConverter();
+    publisher.startSync();
 
     Map<String, Object> sentMessage = new HashMap<>();
 
     sentMessage.put("data", "somedata1");
-    publisherHost1.send(sentMessage);
+    publisher.send(sentMessage);
 
     sentMessage.put("data", "somedata2");
-    publisherHost1.send(sentMessage);
+    publisher.send(sentMessage);
 
-    assertEquals(publisherHost1.getInnerQueueRemainingCapacity(), 0);
+    assertEquals(publisher.getInnerQueueRemainingCapacity(), 0);
 
     sentMessage.put("data", "somedata3");
-    publisherHost1.send(sentMessage);
+    publisher.send(sentMessage);
   }
 
   @Test
   public void testTimedOutFullQueue() throws InterruptedException {
 
-    Publisher publisherHost1 = publisher("unknownhost_for_queue_is_full", true, 2).withJsonMessageConverter();
-    publisherHost1.startSync();
+    Publisher publisher = publisher("unknownhost_for_queue_is_full", true, 2).withJsonMessageConverter();
+    publisher.startSync();
 
     Map<String, Object> sentMessage = new HashMap<>();
 
     sentMessage.put("data", "somedata1");
-    publisherHost1.send(sentMessage);
+    publisher.send(sentMessage);
 
     sentMessage.put("data", "somedata2");
-    publisherHost1.send(sentMessage);
+    publisher.send(sentMessage);
 
-    assertEquals(publisherHost1.getInnerQueueRemainingCapacity(), 0);
+    assertEquals(publisher.getInnerQueueRemainingCapacity(), 0);
 
     sentMessage.put("data", "somedata3");
     long start = System.currentTimeMillis();
     boolean queueIsFull = false;
     try {
-      publisherHost1.offer(1000, sentMessage);
+      publisher.offer(100, sentMessage);
     }
     catch (QueueIsFullException e) {
       queueIsFull = true;
     }
     assertTrue(queueIsFull);
-    assertTrue((System.currentTimeMillis() - start) >= 1000);
+    assertTrue((System.currentTimeMillis() - start) >= 100);
   }
 
   @Test

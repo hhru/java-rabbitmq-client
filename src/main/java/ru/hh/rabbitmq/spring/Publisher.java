@@ -2,6 +2,7 @@ package ru.hh.rabbitmq.spring;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
+import static java.lang.System.currentTimeMillis;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_EXCHANGE;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_INNER_QUEUE_SHUTDOWN_MS;
@@ -21,6 +22,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.slf4j.Logger;
@@ -66,7 +68,7 @@ public class Publisher extends AbstractService {
 
   private final Map<RabbitTemplate, String> templates;
   private final List<Service> workers = new ArrayList<>();
-  private ArrayBlockingQueue<PublishTaskFuture> taskQueue;
+  private BlockingQueue<PublishTaskFuture> taskQueue;
 
   private boolean useMDC;
 
@@ -242,14 +244,12 @@ public class Publisher extends AbstractService {
   @Override
   protected void doStop() {
     // wait till inner queue is empty
-    long overallDelay = 0;
-    while (!taskQueue.isEmpty()) {
-      if (overallDelay > innerQueueShutdownMs) {
-        LOGGER.warn("Shutting down with {} tasks still in inner queue, they will be dropped", taskQueue.size());
-        break;
-      }
+    long maxWaitTimeMs = currentTimeMillis() + innerQueueShutdownMs;
+    while (currentTimeMillis() < maxWaitTimeMs && !taskQueue.isEmpty()) {
       sleepUninterruptibly(100, MILLISECONDS);
-      overallDelay += 100;
+    }
+    if (!taskQueue.isEmpty()) {
+      LOGGER.warn("Shutting down with {} tasks still in inner queue, they will be dropped", taskQueue.size());
     }
     for (Service worker : workers) {
       worker.stopAsync();
