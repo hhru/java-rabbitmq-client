@@ -17,7 +17,6 @@ import org.springframework.amqp.rabbit.core.ChannelCallback;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.amqp.rabbit.support.CorrelationData;
 
-import com.google.common.base.Throwables;
 import com.google.common.util.concurrent.AbstractService;
 import com.google.common.util.concurrent.Monitor;
 import com.rabbitmq.client.Channel;
@@ -53,14 +52,14 @@ public class ChannelWorker extends AbstractService implements ConnectionListener
           notifyStarted();
           LOGGER.debug("worker started");
           forceOpenConnection();
-          while (isRunning()) {
+          while (isRunning() && !isInterrupted()) {
             processQueue();
           }
           LOGGER.debug("worker stopped");
           notifyStopped();
         } catch (Throwable t) {
           notifyFailed(t);
-          throw Throwables.propagate(t);
+          LOGGER.error("worker failed, stopping", t);
         }
       }
     };
@@ -70,6 +69,7 @@ public class ChannelWorker extends AbstractService implements ConnectionListener
     PublishTaskFuture task = null;
     try {
       while (isRunning()) {
+        task = null; // nullify previous task so we don't accidentally use it in catch block before calling take()
         ensureOpen();
         if (!isRunning()) {
           continue;
@@ -101,11 +101,11 @@ public class ChannelWorker extends AbstractService implements ConnectionListener
       Thread.currentThread().interrupt();
       LOGGER.debug("worker interrupted, stopping");
     } catch (AmqpIOException e) { // Broken pipe, ...
-      if (!taskQueue.offer(task)) {
-        LOGGER.warn("network problem -- failed to execute task", e);
+      if (task != null && !taskQueue.offer(task)) {
+        LOGGER.warn("network problem -- failed to execute task, dropping it", e);
       }
     } catch (Exception e) {
-      LOGGER.error("failed to execute task", e);
+      LOGGER.error("failed to execute task, dropping it", e);
     }
   }
 
