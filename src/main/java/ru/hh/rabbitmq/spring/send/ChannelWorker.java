@@ -80,7 +80,13 @@ public class ChannelWorker extends AbstractService implements ConnectionListener
           // after possibly long waiting for new task, re-check connection, requeue if connection is broken
           if (!connected.isSatisfied()) {
             LOGGER.warn("requeued message on connection loss");
-            this.taskQueue.add(task);
+            try {
+              this.taskQueue.add(task);
+            }
+            catch (IllegalStateException e) {
+              task.fail(e);
+              throw e;
+            }
             continue;
           }
 
