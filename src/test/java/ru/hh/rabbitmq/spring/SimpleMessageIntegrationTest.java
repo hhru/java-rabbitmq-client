@@ -12,6 +12,7 @@ import java.util.concurrent.TimeUnit;
 import org.junit.Test;
 import org.springframework.amqp.support.converter.MessageConverter;
 
+import ru.hh.rabbitmq.spring.send.Publisher;
 import ru.hh.rabbitmq.spring.simple.SimpleMessage;
 import ru.hh.rabbitmq.spring.simple.SimpleMessageConverter;
 import ru.hh.rabbitmq.spring.simple.SimpleMessageListener;

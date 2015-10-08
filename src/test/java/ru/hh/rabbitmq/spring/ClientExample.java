@@ -18,6 +18,7 @@ import org.springframework.amqp.core.MessageListener;
 import org.springframework.util.ErrorHandler;
 
 import ru.hh.rabbitmq.spring.receive.MapMessageListener;
+import ru.hh.rabbitmq.spring.send.Publisher;
 
 // not a test, just some manually-run example
 public class ClientExample {

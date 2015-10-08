@@ -19,6 +19,7 @@ import com.google.common.collect.ImmutableMap;
 import ru.hh.rabbitmq.spring.receive.MapMessageListener;
 import ru.hh.rabbitmq.spring.send.CorrelatedMessage;
 import ru.hh.rabbitmq.spring.send.Destination;
+import ru.hh.rabbitmq.spring.send.Publisher;
 import ru.hh.rabbitmq.spring.send.QueueIsFullException;
 
 public class RabbitIntegrationTest extends RabbitIntegrationTestBase {

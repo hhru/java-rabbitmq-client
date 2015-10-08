@@ -11,6 +11,7 @@ import org.springframework.amqp.core.DirectExchange;
 import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.rabbit.connection.CachingConnectionFactory;
 import org.springframework.amqp.rabbit.core.RabbitAdmin;
+import ru.hh.rabbitmq.spring.send.Publisher;
 
 
 public class RabbitIntegrationTestBase {

@@ -25,6 +25,7 @@ import org.springframework.amqp.rabbit.connection.CachingConnectionFactory;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
+import ru.hh.rabbitmq.spring.send.Publisher;
 
 /**
  * <p>

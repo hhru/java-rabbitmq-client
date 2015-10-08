@@ -1,4 +1,4 @@
-package ru.hh.rabbitmq.spring;
+package ru.hh.rabbitmq.spring.send;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
@@ -35,11 +35,9 @@ import org.springframework.amqp.rabbit.core.RabbitTemplate.ReturnCallback;
 import org.springframework.amqp.rabbit.support.CorrelationData;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
-import ru.hh.rabbitmq.spring.send.ChannelWorker;
-import ru.hh.rabbitmq.spring.send.CorrelatedMessage;
-import ru.hh.rabbitmq.spring.send.Destination;
-import ru.hh.rabbitmq.spring.send.PublishTaskFuture;
-import ru.hh.rabbitmq.spring.send.QueueIsFullException;
+import ru.hh.rabbitmq.spring.ConfigKeys;
+import ru.hh.rabbitmq.spring.MDCMessagePropertiesConverter;
+import ru.hh.rabbitmq.spring.PropertiesHelper;
 import com.google.common.base.Joiner;
 import com.google.common.util.concurrent.AbstractService;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -71,7 +69,7 @@ public class Publisher extends AbstractService {
   private final boolean useMDC;
   private long innerQueueShutdownMs = 1000;
 
-  Publisher(List<ConnectionFactory> connectionFactories, Properties properties) {
+  public Publisher(Collection<ConnectionFactory> connectionFactories, Properties properties) {
     PropertiesHelper props = new PropertiesHelper(properties);
     List<RabbitTemplate> templates = new ArrayList<>(connectionFactories.size());
     List<Service> workers = new ArrayList<>(connectionFactories.size());

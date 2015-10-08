@@ -15,7 +15,7 @@ import com.google.common.util.concurrent.AbstractService;
 
 import static java.lang.Thread.currentThread;
 
-public class ChannelWorker extends AbstractService {
+class ChannelWorker extends AbstractService {
   private static final Logger LOGGER = LoggerFactory.getLogger(ChannelWorker.class);
 
   private final RabbitTemplate template;
@@ -24,7 +24,7 @@ public class ChannelWorker extends AbstractService {
 
   private final Thread thread;
 
-  public ChannelWorker(RabbitTemplate template, BlockingQueue<PublishTaskFuture> taskQueue, String name, int retryDelayMs) {
+  ChannelWorker(RabbitTemplate template, BlockingQueue<PublishTaskFuture> taskQueue, String name, int retryDelayMs) {
     this.template = template;
     this.taskQueue = taskQueue;
     this.retryDelayMs = retryDelayMs;
