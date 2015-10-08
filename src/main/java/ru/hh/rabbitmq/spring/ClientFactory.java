@@ -2,7 +2,8 @@ package ru.hh.rabbitmq.spring;
 
 import static ru.hh.rabbitmq.spring.ConfigKeys.CHANNEL_CACHE_SIZE;
 import static ru.hh.rabbitmq.spring.ConfigKeys.CLOSE_TIMEOUT;
-import static ru.hh.rabbitmq.spring.ConfigKeys.HEARTBIT;
+import static ru.hh.rabbitmq.spring.ConfigKeys.CONNECTION_TIMEOUT_MS;
+import static ru.hh.rabbitmq.spring.ConfigKeys.HEARTBIT_SEC;
 import static ru.hh.rabbitmq.spring.ConfigKeys.HOST;
 import static ru.hh.rabbitmq.spring.ConfigKeys.HOSTS;
 import static ru.hh.rabbitmq.spring.ConfigKeys.HOSTS_PORT_SEPARATOR;
@@ -15,6 +16,8 @@ import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_RETURNS;
 import static ru.hh.rabbitmq.spring.ConfigKeys.RECEIVER_HOSTS;
 import static ru.hh.rabbitmq.spring.ConfigKeys.USERNAME;
 import static ru.hh.rabbitmq.spring.ConfigKeys.VIRTUALHOST;
+import static ru.hh.rabbitmq.spring.util.ConnectionFactoryTester.test;
+
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -149,16 +152,18 @@ public class ClientFactory {
       if (port != null) {
         factory.setPort(port);
       }
+
+      factory.setConnectionTimeout(properties.getInteger(CONNECTION_TIMEOUT_MS, 200));
+
       factory.setUsername(properties.getNotNullString(USERNAME));
       factory.setPassword(properties.getNotNullString(PASSWORD));
       String virtualhost = properties.getString(VIRTUALHOST);
       if (virtualhost != null) {
         factory.setVirtualHost(virtualhost);
       }
-      Integer heartbit = properties.getInteger(HEARTBIT);
-      if (heartbit != null) {
-        factory.setRequestedHeartBeat(heartbit);
-      }
+
+      factory.setRequestedHeartBeat(properties.getInteger(HEARTBIT_SEC, 2));
+
       Integer channelCacheSize = properties.getInteger(CHANNEL_CACHE_SIZE);
       if (channelCacheSize != null) {
         factory.setChannelCacheSize(channelCacheSize);
@@ -175,6 +180,8 @@ public class ClientFactory {
       if (publisherReturns != null) {
         factory.setPublisherReturns(publisherReturns);
       }
+
+      test(factory);
       return factory;
     }
     catch (Exception e) {

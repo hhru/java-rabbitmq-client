@@ -4,22 +4,21 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
 import static java.lang.System.currentTimeMillis;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static ru.hh.rabbitmq.spring.ConfigKeys.CONNECTION_FACTORY_TEST_RETRY_DELAY_MS;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_EXCHANGE;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_INNER_QUEUE_SHUTDOWN_MS;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_INNER_QUEUE_SIZE;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_MANDATORY;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_NAME;
-import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_RECONNECTION_DELAY;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_ROUTING_KEY;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_TRANSACTIONAL;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_USE_MDC;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.LinkedHashMap;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
@@ -42,7 +41,6 @@ import ru.hh.rabbitmq.spring.send.Destination;
 import ru.hh.rabbitmq.spring.send.PublishTaskFuture;
 import ru.hh.rabbitmq.spring.send.QueueIsFullException;
 import com.google.common.base.Joiner;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.AbstractService;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.Service;
@@ -64,20 +62,20 @@ public class Publisher extends AbstractService {
 
   private static final int DEFAULT_INNER_QUEUE_SIZE = 1000;
 
-  private int innerQueueSize;
+  private final BlockingQueue<PublishTaskFuture> taskQueue;
 
-  private final Map<RabbitTemplate, String> templates;
-  private final List<Service> workers = new ArrayList<>();
-  private BlockingQueue<PublishTaskFuture> taskQueue;
+  private final Collection<RabbitTemplate> templates;
+  private final Collection<Service> workers;
+  private final String name;
 
-  private boolean useMDC;
-
-  private int reconnectionDelayMs = 100;
+  private final boolean useMDC;
   private long innerQueueShutdownMs = 1000;
 
   Publisher(List<ConnectionFactory> connectionFactories, Properties properties) {
     PropertiesHelper props = new PropertiesHelper(properties);
-    Map<RabbitTemplate, String> templates = new LinkedHashMap<>(connectionFactories.size());
+    List<RabbitTemplate> templates = new ArrayList<>(connectionFactories.size());
+    List<Service> workers = new ArrayList<>(connectionFactories.size());
+    List<String> connectionFactoriesNames = new ArrayList<>(connectionFactories.size());
 
     String commonName = props.getString(PUBLISHER_NAME, "");
 
@@ -86,6 +84,11 @@ public class Publisher extends AbstractService {
     Boolean mandatory = props.getBoolean(PUBLISHER_MANDATORY);
     Boolean transactional = props.getBoolean(PUBLISHER_TRANSACTIONAL);
     useMDC = props.getBoolean(PUBLISHER_USE_MDC, false);
+
+    int innerQueueSize = props.getInteger(PUBLISHER_INNER_QUEUE_SIZE, DEFAULT_INNER_QUEUE_SIZE);
+    taskQueue = new ArrayBlockingQueue<>(innerQueueSize);
+
+    int templateTestRetryMs = props.getInteger(CONNECTION_FACTORY_TEST_RETRY_DELAY_MS, 2000);
 
     for (ConnectionFactory factory : connectionFactories) {
       RabbitTemplate template = new RabbitTemplate(factory);
@@ -110,23 +113,25 @@ public class Publisher extends AbstractService {
         template.setMessagePropertiesConverter(new MDCMessagePropertiesConverter());
       }
 
-      String name = "rabbit-publisher-" + commonName + "-" + factory.getHost() + ":" + factory.getPort();
-      templates.put(template, name);
+      templates.add(template);
+
+      String connectionFactoryName = factory.getHost() + ':' + factory.getPort();
+
+      String workerName = "rabbit-publisher-" + commonName + '-' + connectionFactoryName;
+      Service worker = new ChannelWorker(template, taskQueue, workerName, templateTestRetryMs);
+      workers.add(worker);
+
+      connectionFactoriesNames.add(connectionFactoryName);
     }
 
-    innerQueueSize = props.getInteger(PUBLISHER_INNER_QUEUE_SIZE, DEFAULT_INNER_QUEUE_SIZE);
-
-    Integer reconnectionDelayMs = props.getInteger(PUBLISHER_RECONNECTION_DELAY);
-    if (reconnectionDelayMs != null) {
-      this.reconnectionDelayMs = reconnectionDelayMs;
-    }
+    this.templates = Collections.unmodifiableList(templates);
+    this.workers = Collections.unmodifiableList(workers);
+    name = getClass().getSimpleName() + '{' + commonName + ',' + Joiner.on(',').join(connectionFactoriesNames) + '}';
 
     Long innerQueueShutdownMs = props.getLong(PUBLISHER_INNER_QUEUE_SHUTDOWN_MS);
     if (innerQueueShutdownMs != null) {
       this.innerQueueShutdownMs = innerQueueShutdownMs;
     }
-
-    this.templates = ImmutableMap.copyOf(templates);
   }
 
   /**
@@ -136,7 +141,7 @@ public class Publisher extends AbstractService {
    * @return list of all rabbit templates
    */
   public Collection<RabbitTemplate> getRabbitTemplates() {
-    return templates.keySet();
+    return templates;
   }
 
   /**
@@ -147,7 +152,7 @@ public class Publisher extends AbstractService {
    */
   public Publisher setTransactional(boolean transactional) {
     checkNotStarted();
-    for (RabbitTemplate template : templates.keySet()) {
+    for (RabbitTemplate template : templates) {
       template.setChannelTransacted(transactional);
     }
     return this;
@@ -161,7 +166,7 @@ public class Publisher extends AbstractService {
    */
   public Publisher withMessageConverter(MessageConverter converter) {
     checkNotStarted();
-    for (RabbitTemplate template : templates.keySet()) {
+    for (RabbitTemplate template : templates) {
       template.setMessageConverter(converter);
     }
     return this;
@@ -186,7 +191,7 @@ public class Publisher extends AbstractService {
    */
   public Publisher withConfirmCallback(ConfirmCallback callback) {
     checkNotStarted();
-    for (RabbitTemplate template : templates.keySet()) {
+    for (RabbitTemplate template : templates) {
       template.setConfirmCallback(callback);
     }
     return this;
@@ -200,7 +205,7 @@ public class Publisher extends AbstractService {
    */
   public Publisher withReturnCallback(ReturnCallback callback) {
     checkNotStarted();
-    for (RabbitTemplate template : templates.keySet()) {
+    for (RabbitTemplate template : templates) {
       template.setReturnCallback(callback);
     }
     return this;
@@ -219,12 +224,7 @@ public class Publisher extends AbstractService {
   @Override
   protected void doStart() {
     checkNotStarted();
-    taskQueue = new ArrayBlockingQueue<PublishTaskFuture>(innerQueueSize);
-    for (Entry<RabbitTemplate, String> entry : templates.entrySet()) {
-      RabbitTemplate template = entry.getKey();
-      String name = entry.getValue();
-      Service worker = new ChannelWorker(template, taskQueue, name, reconnectionDelayMs);
-      workers.add(worker);
+    for (Service worker: workers) {
       worker.startAsync();
     }
     notifyStarted();
@@ -255,11 +255,10 @@ public class Publisher extends AbstractService {
       worker.stopAsync();
       worker.awaitTerminated();
     }
-    for (RabbitTemplate template : templates.keySet()) {
+    for (RabbitTemplate template : templates) {
       CachingConnectionFactory factory = (CachingConnectionFactory) template.getConnectionFactory();
       factory.destroy();
     }
-    taskQueue = null;
     notifyStopped();
     LOGGER.debug("stopped " + toString());
   }
@@ -468,7 +467,7 @@ public class Publisher extends AbstractService {
   }
 
   private boolean isStarted() {
-    return taskQueue != null && isRunning();
+    return isRunning();
   }
 
   private void checkStarted() {
@@ -485,10 +484,7 @@ public class Publisher extends AbstractService {
 
   @Override
   public String toString() {
-    if (templates == null) {
-      return "uninitialized";
-    }
-    return Joiner.on(',').join(templates.values());
+    return name;
   }
 
 }

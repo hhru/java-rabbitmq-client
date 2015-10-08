@@ -1,17 +1,22 @@
 package ru.hh.rabbitmq.spring;
 
+import static java.util.Collections.singletonList;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Properties;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import org.junit.Test;
 import org.slf4j.MDC;
+import org.springframework.amqp.rabbit.connection.CachingConnectionFactory;
+import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate.ConfirmCallback;
 import org.springframework.amqp.rabbit.support.CorrelationData;
 import com.google.common.collect.ImmutableMap;
@@ -162,7 +167,13 @@ public class RabbitIntegrationTest extends RabbitIntegrationTestBase {
   @Test(expected = QueueIsFullException.class)
   public void testImmediateFullQueue() throws InterruptedException {
 
-    Publisher publisher = publisher("unknownhost_for_queue_is_full", true, 2).withJsonMessageConverter();
+    ConnectionFactory connectionFactory = new CachingConnectionFactory("unknownhost_for_queue_is_full");
+
+    Properties properties = baseProperties();
+    appendDirections(properties);
+    properties.setProperty(ConfigKeys.PUBLISHER_INNER_QUEUE_SIZE, "2");
+
+    Publisher publisher = new Publisher(singletonList(connectionFactory), properties).withJsonMessageConverter();
     publisher.startSync();
 
     Map<String, Object> sentMessage = new HashMap<>();
@@ -182,7 +193,13 @@ public class RabbitIntegrationTest extends RabbitIntegrationTestBase {
   @Test
   public void testTimedOutFullQueue() throws InterruptedException {
 
-    Publisher publisher = publisher("unknownhost_for_queue_is_full", true, 2).withJsonMessageConverter();
+    ConnectionFactory connectionFactory = new CachingConnectionFactory("unknownhost_for_queue_is_full");
+
+    Properties properties = baseProperties();
+    appendDirections(properties);
+    properties.setProperty(ConfigKeys.PUBLISHER_INNER_QUEUE_SIZE, "2");
+
+    Publisher publisher = new Publisher(singletonList(connectionFactory), properties).withJsonMessageConverter();
     publisher.startSync();
 
     Map<String, Object> sentMessage = new HashMap<>();

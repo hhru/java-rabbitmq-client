@@ -1,6 +1,6 @@
 package ru.hh.rabbitmq.spring;
 
-import static ru.hh.rabbitmq.spring.ConfigKeys.HEARTBIT;
+import static ru.hh.rabbitmq.spring.ConfigKeys.HEARTBIT_SEC;
 import static ru.hh.rabbitmq.spring.ConfigKeys.HOSTS;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PASSWORD;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_EXCHANGE;
@@ -29,7 +29,7 @@ public class ClientExample {
     properties.setProperty(USERNAME, "guest");
     properties.setProperty(PASSWORD, "guest");
     properties.setProperty(RECEIVER_QUEUES, "springq");
-    properties.setProperty(HEARTBIT, "1");
+    properties.setProperty(HEARTBIT_SEC, "1");
 
     ClientFactory factory = new ClientFactory(properties);
     Receiver receiver = factory.createReceiver();

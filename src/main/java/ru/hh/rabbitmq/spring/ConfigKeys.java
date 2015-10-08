@@ -28,6 +28,8 @@ public interface ConfigKeys {
    * Same as {{@link #HOSTS} but for receiver only.
    */
   String RECEIVER_HOSTS = "receiver.hosts";
+
+  String CONNECTION_TIMEOUT_MS = "connection.timeout.millis";
   /**
    * Username (required), must be same for all brokers.
    */
@@ -36,6 +38,8 @@ public interface ConfigKeys {
    * Password (required), must be same for all brokers.
    */
   String PASSWORD = "password";
+
+  String CONNECTION_FACTORY_TEST_RETRY_DELAY_MS  = "connectionFactory.test.retryDelay.millis";
   /**
    * Virtualhost, must be same for all brokers.
    */
@@ -43,7 +47,7 @@ public interface ConfigKeys {
   /**
    * Heartbit interval in seconds, will be same for connections to all brokers. See {@link AbstractConnectionFactory#setRequestedHeartBeat(int)}.
    */
-  String HEARTBIT = "heartbit.interval.seconds";
+  String HEARTBIT_SEC = "heartbit.interval.seconds";
   /**
    * Channel cache size setting, will be same for connections to all brokers. See {@link CachingConnectionFactory#setChannelCacheSize(int)}.
    */
@@ -114,10 +118,6 @@ public interface ConfigKeys {
    * Configure transactional mode of publisher.
    */
   String PUBLISHER_TRANSACTIONAL = "publisher.transactional";
-  /**
-   * Set how long publisher will wait before attempt to reconnect after connection failure.
-   */
-  String PUBLISHER_RECONNECTION_DELAY = "publisher.reconnection.delay.millis";
   /**
    * Whether or not publisher should store MDC context to message
    */
