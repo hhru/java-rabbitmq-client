@@ -18,10 +18,13 @@ import static ru.hh.rabbitmq.spring.ConfigKeys.RECEIVER_HOSTS;
 import static ru.hh.rabbitmq.spring.ConfigKeys.USERNAME;
 import static ru.hh.rabbitmq.spring.ConfigKeys.VIRTUALHOST;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.TimeoutException;
+
 import org.springframework.amqp.rabbit.connection.CachingConnectionFactory;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import com.google.common.base.Joiner;
@@ -89,15 +92,14 @@ public class ClientFactory {
     catch (ConfigException e) {
       throw e;
     }
-    catch (Exception e) {
+    catch (RuntimeException e) {
       throw new ConfigException("Failed to create connection factories", e);
     }
   }
 
   private ConnectionFactory createConnectionFactory(String host, Integer port) {
     try {
-      CachingConnectionFactory factory = new CachingConnectionFactory();
-      factory.setHost(host);
+      CachingConnectionFactory factory = new CachingConnectionFactory(host);
       if (port != null) {
         factory.setPort(port);
       }
@@ -131,7 +133,7 @@ public class ClientFactory {
       }
       return factory;
     }
-    catch (Exception e) {
+    catch (RuntimeException e) {
       throw new ConfigException(String.format("Failed to create ConnectionFactory (%s)", host), e);
     }
   }
