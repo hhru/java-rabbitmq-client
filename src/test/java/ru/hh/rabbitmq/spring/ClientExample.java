@@ -55,11 +55,11 @@ public class ClientExample {
 
     properties.setProperty(HOSTS, "voznesenskiy.pyn.ru");
     factory = new ClientFactory(properties);
-    Publisher publisher1 = factory.createPublisher().withJsonMessageConverter();
+    Publisher publisher1 = factory.createPublisherBuilder().withJsonMessageConverter().build();
 
     properties.setProperty(HOSTS, "dev");
     factory = new ClientFactory(properties);
-    Publisher publisher2 = factory.createPublisher().withJsonMessageConverter();
+    Publisher publisher2 = factory.createPublisherBuilder().withJsonMessageConverter().build();
 
     publisher1.startSync();
     publisher2.startSync();

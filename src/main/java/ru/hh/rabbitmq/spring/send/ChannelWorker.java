@@ -139,4 +139,8 @@ class ChannelWorker extends AbstractService {
   protected void doStop() {
     thread.interrupt();
   }
+
+  RabbitTemplate getRabbitTemplate() {
+    return template;
+  }
 }

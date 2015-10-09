@@ -11,8 +11,7 @@ import org.springframework.amqp.core.DirectExchange;
 import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.rabbit.connection.CachingConnectionFactory;
 import org.springframework.amqp.rabbit.core.RabbitAdmin;
-import ru.hh.rabbitmq.spring.send.Publisher;
-
+import ru.hh.rabbitmq.spring.send.PublisherBuilder;
 
 public class RabbitIntegrationTestBase {
 
@@ -142,23 +141,23 @@ public class RabbitIntegrationTestBase {
     return properties;
   }
 
-  protected static Publisher publisher(String host, boolean withDirections, int innerQueueSize) {
+  protected static PublisherBuilder publisher(String host, boolean withDirections, int innerQueueSize) {
     Properties properties = properties(host);
     properties.setProperty(ConfigKeys.PUBLISHER_INNER_QUEUE_SIZE, Integer.toString(innerQueueSize));
     return publisher(properties, withDirections, false);
   }
 
-  protected static Publisher publisher(String host, boolean withDirections) {
+  protected static PublisherBuilder publisher(String host, boolean withDirections) {
     Properties properties = properties(host);
     return publisher(properties, withDirections, false);
   }
 
-  protected static Publisher publisher(String host, boolean withDirections, boolean withConfirms) {
+  protected static PublisherBuilder publisher(String host, boolean withDirections, boolean withConfirms) {
     Properties properties = properties(host);
     return publisher(properties, withDirections, withConfirms);
   }
 
-  protected static Publisher publisher(Properties properties, boolean withDirections, boolean withConfirms) {
+  protected static PublisherBuilder publisher(Properties properties, boolean withDirections, boolean withConfirms) {
     if (withDirections) {
       appendDirections(properties);
     }
@@ -166,15 +165,15 @@ public class RabbitIntegrationTestBase {
       properties.setProperty(ConfigKeys.PUBLISHER_CONFIRMS, "true");
     }
     ClientFactory factory = new ClientFactory(properties);
-    return factory.createPublisher();
+    return factory.createPublisherBuilder();
   }
 
-  protected static Publisher publisherMDC(String host) {
+  protected static PublisherBuilder publisherMDC(String host) {
     Properties properties = properties(host);
     appendDirections(properties);
     properties.setProperty(ConfigKeys.PUBLISHER_USE_MDC, "true");
     ClientFactory factory = new ClientFactory(properties);
-    return factory.createPublisher();
+    return factory.createPublisherBuilder();
   }
 
   protected static Receiver receiverAllHosts(boolean withDirections) {

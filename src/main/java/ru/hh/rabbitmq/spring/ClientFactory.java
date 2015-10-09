@@ -25,11 +25,11 @@ import org.springframework.amqp.rabbit.connection.CachingConnectionFactory;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
-import ru.hh.rabbitmq.spring.send.Publisher;
+import ru.hh.rabbitmq.spring.send.PublisherBuilder;
 
 /**
  * <p>
- * Create and configure {@link Receiver} and/or {@link Publisher}.
+ * Create and configure {@link Receiver} and/or {@link PublisherBuilder}.
  * </p>
  * <p>
  * See {@link ConfigKeys} constants for configuration options.
@@ -72,22 +72,22 @@ public class ClientFactory {
   }
 
   /**
-   * Create new publisher. Reuse connections to brokers. Won't use {@link ConfigKeys#PUBLISHER_HOSTS}.
-   * 
-   * @return new publisher
+   * Create new publisher builder.
+   * Reuse connections to brokers.
+   * Won't use {@link ConfigKeys#PUBLISHER_HOSTS}.
    */
-  public Publisher createPublisher() {
-    return createPublisher(true);
+  public PublisherBuilder createPublisherBuilder() {
+    return createPublisherBuilder(true);
   }
 
   /**
-   * Create new publisher.
-   * 
+   * Create new publisher builder.
+   *
    * @param reuseConnections
-   *          whether to resue connections to brokers or not. If true, won't use {@link ConfigKeys#PUBLISHER_HOSTS}.
-   * @return new publisher
+   *          whether to reuse connections to brokers or not.
+   *          If true, won't use {@link ConfigKeys#PUBLISHER_HOSTS}.
    */
-  public Publisher createPublisher(boolean reuseConnections) {
+  public PublisherBuilder createPublisherBuilder(boolean reuseConnections) {
     List<ConnectionFactory> factories;
     if (reuseConnections) {
       factories = getOrCreateConnectionFactories();
@@ -95,7 +95,7 @@ public class ClientFactory {
     else {
       factories = createConnectionFactories(PUBLISHER_HOSTS);
     }
-    return new Publisher(factories, properties.getProperties());
+    return new PublisherBuilder(factories, properties.getProperties());
   }
 
   private List<ConnectionFactory> getOrCreateConnectionFactories() {

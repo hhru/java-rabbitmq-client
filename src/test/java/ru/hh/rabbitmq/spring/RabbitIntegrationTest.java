@@ -28,8 +28,8 @@ public class RabbitIntegrationTest extends RabbitIntegrationTestBase {
 
   @Test
   public void testDirectionsConfigured() throws InterruptedException {
-    Publisher publisherHost1 = publisher(HOST1, true).withJsonMessageConverter();
-    Publisher publisherHost2 = publisher(HOST2, true).withJsonMessageConverter();
+    Publisher publisherHost1 = publisher(HOST1, true).withJsonMessageConverter().build();
+    Publisher publisherHost2 = publisher(HOST2, true).withJsonMessageConverter().build();
     publisherHost1.startSync();
     publisherHost2.startSync();
 
@@ -60,8 +60,8 @@ public class RabbitIntegrationTest extends RabbitIntegrationTestBase {
   public void testDirectionsDeclared() throws InterruptedException {
     Destination destination = new Destination(EXCHANGE, ROUTING_KEY1);
 
-    Publisher publisherHost1 = publisher(HOST1, false).withJsonMessageConverter();
-    Publisher publisherHost2 = publisher(HOST2, false).withJsonMessageConverter();
+    Publisher publisherHost1 = publisher(HOST1, false).withJsonMessageConverter().build();
+    Publisher publisherHost2 = publisher(HOST2, false).withJsonMessageConverter().build();
     publisherHost1.startSync();
     publisherHost2.startSync();
 
@@ -93,7 +93,7 @@ public class RabbitIntegrationTest extends RabbitIntegrationTestBase {
     Destination destination1 = new Destination(EXCHANGE, ROUTING_KEY1);
     Destination destination2 = new Destination(EXCHANGE, ROUTING_KEY2);
 
-    Publisher publisher = publisher(HOST1, false).withJsonMessageConverter();
+    Publisher publisher = publisher(HOST1, false).withJsonMessageConverter().build();
     publisher.startSync();
 
     MessageHandler handler = new MessageHandler();
@@ -120,7 +120,7 @@ public class RabbitIntegrationTest extends RabbitIntegrationTestBase {
 
   @Test
   public void testReceiverRestart() throws InterruptedException {
-    Publisher publisher = publisher(HOST1, true).withJsonMessageConverter();
+    Publisher publisher = publisher(HOST1, true).withJsonMessageConverter().build();
     publisher.startSync();
 
     MessageHandler handler = new MessageHandler();
@@ -150,7 +150,7 @@ public class RabbitIntegrationTest extends RabbitIntegrationTestBase {
 
   @Test(expected = IllegalStateException.class)
   public void testStoppedPublisher() throws InterruptedException {
-    Publisher publisher = publisher(HOST1, true).withJsonMessageConverter();
+    Publisher publisher = publisher(HOST1, true).withJsonMessageConverter().build();
     publisher.startSync();
 
     publisher.stopSync();
@@ -164,7 +164,7 @@ public class RabbitIntegrationTest extends RabbitIntegrationTestBase {
   @Test(expected = QueueIsFullException.class)
   public void testImmediateFullQueue() throws InterruptedException {
 
-    Publisher publisher = publisher("unknownhost_for_queue_is_full", true, 2).withJsonMessageConverter();
+    Publisher publisher = publisher("unknownhost_for_queue_is_full", true, 2).withJsonMessageConverter().build();
     publisher.startSync();
     assertEquals(2, publisher.getInnerQueueRemainingCapacity());
 
@@ -184,7 +184,7 @@ public class RabbitIntegrationTest extends RabbitIntegrationTestBase {
   @Test
   public void testTimedOutFullQueue() throws InterruptedException {
 
-    Publisher publisher = publisher("unknownhost_for_queue_is_full", true, 2).withJsonMessageConverter();
+    Publisher publisher = publisher("unknownhost_for_queue_is_full", true, 2).withJsonMessageConverter().build();
     publisher.startSync();
 
     publisher.send("message1");
@@ -207,7 +207,7 @@ public class RabbitIntegrationTest extends RabbitIntegrationTestBase {
   @Test
   public void testPublisherConfirms() throws InterruptedException, ExecutionException {
     TestConfirmCallback callback = new TestConfirmCallback();
-    Publisher publisher = publisher(HOST2, true, true).withJsonMessageConverter().withConfirmCallback(callback);
+    Publisher publisher = publisher(HOST2, true, true).withJsonMessageConverter().withConfirmCallback(callback).build();
     publisher.startSync();
 
     Map<String, Object> sentMessage = new HashMap<>();
@@ -250,7 +250,7 @@ public class RabbitIntegrationTest extends RabbitIntegrationTestBase {
     String MDCValue = "mdctestvalue";
 
     MDC.put(MDCKey, MDCValue);
-    Publisher publisherHost1 = publisherMDC(HOST1).withJsonMessageConverter();
+    Publisher publisherHost1 = publisherMDC(HOST1).withJsonMessageConverter().build();
     publisherHost1.startSync();
 
     MessageHandler handler = new MessageHandler(true);

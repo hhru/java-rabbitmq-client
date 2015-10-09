@@ -25,7 +25,7 @@ public class SimpleMessageIntegrationTest extends RabbitIntegrationTestBase {
   public void testSimpleMessages() throws InterruptedException {
     MessageConverter converter = new SimpleMessageConverter();
 
-    Publisher publisherHost1 = publisher(HOST1, true).withMessageConverter(converter);
+    Publisher publisherHost1 = publisher(HOST1, true).withMessageConverter(converter).build();
     publisherHost1.startSync();
 
     MessageHandler handler = new MessageHandler();
