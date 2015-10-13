@@ -4,7 +4,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
 import static java.lang.System.currentTimeMillis;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
-import static ru.hh.rabbitmq.spring.ConfigKeys.CONNECTION_FACTORY_TEST_RETRY_DELAY_MS;
+import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_RETRY_DELAY_MS;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_EXCHANGE;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_INNER_QUEUE_SHUTDOWN_MS;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_INNER_QUEUE_SIZE;
@@ -88,7 +88,7 @@ public class Publisher extends AbstractService {
     int innerQueueSize = props.getInteger(PUBLISHER_INNER_QUEUE_SIZE, DEFAULT_INNER_QUEUE_SIZE);
     taskQueue = new ArrayBlockingQueue<>(innerQueueSize);
 
-    int templateTestRetryMs = props.getInteger(CONNECTION_FACTORY_TEST_RETRY_DELAY_MS, 2000);
+    int retryDelayMs = props.getInteger(PUBLISHER_RETRY_DELAY_MS, 2000);
 
     for (ConnectionFactory factory : connectionFactories) {
       RabbitTemplate template = new RabbitTemplate(factory);
@@ -118,7 +118,7 @@ public class Publisher extends AbstractService {
       String connectionFactoryName = factory.getHost() + ':' + factory.getPort();
 
       String workerName = "rabbit-publisher-" + commonName + '-' + connectionFactoryName;
-      Service worker = new ChannelWorker(template, taskQueue, workerName, templateTestRetryMs);
+      Service worker = new ChannelWorker(template, taskQueue, workerName, retryDelayMs);
       workers.add(worker);
 
       connectionFactoriesNames.add(connectionFactoryName);

@@ -14,47 +14,28 @@ import org.springframework.amqp.rabbit.support.CorrelationData;
 import com.google.common.util.concurrent.AbstractService;
 
 import static java.lang.Thread.currentThread;
-import static ru.hh.rabbitmq.spring.util.ConnectionFactoryTester.testUntilSuccess;
 
 public class ChannelWorker extends AbstractService {
   private static final Logger LOGGER = LoggerFactory.getLogger(ChannelWorker.class);
 
   private final RabbitTemplate template;
   private final BlockingQueue<PublishTaskFuture> taskQueue;
-  private final int templateTestRetryDelayMs;
+  private final int retryDelayMs;
 
   private final Thread thread;
 
-  public ChannelWorker(RabbitTemplate template, BlockingQueue<PublishTaskFuture> taskQueue, String name, int templateTestRetryDelayMs) {
+  public ChannelWorker(RabbitTemplate template, BlockingQueue<PublishTaskFuture> taskQueue, String name, int retryDelayMs) {
     this.template = template;
     this.taskQueue = taskQueue;
-    this.templateTestRetryDelayMs = templateTestRetryDelayMs;
+    this.retryDelayMs = retryDelayMs;
     this.thread = new Thread(name) {
       @Override
       public void run() {
         try {
-          ensureOpen();
           notifyStarted();
 
-          while (isRunning() && !isInterrupted()) {
-            try {
-              processQueue();
-            } catch (AmqpException e) {
-              LOGGER.warn("failed to send message(s): {}", e.toString(), e);
-            } catch (RuntimeException e) {
-              LOGGER.error("failed to send message(s): {}", e.toString(), e);
-            }
+          processQueue();
 
-            if (isInterrupted()) {
-              break;
-            }
-
-            ensureOpen();
-          }
-
-          notifyStopped();
-
-        } catch (InterruptedException e) {
           notifyStopped();
 
         } catch (RuntimeException e) {
@@ -65,28 +46,48 @@ public class ChannelWorker extends AbstractService {
     };
   }
 
-  private void processQueue() throws InterruptedException {
+  private void processQueue() {
     while (isRunning() && !currentThread().isInterrupted()) {
-      final PublishTaskFuture task = taskQueue.take();
+
+      final PublishTaskFuture task;
       try {
-        if (task.isCancelled()) {
-          continue;
-        }
-        executeTask(task);
-        task.complete();
-      } catch (RuntimeException e) {
-        LOGGER.info("returning failed message(s) to queue due to {}", e.toString());
-        if (!taskQueue.offer(task)) {
-          LOGGER.warn("failed to return message(s) to queue, dropping");
-          task.fail(e);
-        }
-        throw e;
+        task = taskQueue.take();
+      } catch (InterruptedException e) {
+        currentThread().interrupt();
+        return;
       }
+
+      executeTaskUntilSuccess(task);
     }
   }
 
-  private void ensureOpen() throws InterruptedException {
-    testUntilSuccess(template.getConnectionFactory(), templateTestRetryDelayMs);
+  private void executeTaskUntilSuccess(final PublishTaskFuture task) {
+    while (!task.isCancelled()) {
+      try {
+        executeTask(task);
+        task.complete();
+        return;
+
+      } catch (RuntimeException e) {
+        final String message = String.format("failed to process task: %s, waiting before next attempt", e.toString());
+        if (e instanceof AmqpException) {
+          LOGGER.warn(message, e);
+        } else {
+          LOGGER.error(message, e);
+        }
+
+        try {
+          Thread.sleep(retryDelayMs);
+        } catch (InterruptedException ie) {
+          currentThread().interrupt();
+          throw new RuntimeException("failed to retry task: got interrupted signal, dropping task", ie);
+        }
+
+        if (!isRunning() || currentThread().isInterrupted()) {
+          throw new RuntimeException("failed to retry task: ChannelWorker is stopped, dropping task");
+        }
+      }
+    }
   }
 
   private void executeTask(PublishTaskFuture task) {

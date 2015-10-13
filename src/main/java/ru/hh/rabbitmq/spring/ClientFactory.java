@@ -16,7 +16,6 @@ import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_RETURNS;
 import static ru.hh.rabbitmq.spring.ConfigKeys.RECEIVER_HOSTS;
 import static ru.hh.rabbitmq.spring.ConfigKeys.USERNAME;
 import static ru.hh.rabbitmq.spring.ConfigKeys.VIRTUALHOST;
-import static ru.hh.rabbitmq.spring.util.ConnectionFactoryTester.test;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -180,8 +179,6 @@ public class ClientFactory {
       if (publisherReturns != null) {
         factory.setPublisherReturns(publisherReturns);
       }
-
-      test(factory);
       return factory;
     }
     catch (Exception e) {

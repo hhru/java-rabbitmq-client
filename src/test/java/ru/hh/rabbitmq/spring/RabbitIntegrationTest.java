@@ -1,6 +1,5 @@
 package ru.hh.rabbitmq.spring;
 
-import static java.util.Collections.singletonList;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -9,14 +8,11 @@ import static org.junit.Assert.assertNull;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Properties;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import org.junit.Test;
 import org.slf4j.MDC;
-import org.springframework.amqp.rabbit.connection.CachingConnectionFactory;
-import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate.ConfirmCallback;
 import org.springframework.amqp.rabbit.support.CorrelationData;
 import com.google.common.collect.ImmutableMap;
@@ -167,56 +163,38 @@ public class RabbitIntegrationTest extends RabbitIntegrationTestBase {
   @Test(expected = QueueIsFullException.class)
   public void testImmediateFullQueue() throws InterruptedException {
 
-    ConnectionFactory connectionFactory = new CachingConnectionFactory("unknownhost_for_queue_is_full");
-
-    Properties properties = baseProperties();
-    appendDirections(properties);
-    properties.setProperty(ConfigKeys.PUBLISHER_INNER_QUEUE_SIZE, "2");
-
-    Publisher publisher = new Publisher(singletonList(connectionFactory), properties).withJsonMessageConverter();
+    Publisher publisher = publisher("unknownhost_for_queue_is_full", true, 2).withJsonMessageConverter();
     publisher.startSync();
+    assertEquals(2, publisher.getInnerQueueRemainingCapacity());
 
-    Map<String, Object> sentMessage = new HashMap<>();
+    publisher.send("message1");
+    // the task can be: in the queue, or out of the queue in the middle of processing
+    assertTrue(publisher.getInnerQueueRemainingCapacity() <= 2);
 
-    sentMessage.put("data", "somedata1");
-    publisher.send(sentMessage);
+    publisher.send("message2");
+    assertTrue(publisher.getInnerQueueRemainingCapacity() <= 1);
 
-    sentMessage.put("data", "somedata2");
-    publisher.send(sentMessage);
+    publisher.send("message3");
+    assertEquals(0, publisher.getInnerQueueRemainingCapacity());
 
-    assertEquals(publisher.getInnerQueueRemainingCapacity(), 0);
-
-    sentMessage.put("data", "somedata3");
-    publisher.send(sentMessage);
+    publisher.send("message4");
   }
 
   @Test
   public void testTimedOutFullQueue() throws InterruptedException {
 
-    ConnectionFactory connectionFactory = new CachingConnectionFactory("unknownhost_for_queue_is_full");
-
-    Properties properties = baseProperties();
-    appendDirections(properties);
-    properties.setProperty(ConfigKeys.PUBLISHER_INNER_QUEUE_SIZE, "2");
-
-    Publisher publisher = new Publisher(singletonList(connectionFactory), properties).withJsonMessageConverter();
+    Publisher publisher = publisher("unknownhost_for_queue_is_full", true, 2).withJsonMessageConverter();
     publisher.startSync();
 
-    Map<String, Object> sentMessage = new HashMap<>();
+    publisher.send("message1");
+    publisher.send("message2");
 
-    sentMessage.put("data", "somedata1");
-    publisher.send(sentMessage);
-
-    sentMessage.put("data", "somedata2");
-    publisher.send(sentMessage);
-
-    assertEquals(publisher.getInnerQueueRemainingCapacity(), 0);
-
-    sentMessage.put("data", "somedata3");
     long start = System.currentTimeMillis();
     boolean queueIsFull = false;
     try {
-      publisher.offer(100, sentMessage);
+      // must offer at least 2 messages, because one of the previous can be out of the queue in the middle of processing
+      publisher.offer(100, "message3");
+      publisher.offer(100, "message4");
     }
     catch (QueueIsFullException e) {
       queueIsFull = true;

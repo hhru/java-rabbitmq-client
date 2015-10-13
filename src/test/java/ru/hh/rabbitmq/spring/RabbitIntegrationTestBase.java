@@ -141,6 +141,12 @@ public class RabbitIntegrationTestBase {
     return properties;
   }
 
+  protected static Publisher publisher(String host, boolean withDirections, int innerQueueSize) {
+    Properties properties = properties(host);
+    properties.setProperty(ConfigKeys.PUBLISHER_INNER_QUEUE_SIZE, Integer.toString(innerQueueSize));
+    return publisher(properties, withDirections, false);
+  }
+
   protected static Publisher publisher(String host, boolean withDirections) {
     Properties properties = properties(host);
     return publisher(properties, withDirections, false);

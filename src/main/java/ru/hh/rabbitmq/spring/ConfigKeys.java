@@ -38,8 +38,6 @@ public interface ConfigKeys {
    * Password (required), must be same for all brokers.
    */
   String PASSWORD = "password";
-
-  String CONNECTION_FACTORY_TEST_RETRY_DELAY_MS  = "connectionFactory.test.retryDelay.millis";
   /**
    * Virtualhost, must be same for all brokers.
    */
@@ -118,6 +116,8 @@ public interface ConfigKeys {
    * Configure transactional mode of publisher.
    */
   String PUBLISHER_TRANSACTIONAL = "publisher.transactional";
+
+  String PUBLISHER_RETRY_DELAY_MS = "publisher.retryDelay.millis";
   /**
    * Whether or not publisher should store MDC context to message
    */
