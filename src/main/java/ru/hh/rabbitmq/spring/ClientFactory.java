@@ -72,7 +72,7 @@ public class ClientFactory {
     return Splitter.on(HOSTS_SEPARATOR).split(hosts);
   }
 
-  private List<ConnectionFactory> createConnectionFactories(String hostsSettingName) {
+  public List<ConnectionFactory> createConnectionFactories(String hostsSettingName) {
     List<ConnectionFactory> factories = new ArrayList<>();
     try {
       Integer commonPort = properties.getInteger(PORT);
