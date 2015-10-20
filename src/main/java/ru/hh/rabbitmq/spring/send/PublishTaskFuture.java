@@ -11,19 +11,19 @@ import com.google.common.util.concurrent.ForwardingFuture;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 
-public class PublishTaskFuture extends ForwardingFuture<Void> implements ListenableFuture<Void> {
+class PublishTaskFuture extends ForwardingFuture<Void> implements ListenableFuture<Void> {
   private final Map<Object, Destination> messages;
   private final SettableFuture<Void> future = SettableFuture.create();
   private Optional<Map<String, String>> MDCContext;
 
-  public PublishTaskFuture(Destination destination, Collection<Object> messages) {
+  PublishTaskFuture(Destination destination, Collection<Object> messages) {
     this.messages = new HashMap<Object, Destination>();
     for (Object message : messages) {
       this.messages.put(message, destination);
     }
   }
 
-  public PublishTaskFuture(Map<Object, Destination> messages) {
+  PublishTaskFuture(Map<Object, Destination> messages) {
     this.messages = messages;
   }
 
@@ -37,23 +37,23 @@ public class PublishTaskFuture extends ForwardingFuture<Void> implements Listena
     future.addListener(listener, exec);
   }
 
-  public Map<Object, Destination> getMessages() {
+  Map<Object, Destination> getMessages() {
     return messages;
   }
 
-  public Optional<Map<String, String>> getMDCContext() {
+  Optional<Map<String, String>> getMDCContext() {
     return MDCContext;
   }
 
-  public void setMDCContext(Map<String, String> MDCContext) {
+  void setMDCContext(Map<String, String> MDCContext) {
     this.MDCContext = Optional.fromNullable(MDCContext);
   }
 
-  public void complete() {
+  void complete() {
     future.set(null);
   }
 
-  public void fail(Throwable t) {
+  void fail(Throwable t) {
     future.setException(t);
   }
 }

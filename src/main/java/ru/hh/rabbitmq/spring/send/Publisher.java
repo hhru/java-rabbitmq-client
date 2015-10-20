@@ -1,26 +1,15 @@
-package ru.hh.rabbitmq.spring;
+package ru.hh.rabbitmq.spring.send;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
 import static java.lang.System.currentTimeMillis;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
-import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_EXCHANGE;
-import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_INNER_QUEUE_SHUTDOWN_MS;
-import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_INNER_QUEUE_SIZE;
-import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_MANDATORY;
-import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_NAME;
-import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_RECONNECTION_DELAY;
-import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_ROUTING_KEY;
-import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_TRANSACTIONAL;
-import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_USE_MDC;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.LinkedHashMap;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Properties;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -31,179 +20,53 @@ import org.slf4j.MDC;
 import org.springframework.amqp.rabbit.connection.CachingConnectionFactory;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.amqp.rabbit.core.RabbitTemplate.ConfirmCallback;
-import org.springframework.amqp.rabbit.core.RabbitTemplate.ReturnCallback;
 import org.springframework.amqp.rabbit.support.CorrelationData;
-import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
-import org.springframework.amqp.support.converter.MessageConverter;
-import ru.hh.rabbitmq.spring.send.ChannelWorker;
-import ru.hh.rabbitmq.spring.send.CorrelatedMessage;
-import ru.hh.rabbitmq.spring.send.Destination;
-import ru.hh.rabbitmq.spring.send.PublishTaskFuture;
-import ru.hh.rabbitmq.spring.send.QueueIsFullException;
+import ru.hh.rabbitmq.spring.ConfigKeys;
 import com.google.common.base.Joiner;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.AbstractService;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.Service;
 
-/**
- * <p>
- * Helper class that hides implementation of multiple broker containers and provides basic methods for configuring them as batch. Use
- * {@link #getContainers()} to specify other configuration parameters.
- * </p>
- * <p>
- * See {@link ConfigKeys} constants for configuration options.
- * </p>
- * <p>
- * Publisher is not restartable - once {@link #stop()} is called, calling {@link #start()} will do nothing.
- */
 public class Publisher extends AbstractService {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(Publisher.class);
 
-  private static final int DEFAULT_INNER_QUEUE_SIZE = 1000;
+  private final BlockingQueue<PublishTaskFuture> taskQueue;
 
-  private int innerQueueSize;
+  private final Collection<ChannelWorker> workers;
+  private final String name;
+  private final boolean useMDC;
+  private final int innerQueueShutdownMs;
 
-  private final Map<RabbitTemplate, String> templates;
-  private final List<Service> workers = new ArrayList<>();
-  private BlockingQueue<PublishTaskFuture> taskQueue;
+  Publisher(String commonName,
+            int innerQueueSize,
+            Collection<RabbitTemplate> templates,
+            int retryDelayMs,
+            boolean useMDC,
+            int innerQueueShutdownMs) {
 
-  private boolean useMDC;
+    taskQueue = new ArrayBlockingQueue<>(innerQueueSize);
 
-  private int reconnectionDelayMs = 100;
-  private long innerQueueShutdownMs = 1000;
+    final List<ChannelWorker> workers = new ArrayList<>(templates.size());
+    final List<String> connectionFactoriesNames = new ArrayList<>(templates.size());
+    for (RabbitTemplate template : templates) {
+      ConnectionFactory connectionFactory = template.getConnectionFactory();
 
-  Publisher(List<ConnectionFactory> connectionFactories, Properties properties) {
-    PropertiesHelper props = new PropertiesHelper(properties);
-    Map<RabbitTemplate, String> templates = new LinkedHashMap<>(connectionFactories.size());
+      String connectionFactoryName = connectionFactory.getHost() + ':' + connectionFactory.getPort();
+      connectionFactoriesNames.add(connectionFactoryName);
 
-    String commonName = props.getString(PUBLISHER_NAME, "");
+      String workerName = "rabbit-publisher-" + commonName + '-' + connectionFactoryName;
+      ChannelWorker worker = new ChannelWorker(template, taskQueue, workerName, retryDelayMs);
+      workers.add(worker);
 
-    String exchange = props.getString(PUBLISHER_EXCHANGE);
-    String routingKey = props.getString(PUBLISHER_ROUTING_KEY);
-    Boolean mandatory = props.getBoolean(PUBLISHER_MANDATORY);
-    Boolean transactional = props.getBoolean(PUBLISHER_TRANSACTIONAL);
-    useMDC = props.getBoolean(PUBLISHER_USE_MDC, false);
-
-    for (ConnectionFactory factory : connectionFactories) {
-      RabbitTemplate template = new RabbitTemplate(factory);
-
-      if (exchange != null) {
-        template.setExchange(exchange);
-      }
-
-      if (routingKey != null) {
-        template.setRoutingKey(routingKey);
-      }
-
-      if (mandatory != null) {
-        template.setMandatory(mandatory);
-      }
-
-      if (transactional != null) {
-        template.setChannelTransacted(transactional);
-      }
-
-      if (useMDC) {
-        template.setMessagePropertiesConverter(new MDCMessagePropertiesConverter());
-      }
-
-      String name = "rabbit-publisher-" + commonName + "-" + factory.getHost() + ":" + factory.getPort();
-      templates.put(template, name);
+      connectionFactoriesNames.add(connectionFactoryName);
     }
+    this.workers = Collections.unmodifiableList(workers);
+    name = getClass().getSimpleName() + '{' + commonName + ',' + Joiner.on(',').join(connectionFactoriesNames) + '}';
 
-    innerQueueSize = props.getInteger(PUBLISHER_INNER_QUEUE_SIZE, DEFAULT_INNER_QUEUE_SIZE);
+    this.useMDC = useMDC;
 
-    Integer reconnectionDelayMs = props.getInteger(PUBLISHER_RECONNECTION_DELAY);
-    if (reconnectionDelayMs != null) {
-      this.reconnectionDelayMs = reconnectionDelayMs;
-    }
-
-    Long innerQueueShutdownMs = props.getLong(PUBLISHER_INNER_QUEUE_SHUTDOWN_MS);
-    if (innerQueueShutdownMs != null) {
-      this.innerQueueShutdownMs = innerQueueShutdownMs;
-    }
-
-    this.templates = ImmutableMap.copyOf(templates);
-  }
-
-  /**
-   * Returns immutable collection of all rabbit templates for additional configuration. Doing this after {@link #start()} might lead to unexpected
-   * behavior.
-   *
-   * @return list of all rabbit templates
-   */
-  public Collection<RabbitTemplate> getRabbitTemplates() {
-    return templates.keySet();
-  }
-
-  /**
-   * Set transactional mode. Must be called before {@link #start()}.
-   *
-   * @param transactional
-   * @return this
-   */
-  public Publisher setTransactional(boolean transactional) {
-    checkNotStarted();
-    for (RabbitTemplate template : templates.keySet()) {
-      template.setChannelTransacted(transactional);
-    }
-    return this;
-  }
-
-  /**
-   * Use provided converter for message conversion. Must be called before {@link #start()}.
-   *
-   * @param converter
-   * @return this
-   */
-  public Publisher withMessageConverter(MessageConverter converter) {
-    checkNotStarted();
-    for (RabbitTemplate template : templates.keySet()) {
-      template.setMessageConverter(converter);
-    }
-    return this;
-  }
-
-  /**
-   * Use {@link Jackson2JsonMessageConverter} for message conversion. Must be called before {@link #start()}.
-   *
-   * @return this
-   */
-  public Publisher withJsonMessageConverter() {
-    checkNotStarted();
-    Jackson2JsonMessageConverter converter = new Jackson2JsonMessageConverter();
-    return withMessageConverter(converter);
-  }
-
-  /**
-   * Specify confirm callback. {@link ConfigKeys#PUBLISHER_CONFIRMS} should be set to true. Must be called before {@link #start()}.
-   *
-   * @param callback
-   * @return this
-   */
-  public Publisher withConfirmCallback(ConfirmCallback callback) {
-    checkNotStarted();
-    for (RabbitTemplate template : templates.keySet()) {
-      template.setConfirmCallback(callback);
-    }
-    return this;
-  }
-
-  /**
-   * Specify return callback. {@link ConfigKeys#PUBLISHER_RETURNS} should be set to true. Must be called before {@link #start()}.
-   *
-   * @param callback
-   * @return
-   */
-  public Publisher withReturnCallback(ReturnCallback callback) {
-    checkNotStarted();
-    for (RabbitTemplate template : templates.keySet()) {
-      template.setReturnCallback(callback);
-    }
-    return this;
+    this.innerQueueShutdownMs = innerQueueShutdownMs;
   }
 
   public void startSync() {
@@ -218,17 +81,13 @@ public class Publisher extends AbstractService {
 
   @Override
   protected void doStart() {
-    checkNotStarted();
-    taskQueue = new ArrayBlockingQueue<PublishTaskFuture>(innerQueueSize);
-    for (Entry<RabbitTemplate, String> entry : templates.entrySet()) {
-      RabbitTemplate template = entry.getKey();
-      String name = entry.getValue();
-      Service worker = new ChannelWorker(template, taskQueue, name, reconnectionDelayMs);
-      workers.add(worker);
+    for (Service worker: workers) {
       worker.startAsync();
     }
+    for (Service worker: workers) {
+      worker.awaitRunning();
+    }
     notifyStarted();
-    LOGGER.debug("started " + toString());
   }
 
   public void stopSync() {
@@ -251,19 +110,23 @@ public class Publisher extends AbstractService {
     if (!taskQueue.isEmpty()) {
       LOGGER.warn("Shutting down with {} tasks still in inner queue, they will be dropped", taskQueue.size());
     }
+
     for (Service worker : workers) {
       worker.stopAsync();
+    }
+    for (Service worker : workers) {
       worker.awaitTerminated();
     }
-    for (RabbitTemplate template : templates.keySet()) {
-      CachingConnectionFactory factory = (CachingConnectionFactory) template.getConnectionFactory();
-      factory.destroy();
-    }
-    taskQueue = null;
-    notifyStopped();
-    LOGGER.debug("stopped " + toString());
-  }
 
+    for (ChannelWorker worker : workers) {
+      ConnectionFactory connectionFactory = worker.getRabbitTemplate().getConnectionFactory();
+      if (connectionFactory instanceof CachingConnectionFactory) {
+        ((CachingConnectionFactory) connectionFactory).destroy();
+      }
+    }
+
+    notifyStopped();
+  }
 
   /**
    * Potentially blocking method, enqueues messages internally, waiting if necessary, throws exception if local queue is full.
@@ -467,28 +330,15 @@ public class Publisher extends AbstractService {
     return taskQueue.remainingCapacity();
   }
 
-  private boolean isStarted() {
-    return taskQueue != null && isRunning();
-  }
-
   private void checkStarted() {
-    if (!isStarted()) {
+    if (!isRunning()) {
       throw new IllegalStateException("Publisher was not started for " + toString());
-    }
-  }
-
-  private void checkNotStarted() {
-    if (isStarted()) {
-      throw new IllegalStateException("Publisher was already started for " + toString());
     }
   }
 
   @Override
   public String toString() {
-    if (templates == null) {
-      return "uninitialized";
-    }
-    return Joiner.on(',').join(templates.values());
+    return name;
   }
 
 }

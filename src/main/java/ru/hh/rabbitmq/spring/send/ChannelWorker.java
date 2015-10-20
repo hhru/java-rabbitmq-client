@@ -1,156 +1,106 @@
 package ru.hh.rabbitmq.spring.send;
 
-import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
-import org.springframework.amqp.AmqpConnectException;
-import org.springframework.amqp.AmqpIOException;
-import org.springframework.amqp.rabbit.connection.Connection;
-import org.springframework.amqp.rabbit.connection.ConnectionListener;
-import org.springframework.amqp.rabbit.core.ChannelCallback;
+
+import org.springframework.amqp.AmqpException;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.amqp.rabbit.support.CorrelationData;
 
 import com.google.common.util.concurrent.AbstractService;
-import com.google.common.util.concurrent.Monitor;
-import com.rabbitmq.client.Channel;
 
-public class ChannelWorker extends AbstractService implements ConnectionListener {
+import static java.lang.Thread.currentThread;
+
+class ChannelWorker extends AbstractService {
   private static final Logger LOGGER = LoggerFactory.getLogger(ChannelWorker.class);
 
   private final RabbitTemplate template;
   private final BlockingQueue<PublishTaskFuture> taskQueue;
+  private final int retryDelayMs;
+
   private final Thread thread;
 
-  // connection state fields. RabbitTemplate does not reconnect automatically, so have to handle it manually
-  private long reconnectionDelayMs;
-  private final ConnectionOpener connectionOpener = new ConnectionOpener();
-  private AtomicReference<Connection> currentConnection = new AtomicReference<Connection>();
-  private Monitor connectionMonitor = new Monitor();
-  private Monitor.Guard connected = new Monitor.Guard(connectionMonitor) {
-    @Override
-    public boolean isSatisfied() {
-      Connection connection = currentConnection.get();
-      return connection != null && connection.isOpen();
-    }
-  };
-
-  public ChannelWorker(RabbitTemplate template, BlockingQueue<PublishTaskFuture> taskQueue, String name, long reconnectionDelayMs) {
+  ChannelWorker(RabbitTemplate template, BlockingQueue<PublishTaskFuture> taskQueue, String name, int retryDelayMs) {
     this.template = template;
     this.taskQueue = taskQueue;
-    this.reconnectionDelayMs = reconnectionDelayMs;
+    this.retryDelayMs = retryDelayMs;
     this.thread = new Thread(name) {
       @Override
       public void run() {
         try {
           notifyStarted();
-          LOGGER.debug("worker started");
-          forceOpenConnection();
-          while (isRunning() && !isInterrupted()) {
-            processQueue();
-          }
-          LOGGER.debug("worker stopped");
+
+          processQueue();
+
           notifyStopped();
-        } catch (Throwable t) {
-          notifyFailed(t);
-          LOGGER.error("worker failed, stopping", t);
+
+        } catch (RuntimeException e) {
+          notifyFailed(e);
+          LOGGER.error("crash: {}", e.toString(), e);
         }
       }
     };
   }
 
   private void processQueue() {
-    PublishTaskFuture task = null;
-    try {
-      while (isRunning()) {
-        task = null; // nullify previous task so we don't accidentally use it in catch block before calling take()
-        ensureOpen();
-        if (!isRunning()) {
-          continue;
+    while (isRunning() && !currentThread().isInterrupted()) {
+
+      final PublishTaskFuture task;
+      try {
+        task = taskQueue.take();
+      } catch (InterruptedException e) {
+        currentThread().interrupt();
+        return;
+      }
+
+      executeTaskUntilSuccess(task);
+    }
+  }
+
+  private void executeTaskUntilSuccess(final PublishTaskFuture task) {
+    while (!task.isCancelled()) {
+      try {
+        executeTask(task);
+        task.complete();
+        return;
+
+      } catch (RuntimeException e) {
+        final String message = String.format("failed to process task: %s, waiting before next attempt", e.toString());
+        if (e instanceof AmqpException) {
+          LOGGER.warn(message, e);
+        } else {
+          LOGGER.error(message, e);
         }
+
         try {
-          task = this.taskQueue.take();
+          Thread.sleep(retryDelayMs);
+        } catch (InterruptedException ie) {
+          currentThread().interrupt();
+          throw new RuntimeException("failed to retry task: got interrupted signal, dropping task", ie);
+        }
 
-          // after possibly long waiting for new task, re-check connection, requeue if connection is broken
-          if (!connected.isSatisfied()) {
-            LOGGER.warn("requeued message on connection loss");
-            try {
-              this.taskQueue.add(task);
-            }
-            catch (IllegalStateException e) {
-              task.fail(e);
-              throw e;
-            }
-            continue;
-          }
-
-          // from now on we can't requeue - that might lead to duplicate messages
-          if (!task.isCancelled()) {
-            try {
-              executeTask(template, task);
-            } catch (Exception e) {
-              task.fail(e);
-              throw e;
-            }
-          }
-        } finally {
-          connectionMonitor.leave();
+        if (!isRunning() || currentThread().isInterrupted()) {
+          throw new RuntimeException("failed to retry task: ChannelWorker is stopped, dropping task");
         }
       }
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      LOGGER.debug("worker interrupted, stopping");
-    } catch (AmqpIOException e) { // Broken pipe, ...
-      if (task != null && !taskQueue.offer(task)) {
-        LOGGER.warn("network problem -- failed to execute task, dropping it", e);
-      }
-    } catch (Exception e) {
-      LOGGER.error("failed to execute task, dropping it", e);
     }
   }
 
-  private void ensureOpen() throws InterruptedException {
-    boolean entered = false;
-    while (isRunning() && !entered) {
-      // wait until connected or timeout
-      entered = connectionMonitor.enterWhen(connected, reconnectionDelayMs, TimeUnit.MILLISECONDS);
-      // if still not in, force open connection
-      if (!entered) {
-        forceOpenConnection();
-      }
-    }
-  }
-
-  private void forceOpenConnection() {
-    LOGGER.debug("forcing connection open");
-    try {
-      template.execute(connectionOpener);
-    }
-    catch (AmqpConnectException e) {
-      // swallow, we're not interested in connection problems here
-    }
-  }
-
-  private void executeTask(RabbitTemplate template, PublishTaskFuture task) throws IOException {
+  private void executeTask(PublishTaskFuture task) {
     if (task.getMDCContext() != null) {
       MDC.clear();
       if (task.getMDCContext().isPresent()) {
         MDC.setContextMap(task.getMDCContext().get());
       }
     }
-    publishMessages(template, task.getMessages());
-    task.complete();
-    LOGGER.trace("task completed, sent {} messages, queue size is {}", task.getMessages().size(),
-      this.taskQueue.size());
+    publishMessages(task.getMessages());
   }
 
-  private void publishMessages(RabbitTemplate template, Map<Object, Destination> messages) throws IOException {
+  private void publishMessages(Map<Object, Destination> messages) {
     for (Map.Entry<Object, Destination> entry : messages.entrySet()) {
       Object message = entry.getKey();
       Destination destination = entry.getValue();
@@ -182,33 +132,15 @@ public class ChannelWorker extends AbstractService implements ConnectionListener
 
   @Override
   protected void doStart() {
-    template.getConnectionFactory().addConnectionListener(this);
     thread.start();
   }
 
   @Override
   protected void doStop() {
-    LOGGER.debug("interrupting worker {}", thread.getName());
     thread.interrupt();
   }
 
-  @Override
-  public void onCreate(Connection connection) {
-    LOGGER.debug("connection has been established");
-    this.currentConnection.set(connection);
-  }
-
-  @Override
-  public void onClose(@SuppressWarnings("unused") Connection connection) {
-    LOGGER.debug("connection has been closed");
-    this.currentConnection.set(null);
-  }
-
-  private static class ConnectionOpener implements ChannelCallback<Void> {
-    @Override
-    public Void doInRabbit(Channel channel) throws Exception {
-      channel.isOpen();
-      return null;
-    }
+  RabbitTemplate getRabbitTemplate() {
+    return template;
   }
 }

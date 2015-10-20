@@ -56,6 +56,6 @@ public class ClientFactoryIntegrationTest {
 
   private void publisher(Properties properties) {
     ClientFactory factory = new ClientFactory(properties);
-    factory.createPublisher();
+    factory.createPublisherBuilder();
   }
 }

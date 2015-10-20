@@ -1,6 +1,6 @@
 package ru.hh.rabbitmq.spring;
 
-import static ru.hh.rabbitmq.spring.ConfigKeys.HEARTBIT;
+import static ru.hh.rabbitmq.spring.ConfigKeys.HEARTBIT_SEC;
 import static ru.hh.rabbitmq.spring.ConfigKeys.HOSTS;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PASSWORD;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_EXCHANGE;
@@ -18,6 +18,7 @@ import org.springframework.amqp.core.MessageListener;
 import org.springframework.util.ErrorHandler;
 
 import ru.hh.rabbitmq.spring.receive.MapMessageListener;
+import ru.hh.rabbitmq.spring.send.Publisher;
 
 // not a test, just some manually-run example
 public class ClientExample {
@@ -29,7 +30,7 @@ public class ClientExample {
     properties.setProperty(USERNAME, "guest");
     properties.setProperty(PASSWORD, "guest");
     properties.setProperty(RECEIVER_QUEUES, "springq");
-    properties.setProperty(HEARTBIT, "1");
+    properties.setProperty(HEARTBIT_SEC, "1");
 
     ClientFactory factory = new ClientFactory(properties);
     Receiver receiver = factory.createReceiver();
@@ -54,11 +55,11 @@ public class ClientExample {
 
     properties.setProperty(HOSTS, "voznesenskiy.pyn.ru");
     factory = new ClientFactory(properties);
-    Publisher publisher1 = factory.createPublisher().withJsonMessageConverter();
+    Publisher publisher1 = factory.createPublisherBuilder().withJsonMessageConverter().build();
 
     properties.setProperty(HOSTS, "dev");
     factory = new ClientFactory(properties);
-    Publisher publisher2 = factory.createPublisher().withJsonMessageConverter();
+    Publisher publisher2 = factory.createPublisherBuilder().withJsonMessageConverter().build();
 
     publisher1.startSync();
     publisher2.startSync();

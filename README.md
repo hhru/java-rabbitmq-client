@@ -16,7 +16,7 @@ ru.hh.rabbitmq.spring.Receiver
 ```
 Publishing messages is performed using:
 ```
-ru.hh.rabbitmq.spring.Publisher
+ru.hh.rabbitmq.spring.send.Publisher
 ```
 
 # Configuration
