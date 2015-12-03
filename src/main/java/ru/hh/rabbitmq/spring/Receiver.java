@@ -69,6 +69,7 @@ public class Receiver {
 
     for (ConnectionFactory factory : connectionFactories) {
       SimpleMessageListenerContainer container = new SimpleMessageListenerContainer(factory);
+      container.setAutoDeclare(false);
 
       // set default queue names
       if (queueNames != null) {
