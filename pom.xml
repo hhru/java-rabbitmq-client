@@ -110,12 +110,7 @@
       <scope>test</scope>
       <version>4.12</version>
     </dependency>
-    <dependency>
-      <groupId>ru.headhunter.commons</groupId>
-      <artifactId>test-util</artifactId>
-      <scope>test</scope>
-      <version>1.8</version>
-    </dependency>
+
     <dependency>
       <groupId>ch.qos.logback</groupId>
       <artifactId>logback-classic</artifactId>
