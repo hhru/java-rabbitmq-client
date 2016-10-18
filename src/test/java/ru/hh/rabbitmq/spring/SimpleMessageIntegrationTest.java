@@ -17,7 +17,7 @@ import ru.hh.rabbitmq.spring.simple.SimpleMessage;
 import ru.hh.rabbitmq.spring.simple.SimpleMessageConverter;
 import ru.hh.rabbitmq.spring.simple.SimpleMessageListener;
 
-public class SimpleMessageIntegrationTest extends RabbitIntegrationTestBase {
+public class SimpleMessageIntegrationTest extends AsyncRabbitIntegrationTestBase {
 
   public static final long TIMEOUT_MILLIS = 1000;
 
@@ -53,7 +53,7 @@ public class SimpleMessageIntegrationTest extends RabbitIntegrationTestBase {
   }
 
   private static class MessageHandler implements SimpleMessageListener {
-    private ArrayBlockingQueue<SimpleMessage> queue = new ArrayBlockingQueue<SimpleMessage>(1);
+    private ArrayBlockingQueue<SimpleMessage> queue = new ArrayBlockingQueue<>(1);
 
     @Override
     public void handleMessage(SimpleMessage message) throws Exception {

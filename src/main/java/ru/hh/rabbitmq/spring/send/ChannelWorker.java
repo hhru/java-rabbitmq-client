@@ -104,28 +104,32 @@ class ChannelWorker extends AbstractService {
     for (Map.Entry<Object, Destination> entry : messages.entrySet()) {
       Object message = entry.getKey();
       Destination destination = entry.getValue();
-      CorrelationData correlationData = null;
-      if (message instanceof CorrelatedMessage) {
-        CorrelatedMessage correlated = (CorrelatedMessage) message;
-        correlationData = correlated.getCorrelationData();
-        message = correlated.getMessage();
-      }
+      publishMessage(message, destination, template);
+    }
+  }
 
-      if (destination != null) {
-        if (correlationData != null) {
-          template.convertAndSend(destination.getExchange(), destination.getRoutingKey(), message, correlationData);
-        }
-        else {
-          template.convertAndSend(destination.getExchange(), destination.getRoutingKey(), message);
-        }
+  static void publishMessage(Object message, Destination destination, RabbitTemplate template) {
+    CorrelationData correlationData = null;
+    if (message instanceof CorrelatedMessage) {
+      CorrelatedMessage correlated = (CorrelatedMessage) message;
+      correlationData = correlated.getCorrelationData();
+      message = correlated.getMessage();
+    }
+
+    if (destination != null) {
+      if (correlationData != null) {
+        template.convertAndSend(destination.getExchange(), destination.getRoutingKey(), message, correlationData);
       }
       else {
-        if (correlationData != null) {
-          template.correlationConvertAndSend(message, correlationData);
-        }
-        else {
-          template.convertAndSend(message);
-        }
+        template.convertAndSend(destination.getExchange(), destination.getRoutingKey(), message);
+      }
+    }
+    else {
+      if (correlationData != null) {
+        template.correlationConvertAndSend(message, correlationData);
+      }
+      else {
+        template.convertAndSend(message);
       }
     }
   }

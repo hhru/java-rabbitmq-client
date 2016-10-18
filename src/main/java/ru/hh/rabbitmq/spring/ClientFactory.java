@@ -18,18 +18,17 @@ import static ru.hh.rabbitmq.spring.ConfigKeys.RECEIVER_HOSTS;
 import static ru.hh.rabbitmq.spring.ConfigKeys.USERNAME;
 import static ru.hh.rabbitmq.spring.ConfigKeys.VIRTUALHOST;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
-import java.util.concurrent.TimeoutException;
 
 import org.springframework.amqp.rabbit.connection.CachingConnectionFactory;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import ru.hh.rabbitmq.spring.send.PublisherBuilder;
+import ru.hh.rabbitmq.spring.send.SyncPublisherBuilder;
 
 /**
  * <p>
@@ -55,6 +54,11 @@ public class ClientFactory {
   public PublisherBuilder createPublisherBuilder() {
     List<ConnectionFactory> factories = createConnectionFactories(PUBLISHER_HOSTS);
     return new PublisherBuilder(factories, properties.getProperties());
+  }
+
+  public SyncPublisherBuilder createSyncPublisherBuilder() {
+    List<ConnectionFactory> factories = createConnectionFactories(PUBLISHER_HOSTS);
+    return new SyncPublisherBuilder(factories, properties.getProperties());
   }
 
   private Iterable<String> getHosts(String... settingNames) {
