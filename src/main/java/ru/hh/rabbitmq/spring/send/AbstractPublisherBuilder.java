@@ -17,7 +17,6 @@ import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_EXCHANGE;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_MANDATORY;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_NAME;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_ROUTING_KEY;
-import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_TRANSACTIONAL;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_USE_MDC;
 
 public abstract class AbstractPublisherBuilder {
@@ -34,7 +33,6 @@ public abstract class AbstractPublisherBuilder {
     String exchange = props.getString(PUBLISHER_EXCHANGE);
     String routingKey = props.getString(PUBLISHER_ROUTING_KEY);
     Boolean mandatory = props.getBoolean(PUBLISHER_MANDATORY);
-    Boolean transactional = props.getBoolean(PUBLISHER_TRANSACTIONAL);
     useMDC = props.getBoolean(PUBLISHER_USE_MDC, false);
 
     List<RabbitTemplate> templates = new ArrayList<>(connectionFactories.size());
@@ -53,10 +51,6 @@ public abstract class AbstractPublisherBuilder {
         template.setMandatory(mandatory);
       }
 
-      if (transactional != null) {
-        template.setChannelTransacted(transactional);
-      }
-
       if (useMDC) {
         template.setMessagePropertiesConverter(new MDCMessagePropertiesConverter());
       }
@@ -69,12 +63,6 @@ public abstract class AbstractPublisherBuilder {
   /** @return Immutable collection of all rabbit templates for additional configuration */
   public Collection<RabbitTemplate> getRabbitTemplates() {
     return templates;
-  }
-
-  protected void setTransactionalInternal(boolean transactional) {
-    for (RabbitTemplate template : templates) {
-      template.setChannelTransacted(transactional);
-    }
   }
 
   protected void withMessageConverterInternal(MessageConverter converter) {

@@ -1,11 +1,14 @@
 package ru.hh.rabbitmq.spring.send;
 
+import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_TRANSACTIONAL;
 import java.util.Collection;
 import java.util.Properties;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.amqp.rabbit.core.RabbitTemplate.ConfirmCallback;
 import org.springframework.amqp.rabbit.core.RabbitTemplate.ReturnCallback;
 import org.springframework.amqp.support.converter.MessageConverter;
+import ru.hh.rabbitmq.spring.PropertiesHelper;
 
 public class SyncPublisherBuilder extends AbstractPublisherBuilder {
 
@@ -14,11 +17,19 @@ public class SyncPublisherBuilder extends AbstractPublisherBuilder {
     if (templates.size() > 1) {
       throw new IllegalArgumentException("Specified multiple hosts for sync publisher");
     }
-
+    PropertiesHelper props = new PropertiesHelper(properties);
+    Boolean transactional = props.getBoolean(PUBLISHER_TRANSACTIONAL);
+    if (transactional != null) {
+      for (RabbitTemplate template : templates) {
+        template.setChannelTransacted(transactional);
+      }
+    }
   }
 
   public SyncPublisherBuilder setTransactional(boolean transactional) {
-    setTransactionalInternal(transactional);
+    for (RabbitTemplate template : templates) {
+      template.setChannelTransacted(transactional);
+    }
     return this;
   }
 

@@ -27,11 +27,6 @@ public class PublisherBuilder extends AbstractPublisherBuilder {
     retryDelayMs = props.getInteger(PUBLISHER_RETRY_DELAY_MS, 2000);
   }
 
-  public PublisherBuilder setTransactional(boolean transactional) {
-    setTransactionalInternal(transactional);
-    return this;
-  }
-
   public PublisherBuilder withMessageConverter(MessageConverter converter) {
     withMessageConverterInternal(converter);
     return this;
