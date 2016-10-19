@@ -278,12 +278,6 @@ public class SyncRabbitIntegrationTest extends RabbitIntegrationTestBase {
     }
   }
 
-  protected static SyncPublisherBuilder publisher(String host, boolean withDirections, int innerQueueSize) {
-    Properties properties = properties(host);
-    properties.setProperty(ConfigKeys.PUBLISHER_INNER_QUEUE_SIZE, Integer.toString(innerQueueSize));
-    return publisher(properties, withDirections, false);
-  }
-
   protected static SyncPublisherBuilder publisher(String host, boolean withDirections) {
     Properties properties = properties(host);
     return publisher(properties, withDirections, false);
