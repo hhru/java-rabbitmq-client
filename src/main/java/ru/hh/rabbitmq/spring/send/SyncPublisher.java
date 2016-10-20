@@ -7,6 +7,7 @@ import org.springframework.amqp.rabbit.connection.CachingConnectionFactory;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.amqp.rabbit.support.CorrelationData;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.AbstractService;
 
 public class SyncPublisher extends AbstractService {
@@ -20,6 +21,11 @@ public class SyncPublisher extends AbstractService {
     ConnectionFactory connectionFactory = template.getConnectionFactory();
     String connectionFactoryName = connectionFactory.getHost() + ':' + connectionFactory.getPort();
     name = getClass().getSimpleName() + '{' + commonName + ',' + connectionFactoryName + '}';
+  }
+
+  @VisibleForTesting
+  RabbitTemplate getTemplate() {
+    return template;
   }
 
   public void stopSync() {
