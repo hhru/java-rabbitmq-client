@@ -14,9 +14,13 @@ Receiving messages is performed using:
 ```
 ru.hh.rabbitmq.spring.Receiver
 ```
-Publishing messages is performed using:
+Asynchronously publishing messages is performed using:
 ```
 ru.hh.rabbitmq.spring.send.Publisher
+```
+Synchronously publishing messages is performed using:
+```
+ru.hh.rabbitmq.spring.send.SyncPublisher
 ```
 
 # Configuration
@@ -43,7 +47,7 @@ rabbit.server.publisher.innerqueue.size=1
 rabbit.server.publisher.exchange=myexchange
 rabbit.server.publisher.routingKey=myroutingkey
 rabbit.server.publisher.mandatory=true
-rabbit.server.publisher.transactional=false
+rabbit.server.publisher.transactional=false # this works for SyncPublisher only, ignored on regular Publisher
 rabbit.server.publisher.reconnection.delay.millis=60000
 ```
 
