@@ -25,7 +25,7 @@ public abstract class AbstractPublisherBuilder {
   protected final Collection<RabbitTemplate> templates;
   protected final boolean useMDC;
 
-  public AbstractPublisherBuilder(Collection<ConnectionFactory> connectionFactories, Properties properties) {
+  AbstractPublisherBuilder(Collection<ConnectionFactory> connectionFactories, Properties properties) {
     PropertiesHelper props = new PropertiesHelper(properties);
 
     commonName = props.getString(PUBLISHER_NAME, "");
