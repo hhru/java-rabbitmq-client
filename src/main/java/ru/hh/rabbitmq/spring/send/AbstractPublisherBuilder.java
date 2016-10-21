@@ -6,6 +6,7 @@ import org.springframework.amqp.rabbit.core.RabbitTemplate.ConfirmCallback;
 import org.springframework.amqp.rabbit.core.RabbitTemplate.ReturnCallback;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
+import ru.hh.rabbitmq.spring.ConfigException;
 import ru.hh.rabbitmq.spring.MDCMessagePropertiesConverter;
 import ru.hh.rabbitmq.spring.PropertiesHelper;
 import java.util.ArrayList;
@@ -17,6 +18,7 @@ import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_EXCHANGE;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_MANDATORY;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_NAME;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_ROUTING_KEY;
+import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_TRANSACTIONAL;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_USE_MDC;
 
 public abstract class AbstractPublisherBuilder {
@@ -27,6 +29,12 @@ public abstract class AbstractPublisherBuilder {
 
   AbstractPublisherBuilder(Collection<ConnectionFactory> connectionFactories, Properties properties) {
     PropertiesHelper props = new PropertiesHelper(properties);
+
+    Boolean transactional = props.getBoolean(PUBLISHER_TRANSACTIONAL);
+    if (transactional != null && transactional) {
+      throw new ConfigException(
+          PUBLISHER_TRANSACTIONAL + " is not allowed to be specified via properties. Use corresponding method on builder if available");
+    }
 
     commonName = props.getString(PUBLISHER_NAME, "");
 
