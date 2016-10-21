@@ -1,21 +1,24 @@
 package ru.hh.rabbitmq.spring.send;
 
-import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_HOSTS;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_TRANSACTIONAL;
+import java.util.Collection;
+import java.util.Properties;
+import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.amqp.rabbit.core.RabbitTemplate.ConfirmCallback;
 import org.springframework.amqp.rabbit.core.RabbitTemplate.ReturnCallback;
 import org.springframework.amqp.support.converter.MessageConverter;
-import ru.hh.rabbitmq.spring.ClientFactory;
+import ru.hh.rabbitmq.spring.PropertiesHelper;
 
 public class SyncPublisherBuilder extends AbstractPublisherBuilder {
 
-  public SyncPublisherBuilder(ClientFactory clientFactory) {
-    super(clientFactory.createConnectionFactories(PUBLISHER_HOSTS), clientFactory.getProperties().getProperties());
+  public SyncPublisherBuilder(Collection<ConnectionFactory> connectionFactories, Properties properties) {
+    super(connectionFactories, properties);
     if (templates.size() > 1) {
       throw new IllegalArgumentException("Specified multiple hosts for sync publisher");
     }
-    Boolean transactional = clientFactory.getProperties().getBoolean(PUBLISHER_TRANSACTIONAL);
+    PropertiesHelper props = new PropertiesHelper(properties);
+    Boolean transactional = props.getBoolean(PUBLISHER_TRANSACTIONAL);
     if (transactional != null) {
       for (RabbitTemplate template : templates) {
         template.setChannelTransacted(transactional);

@@ -28,6 +28,7 @@ import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import ru.hh.rabbitmq.spring.send.PublisherBuilder;
+import ru.hh.rabbitmq.spring.send.SyncPublisherBuilder;
 
 /**
  * <p>
@@ -45,10 +46,6 @@ public class ClientFactory {
     this.properties = new PropertiesHelper(properties);
   }
 
-  public PropertiesHelper getProperties() {
-    return properties;
-  }
-
   public Receiver createReceiver() {
     List<ConnectionFactory> factories = createConnectionFactories(RECEIVER_HOSTS);
     return new Receiver(factories, properties.getProperties());
@@ -57,6 +54,11 @@ public class ClientFactory {
   public PublisherBuilder createPublisherBuilder() {
     List<ConnectionFactory> factories = createConnectionFactories(PUBLISHER_HOSTS);
     return new PublisherBuilder(factories, properties.getProperties());
+  }
+
+  public SyncPublisherBuilder createSyncPublisherBuilder() {
+    List<ConnectionFactory> factories = createConnectionFactories(PUBLISHER_HOSTS);
+    return new SyncPublisherBuilder(factories, properties.getProperties());
   }
 
   private Iterable<String> getHosts(String... settingNames) {

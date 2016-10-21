@@ -77,7 +77,7 @@ public abstract class SyncRabbitIntegrationTestBase extends RabbitIntegrationTes
       properties.setProperty(ConfigKeys.PUBLISHER_CONFIRMS, "true");
     }
     ClientFactory factory = new ClientFactory(properties);
-    return new SyncPublisherBuilder(factory);
+    return factory.createSyncPublisherBuilder();
   }
 
   protected static SyncPublisherBuilder publisherMDC(String host) {
@@ -85,6 +85,6 @@ public abstract class SyncRabbitIntegrationTestBase extends RabbitIntegrationTes
     appendDirections(properties);
     properties.setProperty(ConfigKeys.PUBLISHER_USE_MDC, "true");
     ClientFactory factory = new ClientFactory(properties);
-    return new SyncPublisherBuilder(factory);
+    return factory.createSyncPublisherBuilder();
   }
 }
