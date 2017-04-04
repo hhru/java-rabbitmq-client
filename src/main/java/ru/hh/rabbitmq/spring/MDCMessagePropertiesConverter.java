@@ -1,15 +1,13 @@
 package ru.hh.rabbitmq.spring;
 
+import com.google.common.collect.Maps;
+import com.rabbitmq.client.AMQP.BasicProperties;
+import com.rabbitmq.client.Envelope;
 import java.util.Map;
 import java.util.Map.Entry;
-
 import org.slf4j.MDC;
 import org.springframework.amqp.core.MessageProperties;
 import org.springframework.amqp.rabbit.support.DefaultMessagePropertiesConverter;
-
-import com.google.common.collect.Maps;
-import com.rabbitmq.client.Envelope;
-import com.rabbitmq.client.AMQP.BasicProperties;
 
 /**
  * <p>

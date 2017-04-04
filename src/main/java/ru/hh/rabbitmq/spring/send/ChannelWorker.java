@@ -1,31 +1,27 @@
 package ru.hh.rabbitmq.spring.send;
 
-import java.util.Map;
+import com.google.common.util.concurrent.AbstractService;
+import static java.lang.Thread.currentThread;
 import java.util.concurrent.BlockingQueue;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
-
 import org.springframework.amqp.AmqpException;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.amqp.rabbit.support.CorrelationData;
-
-import com.google.common.util.concurrent.AbstractService;
-
-import static java.lang.Thread.currentThread;
+import org.springframework.amqp.rabbit.connection.CachingConnectionFactory;
+import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 
 class ChannelWorker extends AbstractService {
   private static final Logger LOGGER = LoggerFactory.getLogger(ChannelWorker.class);
 
-  private final RabbitTemplate template;
+  private final MessageSender messageSender;
   private final BlockingQueue<PublishTaskFuture> taskQueue;
   private final int retryDelayMs;
-
   private final Thread thread;
 
-  ChannelWorker(RabbitTemplate template, BlockingQueue<PublishTaskFuture> taskQueue, String name, int retryDelayMs) {
-    this.template = template;
+  ChannelWorker(MessageSender messageSender,
+                BlockingQueue<PublishTaskFuture> taskQueue,
+                String name,
+                int retryDelayMs) {
     this.taskQueue = taskQueue;
     this.retryDelayMs = retryDelayMs;
     this.thread = new Thread(name) {
@@ -44,6 +40,7 @@ class ChannelWorker extends AbstractService {
         }
       }
     };
+    this.messageSender = messageSender;
   }
 
   private void processQueue() {
@@ -97,41 +94,7 @@ class ChannelWorker extends AbstractService {
         MDC.setContextMap(task.getMDCContext().get());
       }
     }
-    publishMessages(task.getMessages());
-  }
-
-  private void publishMessages(Map<Object, Destination> messages) {
-    for (Map.Entry<Object, Destination> entry : messages.entrySet()) {
-      Object message = entry.getKey();
-      Destination destination = entry.getValue();
-      publishMessage(message, destination, template);
-    }
-  }
-
-  static void publishMessage(Object message, Destination destination, RabbitTemplate template) {
-    CorrelationData correlationData = null;
-    if (message instanceof CorrelatedMessage) {
-      CorrelatedMessage correlated = (CorrelatedMessage) message;
-      correlationData = correlated.getCorrelationData();
-      message = correlated.getMessage();
-    }
-
-    if (destination != null) {
-      if (correlationData != null) {
-        template.convertAndSend(destination.getExchange(), destination.getRoutingKey(), message, correlationData);
-      }
-      else {
-        template.convertAndSend(destination.getExchange(), destination.getRoutingKey(), message);
-      }
-    }
-    else {
-      if (correlationData != null) {
-        template.correlationConvertAndSend(message, correlationData);
-      }
-      else {
-        template.convertAndSend(message);
-      }
-    }
+    messageSender.publishMessages(task.getMessages());
   }
 
   @Override
@@ -141,10 +104,11 @@ class ChannelWorker extends AbstractService {
 
   @Override
   protected void doStop() {
-    thread.interrupt();
-  }
+    ConnectionFactory connectionFactory = messageSender.getTemplate().getConnectionFactory();
+    if (connectionFactory instanceof CachingConnectionFactory) {
+      ((CachingConnectionFactory) connectionFactory).destroy();
+    }
 
-  RabbitTemplate getRabbitTemplate() {
-    return template;
+    thread.interrupt();
   }
 }

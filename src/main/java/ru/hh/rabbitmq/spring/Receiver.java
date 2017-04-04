@@ -1,21 +1,19 @@
 package ru.hh.rabbitmq.spring;
 
-import static java.util.concurrent.Executors.newFixedThreadPool;
-import static ru.hh.rabbitmq.spring.ConfigKeys.RECEIVER_NAME;
-import static ru.hh.rabbitmq.spring.ConfigKeys.RECEIVER_PREFETCH_COUNT;
-import static ru.hh.rabbitmq.spring.ConfigKeys.RECEIVER_QUEUES;
-import static ru.hh.rabbitmq.spring.ConfigKeys.RECEIVER_QUEUES_SEPARATOR;
-import static ru.hh.rabbitmq.spring.ConfigKeys.RECEIVER_THREADPOOL;
-import static ru.hh.rabbitmq.spring.ConfigKeys.RECEIVER_USE_MDC;
-
+import com.google.common.base.Joiner;
+import com.google.common.base.Splitter;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterables;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ExecutorService;
+import static java.util.concurrent.Executors.newFixedThreadPool;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicBoolean;
-
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.core.MessageListener;
@@ -28,14 +26,16 @@ import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.amqp.support.converter.SimpleMessageConverter;
 import org.springframework.util.ErrorHandler;
-
+import ru.hh.metrics.Counters;
+import ru.hh.metrics.StatsDSender;
+import ru.hh.metrics.Tag;
+import static ru.hh.rabbitmq.spring.ConfigKeys.RECEIVER_NAME;
+import static ru.hh.rabbitmq.spring.ConfigKeys.RECEIVER_PREFETCH_COUNT;
+import static ru.hh.rabbitmq.spring.ConfigKeys.RECEIVER_QUEUES;
+import static ru.hh.rabbitmq.spring.ConfigKeys.RECEIVER_QUEUES_SEPARATOR;
+import static ru.hh.rabbitmq.spring.ConfigKeys.RECEIVER_THREADPOOL;
+import static ru.hh.rabbitmq.spring.ConfigKeys.RECEIVER_USE_MDC;
 import ru.hh.rabbitmq.spring.receive.GenericMessageListener;
-
-import com.google.common.base.Joiner;
-import com.google.common.base.Splitter;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 /**
  * <p>
@@ -55,7 +55,12 @@ public class Receiver {
 
   private AtomicBoolean shutDown = new AtomicBoolean(false);
 
-  Receiver(List<ConnectionFactory> connectionFactories, Properties properties) {
+  Receiver(List<ConnectionFactory> connectionFactories,
+           Properties properties,
+           @Nullable
+           String serviceName,
+           @Nullable
+           StatsDSender statsDSender) {
     PropertiesHelper props = new PropertiesHelper(properties);
     Map<SimpleMessageListenerContainer, ExecutorService> containers = new LinkedHashMap<>(connectionFactories.size());
     Map<SimpleMessageListenerContainer, String> names = new LinkedHashMap<>(connectionFactories.size());
@@ -102,6 +107,15 @@ public class Receiver {
     }
     this.containers = ImmutableMap.copyOf(containers);
     this.names = ImmutableMap.copyOf(names);
+
+    if (statsDSender != null) {
+      Counters receiverCounters = new Counters(20);
+      statsDSender.sendCountersPeriodically(serviceName + ".rabbit.receivers.messages", receiverCounters);
+
+      withListener(message ->
+              receiverCounters.add(1, new Tag("queue", message.getMessageProperties().getConsumerQueue()))
+      );
+    }
   }
 
   /**

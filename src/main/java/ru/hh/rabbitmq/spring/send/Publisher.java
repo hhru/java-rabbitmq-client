@@ -1,9 +1,12 @@
 package ru.hh.rabbitmq.spring.send;
 
+import com.google.common.base.Joiner;
 import static com.google.common.base.Preconditions.checkNotNull;
+import com.google.common.util.concurrent.AbstractService;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.Service;
 import static com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
 import static java.lang.System.currentTimeMillis;
-import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -13,19 +16,17 @@ import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import java.util.concurrent.TimeoutException;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
-import org.springframework.amqp.rabbit.connection.CachingConnectionFactory;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.amqp.rabbit.support.CorrelationData;
+import ru.hh.metrics.StatsDSender;
 import ru.hh.rabbitmq.spring.ConfigKeys;
-import com.google.common.base.Joiner;
-import com.google.common.util.concurrent.AbstractService;
-import com.google.common.util.concurrent.ListenableFuture;
-import com.google.common.util.concurrent.Service;
 
 public class Publisher extends AbstractService {
 
@@ -43,7 +44,11 @@ public class Publisher extends AbstractService {
             Collection<RabbitTemplate> templates,
             int retryDelayMs,
             boolean useMDC,
-            int innerQueueShutdownMs) {
+            int innerQueueShutdownMs,
+            @Nullable
+            String serviceName,
+            @Nullable
+            StatsDSender statsDSender) {
 
     taskQueue = new ArrayBlockingQueue<>(innerQueueSize);
 
@@ -56,7 +61,8 @@ public class Publisher extends AbstractService {
       connectionFactoriesNames.add(connectionFactoryName);
 
       String workerName = "rabbit-publisher-" + commonName + '-' + connectionFactoryName;
-      ChannelWorker worker = new ChannelWorker(template, taskQueue, workerName, retryDelayMs);
+      MessageSender messageSender = new MessageSender(template, serviceName, statsDSender);
+      ChannelWorker worker = new ChannelWorker(messageSender, taskQueue, workerName, retryDelayMs);
       workers.add(worker);
 
       connectionFactoriesNames.add(connectionFactoryName);
@@ -116,13 +122,6 @@ public class Publisher extends AbstractService {
     }
     for (Service worker : workers) {
       worker.awaitTerminated();
-    }
-
-    for (ChannelWorker worker : workers) {
-      ConnectionFactory connectionFactory = worker.getRabbitTemplate().getConnectionFactory();
-      if (connectionFactory instanceof CachingConnectionFactory) {
-        ((CachingConnectionFactory) connectionFactory).destroy();
-      }
     }
 
     notifyStopped();

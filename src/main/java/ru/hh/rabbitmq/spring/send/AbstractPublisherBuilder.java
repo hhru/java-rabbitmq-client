@@ -1,5 +1,10 @@
 package ru.hh.rabbitmq.spring.send;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import static java.util.Collections.unmodifiableList;
+import java.util.List;
+import java.util.Properties;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.amqp.rabbit.core.RabbitTemplate.ConfirmCallback;
@@ -7,19 +12,14 @@ import org.springframework.amqp.rabbit.core.RabbitTemplate.ReturnCallback;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
 import ru.hh.rabbitmq.spring.ConfigException;
-import ru.hh.rabbitmq.spring.MDCMessagePropertiesConverter;
-import ru.hh.rabbitmq.spring.PropertiesHelper;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.Properties;
-import static java.util.Collections.unmodifiableList;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_EXCHANGE;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_MANDATORY;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_NAME;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_ROUTING_KEY;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_TRANSACTIONAL;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_USE_MDC;
+import ru.hh.rabbitmq.spring.MDCMessagePropertiesConverter;
+import ru.hh.rabbitmq.spring.PropertiesHelper;
 
 public abstract class AbstractPublisherBuilder {
 
