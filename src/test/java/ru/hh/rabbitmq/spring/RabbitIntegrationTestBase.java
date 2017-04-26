@@ -1,7 +1,6 @@
 package ru.hh.rabbitmq.spring;
 
 import java.util.Properties;
-
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;

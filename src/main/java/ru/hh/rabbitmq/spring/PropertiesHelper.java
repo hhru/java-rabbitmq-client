@@ -1,9 +1,8 @@
 package ru.hh.rabbitmq.spring;
 
-import java.util.Properties;
-
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
+import java.util.Properties;
 
 public class PropertiesHelper {
 

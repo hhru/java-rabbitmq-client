@@ -1,15 +1,14 @@
 package ru.hh.rabbitmq.spring.send;
 
+import com.google.common.base.Optional;
+import com.google.common.util.concurrent.ForwardingFuture;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.SettableFuture;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Future;
-
-import com.google.common.base.Optional;
-import com.google.common.util.concurrent.ForwardingFuture;
-import com.google.common.util.concurrent.ListenableFuture;
-import com.google.common.util.concurrent.SettableFuture;
 
 class PublishTaskFuture extends ForwardingFuture<Void> implements ListenableFuture<Void> {
   private final Map<Object, Destination> messages;

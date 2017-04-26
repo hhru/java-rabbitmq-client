@@ -2,13 +2,11 @@ package ru.hh.rabbitmq.spring.simple;
 
 import java.io.IOException;
 import java.util.Map;
-
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.core.MessageProperties;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConversionException;
 import org.springframework.amqp.support.converter.MessageConverter;
-
 import ru.hh.rabbitmq.spring.util.ObjectMapperHolder;
 
 public class SimpleMessageConverter implements MessageConverter {

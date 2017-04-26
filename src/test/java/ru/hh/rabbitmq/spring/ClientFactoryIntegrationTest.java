@@ -1,7 +1,6 @@
 package ru.hh.rabbitmq.spring;
 
 import java.util.Properties;
-
 import org.junit.Test;
 
 

@@ -1,17 +1,14 @@
 package ru.hh.rabbitmq.spring;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.TimeUnit;
-
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import org.junit.Test;
 import org.springframework.amqp.support.converter.MessageConverter;
-
 import ru.hh.rabbitmq.spring.send.Publisher;
 import ru.hh.rabbitmq.spring.simple.SimpleMessage;
 import ru.hh.rabbitmq.spring.simple.SimpleMessageConverter;

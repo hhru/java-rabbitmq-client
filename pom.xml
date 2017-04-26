@@ -52,6 +52,14 @@
           <skipTests>${skipTests}</skipTests>
         </configuration>
       </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <configuration>
+          <source>1.8</source>
+          <target>1.8</target>
+        </configuration>
+      </plugin>
     </plugins>
   </build>
   <reporting>
@@ -75,6 +83,13 @@
       <groupId>org.springframework.amqp</groupId>
       <artifactId>spring-rabbit</artifactId>
       <version>1.4.6.RELEASE</version>
+    </dependency>
+
+    <!-- monitoring -->
+    <dependency>
+      <groupId>ru.hh.metrics</groupId>
+      <artifactId>hh-metrics</artifactId>
+      <version>0.11</version>
     </dependency>
 
     <!-- Jackson -->
@@ -101,6 +116,11 @@
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
       <version>18.0</version>
+    </dependency>
+    <dependency>
+      <groupId>com.google.code.findbugs</groupId>
+      <artifactId>jsr305</artifactId>
+      <version>3.0.1</version>
     </dependency>
 
     <!-- testing -->
