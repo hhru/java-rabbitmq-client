@@ -16,6 +16,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.amqp.core.Message;
 import org.springframework.amqp.core.MessageListener;
 import org.springframework.amqp.rabbit.connection.CachingConnectionFactory;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
@@ -52,6 +53,9 @@ public class Receiver {
 
   private Map<SimpleMessageListenerContainer, ExecutorService> containers;
   private Map<SimpleMessageListenerContainer, String> names;
+
+  @Nullable  // when monitoring is turned off
+  private Counters receiverCounters;
 
   private AtomicBoolean shutDown = new AtomicBoolean(false);
 
@@ -109,12 +113,8 @@ public class Receiver {
     this.names = ImmutableMap.copyOf(names);
 
     if (statsDSender != null) {
-      Counters receiverCounters = new Counters(20);
+      receiverCounters = new Counters(20);
       statsDSender.sendCountersPeriodically(serviceName + ".rabbit.receivers.messages", receiverCounters);
-
-      withListener(message ->
-              receiverCounters.add(1, new Tag("queue", message.getMessageProperties().getConsumerQueue()))
-      );
     }
   }
 
@@ -178,10 +178,35 @@ public class Receiver {
     if (ErrorHandler.class.isAssignableFrom(listener.getClass())) {
       withErrorHandler((ErrorHandler) listener);
     }
+
+    if (receiverCounters != null) {
+      listener = wrapIntoMonitoringListener(listener);
+    }
+
     for (SimpleMessageListenerContainer container : containers.keySet()) {
       container.setMessageListener(listener);
     }
     return this;
+  }
+
+  private Object wrapIntoMonitoringListener(Object listener) {
+    if (listener instanceof MessageListener) {
+      MessageListener messageListener = (MessageListener) listener;
+      return (MessageListener) message -> {
+        messageListener.onMessage(message);
+        increaseReceivedMessageCount(message);
+      };
+    } else {
+      ChannelAwareMessageListener channelAwareMessageListener = (ChannelAwareMessageListener) listener;
+      return (ChannelAwareMessageListener) (message, channel) -> {
+        channelAwareMessageListener.onMessage(message, channel);
+        increaseReceivedMessageCount(message);
+      };
+    }
+  }
+
+  private void increaseReceivedMessageCount(Message message) {
+    receiverCounters.add(1, new Tag("queue", message.getMessageProperties().getConsumerQueue()));
   }
 
   /**
