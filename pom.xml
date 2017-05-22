@@ -9,7 +9,7 @@
   <groupId>ru.hh.rabbitmq.spring</groupId>
   <artifactId>rabbitmq-client</artifactId>
   <packaging>jar</packaging>
-  <version>1.1.6</version>
+  <version>1.1.7-SNAPSHOT</version>
   <name>RabbitMQ client and utilities</name>
   <build>
     <plugins>
@@ -168,6 +168,6 @@
   <scm>
     <connection>scm:git:git@github.com:hhru/java-rabbitmq-client.git</connection>
     <developerConnection>scm:git:git@github.com:hhru/java-rabbitmq-client.git</developerConnection>
-    <tag>rabbitmq-client-1.1.6</tag>
+    <tag>HEAD</tag>
   </scm>
 </project>
