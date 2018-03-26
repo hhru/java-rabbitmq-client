@@ -10,13 +10,12 @@ import javax.annotation.Nullable;
 import org.springframework.amqp.rabbit.connection.CachingConnectionFactory;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import ru.hh.metrics.StatsDSender;
+import static java.util.Collections.emptyList;
 import static org.springframework.util.StringUtils.hasText;
 import static ru.hh.rabbitmq.spring.ConfigKeys.CHANNEL_CACHE_SIZE;
 import static ru.hh.rabbitmq.spring.ConfigKeys.CLOSE_TIMEOUT;
 import static ru.hh.rabbitmq.spring.ConfigKeys.CONNECTION_TIMEOUT_MS;
 import static ru.hh.rabbitmq.spring.ConfigKeys.HEARTBIT_SEC;
-import static ru.hh.rabbitmq.spring.ConfigKeys.HOST;
-import static ru.hh.rabbitmq.spring.ConfigKeys.HOSTS;
 import static ru.hh.rabbitmq.spring.ConfigKeys.HOSTS_PORT_SEPARATOR;
 import static ru.hh.rabbitmq.spring.ConfigKeys.HOSTS_SEPARATOR;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PASSWORD;
@@ -47,7 +46,7 @@ abstract class ConnectionsFactory {
     this(properties, null, null, false);
   }
 
-  private Iterable<String> getHosts(String... settingNames) {
+  private Iterable<String> getHosts(boolean throwOnEmpty, String... settingNames) {
     String value;
     for (String settingName : settingNames) {
       value = !hasText(settingName) ? null : properties.getString(settingName);
@@ -55,19 +54,22 @@ abstract class ConnectionsFactory {
         return splitHosts(value);
       }
     }
-    throw new ConfigException(String.format("Any of these properties must be set and not empty: %s", Joiner.on(',').join(settingNames)));
+    if (throwOnEmpty) {
+      throw new ConfigException(String.format("Any of these properties must be set and not empty: %s", Joiner.on(',').join(settingNames)));
+    }
+    return emptyList();
   }
 
   private static Iterable<String> splitHosts(String hosts) {
     return Splitter.on(HOSTS_SEPARATOR).split(hosts);
   }
 
-  public List<ConnectionFactory> createConnectionFactories(String hostsSettingName) {
+  public List<ConnectionFactory> createConnectionFactories(boolean throwOnEmpty, String... hostsSettingNames) {
     List<ConnectionFactory> factories = new ArrayList<>();
     try {
       Integer commonPort = properties.getInteger(PORT);
       // something_HOSTS -> HOSTS -> HOST -> exception
-      Iterable<String> hosts = getHosts(hostsSettingName, HOSTS, HOST);
+      Iterable<String> hosts = getHosts(throwOnEmpty, hostsSettingNames);
       for (String hostAndPortString : hosts) {
         Iterator<String> hostAndPort = Splitter.on(HOSTS_PORT_SEPARATOR).split(hostAndPortString).iterator();
         String host = hostAndPort.next();

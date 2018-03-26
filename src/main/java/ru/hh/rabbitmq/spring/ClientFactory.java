@@ -5,6 +5,8 @@ import java.util.Properties;
 import javax.annotation.Nullable;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import ru.hh.metrics.StatsDSender;
+import static ru.hh.rabbitmq.spring.ConfigKeys.HOST;
+import static ru.hh.rabbitmq.spring.ConfigKeys.HOSTS;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_HOSTS;
 import static ru.hh.rabbitmq.spring.ConfigKeys.RECEIVER_HOSTS;
 import ru.hh.rabbitmq.spring.send.PublisherBuilder;
@@ -29,17 +31,17 @@ public class ClientFactory extends ConnectionsFactory {
   }
 
   public Receiver createReceiver() {
-    List<ConnectionFactory> factories = createConnectionFactories(RECEIVER_HOSTS);
+    List<ConnectionFactory> factories = createConnectionFactories(true, RECEIVER_HOSTS, HOSTS, HOST);
     return new Receiver(factories, properties.getProperties(), serviceName, statsDSender);
   }
 
   public PublisherBuilder createPublisherBuilder() {
-    List<ConnectionFactory> factories = createConnectionFactories(PUBLISHER_HOSTS);
+    List<ConnectionFactory> factories = createConnectionFactories(true, PUBLISHER_HOSTS, HOSTS, HOST);
     return new PublisherBuilder(factories, properties.getProperties(), serviceName, statsDSender);
   }
 
   public SyncPublisherBuilder createSyncPublisherBuilder() {
-    List<ConnectionFactory> factories = createConnectionFactories(PUBLISHER_HOSTS);
+    List<ConnectionFactory> factories = createConnectionFactories(true, PUBLISHER_HOSTS, HOSTS, HOST);
     return new SyncPublisherBuilder(factories, properties.getProperties(), serviceName, statsDSender);
   }
 
