@@ -47,14 +47,14 @@ public class CachingClientFactory extends ConnectionsFactory {
 
   public PublisherBuilder createPublisherBuilder(Properties properties) {
     if (publisherFactories.isEmpty()) {
-      throw new ConfigException(String.format("Any of these properties must be set and not empty: %s", Joiner.on(',').join(RECEIVER_HOSTS, HOSTS, HOST)));
+      throw new ConfigException(String.format("Any of these properties must be set and not empty: %s", Joiner.on(',').join(PUBLISHER_HOSTS, HOSTS, HOST)));
     }
     return new PublisherBuilder(publisherFactories, properties, serviceName, statsDSender);
   }
 
   public SyncPublisherBuilder createSyncPublisherBuilder(Properties properties) {
     if (publisherFactories.isEmpty()) {
-      throw new ConfigException(String.format("Any of these properties must be set and not empty: %s", Joiner.on(',').join(RECEIVER_HOSTS, HOSTS, HOST)));
+      throw new ConfigException(String.format("Any of these properties must be set and not empty: %s", Joiner.on(',').join(PUBLISHER_HOSTS, HOSTS, HOST)));
     }
     return new SyncPublisherBuilder(publisherFactories, properties, serviceName, statsDSender);
   }
