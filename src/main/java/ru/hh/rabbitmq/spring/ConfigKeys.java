@@ -126,4 +126,12 @@ public interface ConfigKeys {
    * How long publisher will wait for inner queue to clear when shutting down
    */
   String PUBLISHER_INNER_QUEUE_SHUTDOWN_MS = "publisher.innerqueue.shutdown.ms";
+  /**
+   * Should connection factory enable automatic recovering
+   */
+  String AUTOMATIC_RECOVERY = "auto.recovery";
+  /**
+   * Should connection factory enable topology recovering
+   */
+  String TOPOLOGY_RECOVERY = "topology.recovery";
 }
