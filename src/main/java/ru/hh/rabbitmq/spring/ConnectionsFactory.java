@@ -12,6 +12,7 @@ import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import ru.hh.metrics.StatsDSender;
 import static java.util.Collections.emptyList;
 import static org.springframework.util.StringUtils.hasText;
+import static ru.hh.rabbitmq.spring.ConfigKeys.AUTOMATIC_RECOVERY;
 import static ru.hh.rabbitmq.spring.ConfigKeys.CHANNEL_CACHE_SIZE;
 import static ru.hh.rabbitmq.spring.ConfigKeys.CLOSE_TIMEOUT;
 import static ru.hh.rabbitmq.spring.ConfigKeys.CONNECTION_TIMEOUT_MS;
@@ -22,6 +23,7 @@ import static ru.hh.rabbitmq.spring.ConfigKeys.PASSWORD;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PORT;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_CONFIRMS;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_RETURNS;
+import static ru.hh.rabbitmq.spring.ConfigKeys.TOPOLOGY_RECOVERY;
 import static ru.hh.rabbitmq.spring.ConfigKeys.USERNAME;
 import static ru.hh.rabbitmq.spring.ConfigKeys.VIRTUALHOST;
 
@@ -91,10 +93,14 @@ abstract class ConnectionsFactory {
 
   protected ConnectionFactory createConnectionFactory(String host, Integer port) {
     try {
-      CachingConnectionFactory factory = new CachingConnectionFactory(host);
-      if (port != null) {
-        factory.setPort(port);
-      }
+      com.rabbitmq.client.ConnectionFactory rabbitConnectionFactory = new com.rabbitmq.client.ConnectionFactory();
+      rabbitConnectionFactory.setAutomaticRecoveryEnabled(properties.getBoolean(AUTOMATIC_RECOVERY, false));
+      rabbitConnectionFactory.setTopologyRecoveryEnabled(properties.getBoolean(TOPOLOGY_RECOVERY, false));
+
+      CachingConnectionFactory factory = new CachingConnectionFactory(rabbitConnectionFactory);
+
+      factory.setHost(hasText(host) ? host : "localhost");
+      factory.setPort(port == null ? com.rabbitmq.client.ConnectionFactory.DEFAULT_AMQP_PORT : port);
 
       factory.setConnectionTimeout(properties.getInteger(CONNECTION_TIMEOUT_MS, 200));
 
