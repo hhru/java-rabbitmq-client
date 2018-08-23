@@ -1,6 +1,5 @@
 package ru.hh.rabbitmq.spring;
 
-import com.google.common.base.Joiner;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
@@ -40,21 +39,21 @@ public class CachingClientFactory extends ConnectionsFactory {
 
   public Receiver createReceiver(Properties properties) {
     if (receiverFactories.isEmpty()) {
-      throw new ConfigException(String.format("Any of these properties must be set and not empty: %s", Joiner.on(',').join(RECEIVER_HOSTS, HOSTS, HOST)));
+      throw new ConfigException(String.format("Any of these properties must be set and not empty: %s", String.join(",", RECEIVER_HOSTS, HOSTS, HOST)));
     }
     return new Receiver(receiverFactories, properties, serviceName, statsDSender);
   }
 
   public PublisherBuilder createPublisherBuilder(Properties properties) {
     if (publisherFactories.isEmpty()) {
-      throw new ConfigException(String.format("Any of these properties must be set and not empty: %s", Joiner.on(',').join(PUBLISHER_HOSTS, HOSTS, HOST)));
+      throw new ConfigException(String.format("Any of these properties must be set and not empty: %s", String.join(",", PUBLISHER_HOSTS, HOSTS, HOST)));
     }
     return new PublisherBuilder(publisherFactories, properties, serviceName, statsDSender);
   }
 
   public SyncPublisherBuilder createSyncPublisherBuilder(Properties properties) {
     if (publisherFactories.isEmpty()) {
-      throw new ConfigException(String.format("Any of these properties must be set and not empty: %s", Joiner.on(',').join(PUBLISHER_HOSTS, HOSTS, HOST)));
+      throw new ConfigException(String.format("Any of these properties must be set and not empty: %s", String.join(",", PUBLISHER_HOSTS, HOSTS, HOST)));
     }
     return new SyncPublisherBuilder(publisherFactories, properties, serviceName, statsDSender);
   }

@@ -1,14 +1,16 @@
 package ru.hh.rabbitmq.spring.send;
 
-import com.google.common.base.Optional;
 import com.google.common.util.concurrent.ForwardingFuture;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Future;
+import java.util.function.Function;
+
+import static java.util.stream.Collectors.toMap;
 
 class PublishTaskFuture extends ForwardingFuture<Void> implements ListenableFuture<Void> {
   private final Map<Object, Destination> messages;
@@ -16,10 +18,7 @@ class PublishTaskFuture extends ForwardingFuture<Void> implements ListenableFutu
   private Optional<Map<String, String>> MDCContext;
 
   PublishTaskFuture(Destination destination, Collection<Object> messages) {
-    this.messages = new HashMap<Object, Destination>();
-    for (Object message : messages) {
-      this.messages.put(message, destination);
-    }
+    this.messages = messages.stream().collect(toMap(Function.identity(), message -> destination));
   }
 
   PublishTaskFuture(Map<Object, Destination> messages) {
@@ -44,8 +43,8 @@ class PublishTaskFuture extends ForwardingFuture<Void> implements ListenableFutu
     return MDCContext;
   }
 
-  void setMDCContext(Map<String, String> MDCContext) {
-    this.MDCContext = Optional.fromNullable(MDCContext);
+  void setMDCContext(Map<String, String> mdcContext) {
+    this.MDCContext = Optional.ofNullable(mdcContext);
   }
 
   void complete() {

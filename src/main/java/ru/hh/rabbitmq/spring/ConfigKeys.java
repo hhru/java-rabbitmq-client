@@ -4,6 +4,8 @@ import org.springframework.amqp.rabbit.connection.AbstractConnectionFactory;
 import org.springframework.amqp.rabbit.connection.CachingConnectionFactory;
 import org.springframework.amqp.rabbit.listener.SimpleMessageListenerContainer;
 
+import java.util.regex.Pattern;
+
 public interface ConfigKeys {
 
   /**
@@ -19,6 +21,7 @@ public interface ConfigKeys {
    */
   String HOSTS = "hosts";
   String HOSTS_SEPARATOR = ",";
+  Pattern HOSTS_SEPARATOR_PATTERN = Pattern.compile(HOSTS_SEPARATOR);
   String HOSTS_PORT_SEPARATOR = ":";
   /**
    * Same as {{@link #HOSTS} but for publisher only.
@@ -61,10 +64,11 @@ public interface ConfigKeys {
    */
   String RECEIVER_NAME = "receiver.name";
   /**
-   * Set default queue names receiver will be listening. Multiple queue names are separated using {@link #RECEIVER_QUEUES_SEPARATOR}.
+   * Set default queue names receiver will be listening. Multiple queue names are separated using {@link #RECEIVER_QUEUES_SEPARATOR_PATTERN}.
    */
   String RECEIVER_QUEUES = "receiver.queues";
   String RECEIVER_QUEUES_SEPARATOR = ",";
+  Pattern RECEIVER_QUEUES_SEPARATOR_PATTERN = Pattern.compile(RECEIVER_QUEUES_SEPARATOR);
   /**
    * Set the size of receiver's executor threadpool. Will be same for connections to all brokers. See
    * {@link SimpleMessageListenerContainer#setTaskExecutor(java.util.concurrent.Executor)}.
