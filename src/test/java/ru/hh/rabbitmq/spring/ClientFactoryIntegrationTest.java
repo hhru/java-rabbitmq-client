@@ -1,7 +1,14 @@
 package ru.hh.rabbitmq.spring;
 
+import java.util.List;
 import java.util.Properties;
+import java.util.stream.Collectors;
+
 import org.junit.Test;
+import org.springframework.amqp.rabbit.connection.ConnectionFactory;
+
+import static org.junit.Assert.assertEquals;
+import static ru.hh.rabbitmq.spring.ConfigKeys.HOSTS;
 
 
 public class ClientFactoryIntegrationTest {
@@ -51,6 +58,34 @@ public class ClientFactoryIntegrationTest {
     properties.remove(ConfigKeys.HOSTS);
     properties.setProperty(ConfigKeys.HOST, "localhost");
     publisher(properties);
+  }
+
+  @Test
+  public void testParseHostNoPort() {
+    Properties properties = new Properties();
+    String testHost = "localhost";
+    properties.setProperty(ConfigKeys.HOSTS, testHost);
+    properties.setProperty(ConfigKeys.USERNAME, "guest");
+    properties.setProperty(ConfigKeys.PASSWORD, "guest");
+    ClientFactory clientFactory = new ClientFactory(properties);
+    List<ConnectionFactory> connectionFactories = clientFactory.createConnectionFactories(true, HOSTS);
+    assertEquals(1, connectionFactories.size());
+    assertEquals(testHost, connectionFactories.get(0).getHost());
+  }
+  @Test
+  public void testParseHost() {
+    Properties properties = new Properties();
+    String testHost = "localhost";
+    int testPort = 123;
+    properties.setProperty(ConfigKeys.HOSTS, testHost);
+    properties.setProperty(ConfigKeys.PORT, String.valueOf(testPort));
+    properties.setProperty(ConfigKeys.USERNAME, "guest");
+    properties.setProperty(ConfigKeys.PASSWORD, "guest");
+    ClientFactory clientFactory = new ClientFactory(properties);
+    List<ConnectionFactory> connectionFactories = clientFactory.createConnectionFactories(true, HOSTS);
+    assertEquals(1, connectionFactories.size());
+    assertEquals(testHost, connectionFactories.get(0).getHost());
+    assertEquals(testPort, connectionFactories.get(0).getPort());
   }
 
   private void publisher(Properties properties) {

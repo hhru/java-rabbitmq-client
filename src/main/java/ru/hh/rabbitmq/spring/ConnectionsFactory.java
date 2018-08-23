@@ -15,7 +15,7 @@ import static ru.hh.rabbitmq.spring.ConfigKeys.CHANNEL_CACHE_SIZE;
 import static ru.hh.rabbitmq.spring.ConfigKeys.CLOSE_TIMEOUT;
 import static ru.hh.rabbitmq.spring.ConfigKeys.CONNECTION_TIMEOUT_MS;
 import static ru.hh.rabbitmq.spring.ConfigKeys.HEARTBIT_SEC;
-import static ru.hh.rabbitmq.spring.ConfigKeys.HOSTS_PORT_SEPARATOR;
+import static ru.hh.rabbitmq.spring.ConfigKeys.HOSTS_PORT_SEPARATOR_PATTERN;
 import static ru.hh.rabbitmq.spring.ConfigKeys.HOSTS_SEPARATOR_PATTERN;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PASSWORD;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PORT;
@@ -65,7 +65,7 @@ abstract class ConnectionsFactory {
       Integer commonPort = properties.getInteger(PORT);
       // something_HOSTS -> HOSTS -> HOST -> exception
       return getHosts(throwOnEmpty, hostsSettingNames).map(hostAndPortString -> {
-        String[] hostAndPort = HOSTS_PORT_SEPARATOR.split(hostAndPortString);
+        String[] hostAndPort = HOSTS_PORT_SEPARATOR_PATTERN.split(hostAndPortString);
         String host = hostAndPort[0];
         Integer port = commonPort;
         if (hostAndPort.length > 1) {

@@ -23,6 +23,7 @@ public interface ConfigKeys {
   String HOSTS_SEPARATOR = ",";
   Pattern HOSTS_SEPARATOR_PATTERN = Pattern.compile(HOSTS_SEPARATOR);
   String HOSTS_PORT_SEPARATOR = ":";
+  Pattern HOSTS_PORT_SEPARATOR_PATTERN = Pattern.compile(HOSTS_PORT_SEPARATOR);
   /**
    * Same as {{@link #HOSTS} but for publisher only.
    */
