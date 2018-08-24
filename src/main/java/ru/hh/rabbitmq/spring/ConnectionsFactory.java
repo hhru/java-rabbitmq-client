@@ -85,6 +85,7 @@ abstract class ConnectionsFactory {
   protected ConnectionFactory createConnectionFactory(String host, Integer port) {
     try {
       com.rabbitmq.client.ConnectionFactory rabbitConnectionFactory = new com.rabbitmq.client.ConnectionFactory();
+      rabbitConnectionFactory.load(properties.getProperties());
       rabbitConnectionFactory.setAutomaticRecoveryEnabled(properties.getBoolean(AUTOMATIC_RECOVERY, false));
       rabbitConnectionFactory.setTopologyRecoveryEnabled(properties.getBoolean(TOPOLOGY_RECOVERY, false));
 

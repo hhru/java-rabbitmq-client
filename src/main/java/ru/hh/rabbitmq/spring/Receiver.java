@@ -87,7 +87,7 @@ public class Receiver {
 
       // configure thread pool
       final String name = "rabbit-receiver-" + commonName + '-' + factory.getHost() + ':' + factory.getPort();
-      ThreadFactory threadFactory = buildThreadFactory(factory, name);
+      ThreadFactory threadFactory = buildThreadFactory(name);
       ExecutorService executor = newFixedThreadPool(threadPoolSize, threadFactory);
       container.setTaskExecutor(executor);
       container.setConcurrentConsumers(threadPoolSize);
@@ -116,7 +116,7 @@ public class Receiver {
     }
   }
 
-  private static ThreadFactory buildThreadFactory(ConnectionFactory factory, String name) {
+  private static ThreadFactory buildThreadFactory(String name) {
     return new ThreadFactory() {
       private final AtomicLong count = new AtomicLong(0);
       private final ThreadFactory delegateThreadFactory = Executors.defaultThreadFactory();
