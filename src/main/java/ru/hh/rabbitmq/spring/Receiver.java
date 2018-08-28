@@ -275,7 +275,7 @@ public class Receiver {
   }
 
   public boolean isActive() {
-    return containers.keySet().stream().map(AbstractMessageListenerContainer::isActive).reduce(true, (a, b) -> a && b);
+    return containers.keySet().stream().allMatch(AbstractMessageListenerContainer::isActive);
   }
 
   public boolean isShutDown() {
@@ -285,20 +285,20 @@ public class Receiver {
   private void checkStarted() {
     checkNotShutDown();
     if (!isActive()) {
-      throw new IllegalStateException("Receiver was not started for " + toString());
+      throw new IllegalStateException("Receiver was not started for " + this);
     }
   }
 
   private void checkNotStarted() {
     checkNotShutDown();
     if (isActive()) {
-      throw new IllegalStateException("Receiver was already started for " + toString());
+      throw new IllegalStateException("Receiver was already started for " + this);
     }
   }
 
   private void checkNotShutDown() {
     if (shutDown.get()) {
-      throw new IllegalStateException("Receiver was shut down for " + toString());
+      throw new IllegalStateException("Receiver was shut down for " + this);
     }
   }
 
@@ -349,7 +349,7 @@ public class Receiver {
   /**
    * Stop receiving messages, release all resources. Once called, this instance can't be used again.
    * @param now if true will attempts to stop all actively executing tasks, halts the processing of waiting tasks in underlying Executor Services
-   * that's it {@link java.util.concurrent.ExecutorService#shutdownNow()} vs {@link java.util.concurrent.ExecutorService#shutdown()}
+   * that's it {@link ExecutorService#shutdownNow()} vs {@link ExecutorService#shutdown()}
    */
   public void shutdown(boolean now) {
     if (!shutDown.compareAndSet(false, true)) {
