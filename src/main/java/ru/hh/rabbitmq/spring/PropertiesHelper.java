@@ -1,8 +1,7 @@
 package ru.hh.rabbitmq.spring;
 
-import com.google.common.primitives.Ints;
-import com.google.common.primitives.Longs;
 import java.util.Properties;
+import java.util.function.Function;
 
 public class PropertiesHelper {
 
@@ -29,46 +28,45 @@ public class PropertiesHelper {
   }
 
   public String getString(String name, String defaultName) {
-    String someName = PropertiesHelper.this.getString(name);
+    String someName = getString(name);
     return someName == null ? defaultName : someName;
   }
 
   public Integer getInteger(String name) {
-    String value = PropertiesHelper.this.getString(name);
-    if (value == null) {
-      return null;
-    }
-    return Ints.tryParse(value);
+    return getInteger(name, null);
   }
 
-  public int getInteger(String name, int defaultValue) {
-    Integer value = PropertiesHelper.this.getInteger(name);
-    return value == null ? defaultValue : value;
+  public Integer getInteger(String name, Integer defaultValue) {
+    String value = getString(name);
+    return safeParseNumber(value, Integer::valueOf, defaultValue);
   }
 
   public Long getLong(String name) {
-    String value = PropertiesHelper.this.getString(name);
-    if (value == null) {
-      return null;
-    }
-    return Longs.tryParse(value);
+    return getLong(name, null);
   }
 
-  public long getLong(String name, long defaultValue) {
-    Long value = PropertiesHelper.this.getLong(name);
-    return value == null ? defaultValue : value;
+  public Long getLong(String name, Long defaultValue) {
+    String value = getString(name);
+    return safeParseNumber(value, Long::valueOf, defaultValue);
   }
 
   public Boolean getBoolean(String name) {
-    String value = PropertiesHelper.this.getString(name);
-    if (value == null) {
-      return null;
-    }
-    return Boolean.valueOf(value);
+    return getBoolean(name, null);
   }
 
-  public boolean getBoolean(String name, boolean defaultValue) {
-    Boolean value = PropertiesHelper.this.getBoolean(name);
-    return value == null ? defaultValue : value;
+  public Boolean getBoolean(String name, Boolean defaultValue) {
+    String value = getString(name);
+    return value == null ? defaultValue : Boolean.valueOf(value);
+  }
+
+  private static <T> T safeParseNumber(String value, Function<String, T> parser, T defaultValue) {
+    if (value == null) {
+      return defaultValue;
+    }
+    try {
+      return parser.apply(value);
+    } catch (NumberFormatException e) {
+      return defaultValue;
+    }
   }
 }

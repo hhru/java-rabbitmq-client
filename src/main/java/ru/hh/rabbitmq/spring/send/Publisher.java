@@ -1,6 +1,5 @@
 package ru.hh.rabbitmq.spring.send;
 
-import com.google.common.base.Joiner;
 import static com.google.common.base.Preconditions.checkNotNull;
 import com.google.common.util.concurrent.AbstractService;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -68,7 +67,7 @@ public class Publisher extends AbstractService {
       connectionFactoriesNames.add(connectionFactoryName);
     }
     this.workers = Collections.unmodifiableList(workers);
-    name = getClass().getSimpleName() + '{' + commonName + ',' + Joiner.on(',').join(connectionFactoriesNames) + '}';
+    name = getClass().getSimpleName() + '{' + commonName + ',' + String.join(",", connectionFactoriesNames) + '}';
 
     this.useMDC = useMDC;
 

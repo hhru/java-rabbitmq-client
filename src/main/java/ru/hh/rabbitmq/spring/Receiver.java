@@ -1,18 +1,17 @@
 package ru.hh.rabbitmq.spring;
 
-import com.google.common.base.Joiner;
-import com.google.common.base.Splitter;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import static java.util.concurrent.Executors.newFixedThreadPool;
+
+import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,6 +20,7 @@ import org.springframework.amqp.core.MessageListener;
 import org.springframework.amqp.rabbit.connection.CachingConnectionFactory;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.core.ChannelAwareMessageListener;
+import org.springframework.amqp.rabbit.listener.AbstractMessageListenerContainer;
 import org.springframework.amqp.rabbit.listener.SimpleMessageListenerContainer;
 import org.springframework.amqp.rabbit.listener.adapter.MessageListenerAdapter;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
@@ -33,7 +33,7 @@ import ru.hh.metrics.Tag;
 import static ru.hh.rabbitmq.spring.ConfigKeys.RECEIVER_NAME;
 import static ru.hh.rabbitmq.spring.ConfigKeys.RECEIVER_PREFETCH_COUNT;
 import static ru.hh.rabbitmq.spring.ConfigKeys.RECEIVER_QUEUES;
-import static ru.hh.rabbitmq.spring.ConfigKeys.RECEIVER_QUEUES_SEPARATOR;
+import static ru.hh.rabbitmq.spring.ConfigKeys.RECEIVER_QUEUES_SEPARATOR_PATTERN;
 import static ru.hh.rabbitmq.spring.ConfigKeys.RECEIVER_THREADPOOL;
 import static ru.hh.rabbitmq.spring.ConfigKeys.RECEIVER_USE_MDC;
 import ru.hh.rabbitmq.spring.receive.GenericMessageListener;
@@ -51,13 +51,13 @@ public class Receiver {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(Receiver.class);
 
-  private Map<SimpleMessageListenerContainer, ExecutorService> containers;
-  private Map<SimpleMessageListenerContainer, String> names;
+  private final Map<SimpleMessageListenerContainer, ExecutorService> containers;
+  private final Map<SimpleMessageListenerContainer, String> names;
 
   @Nullable  // when monitoring is turned off
   private Counters receiverCounters;
 
-  private AtomicBoolean shutDown = new AtomicBoolean(false);
+  private final AtomicBoolean shutDown = new AtomicBoolean(false);
 
   Receiver(List<ConnectionFactory> connectionFactories,
            Properties properties,
@@ -82,14 +82,12 @@ public class Receiver {
 
       // set default queue names
       if (queueNames != null) {
-        Iterable<String> queueNamesList = Splitter.on(RECEIVER_QUEUES_SEPARATOR).split(queueNames);
-        container.setQueueNames(Iterables.toArray(queueNamesList, String.class));
+        container.setQueueNames(RECEIVER_QUEUES_SEPARATOR_PATTERN.splitAsStream(queueNames).toArray(String[]::new));
       }
 
       // configure thread pool
-      String name = "rabbit-receiver-" + commonName + "-" + factory.getHost() + ":" + factory.getPort();
-
-      ThreadFactory threadFactory = new ThreadFactoryBuilder().setNameFormat(name + "-%d").build();
+      final String name = "rabbit-receiver-" + commonName + '-' + factory.getHost() + ':' + factory.getPort();
+      ThreadFactory threadFactory = buildThreadFactory(name);
       ExecutorService executor = newFixedThreadPool(threadPoolSize, threadFactory);
       container.setTaskExecutor(executor);
       container.setConcurrentConsumers(threadPoolSize);
@@ -109,13 +107,26 @@ public class Receiver {
       containers.put(container, executor);
       names.put(container, name);
     }
-    this.containers = ImmutableMap.copyOf(containers);
-    this.names = ImmutableMap.copyOf(names);
+    this.containers = Collections.unmodifiableMap(containers);
+    this.names = Collections.unmodifiableMap(names);
 
     if (statsDSender != null) {
       receiverCounters = new Counters(20);
       statsDSender.sendCountersPeriodically(serviceName + ".rabbit.receivers.messages", receiverCounters);
     }
+  }
+
+  private static ThreadFactory buildThreadFactory(String name) {
+    return new ThreadFactory() {
+      private final AtomicLong count = new AtomicLong(0);
+      private final ThreadFactory delegateThreadFactory = Executors.defaultThreadFactory();
+      @Override
+      public Thread newThread(Runnable r) {
+        Thread thread = delegateThreadFactory.newThread(r);
+        thread.setName(name + String.format("-%d", count.getAndIncrement()));
+        return thread;
+      }
+    };
   }
 
   /**
@@ -264,11 +275,7 @@ public class Receiver {
   }
 
   public boolean isActive() {
-    boolean started = true;
-    for (SimpleMessageListenerContainer container : containers.keySet()) {
-      started &= container.isActive();
-    }
-    return started;
+    return containers.keySet().stream().allMatch(AbstractMessageListenerContainer::isActive);
   }
 
   public boolean isShutDown() {
@@ -278,20 +285,20 @@ public class Receiver {
   private void checkStarted() {
     checkNotShutDown();
     if (!isActive()) {
-      throw new IllegalStateException("Receiver was not started for " + toString());
+      throw new IllegalStateException("Receiver was not started for " + this);
     }
   }
 
   private void checkNotStarted() {
     checkNotShutDown();
     if (isActive()) {
-      throw new IllegalStateException("Receiver was already started for " + toString());
+      throw new IllegalStateException("Receiver was already started for " + this);
     }
   }
 
   private void checkNotShutDown() {
     if (shutDown.get()) {
-      throw new IllegalStateException("Receiver was shut down for " + toString());
+      throw new IllegalStateException("Receiver was shut down for " + this);
     }
   }
 
@@ -303,7 +310,7 @@ public class Receiver {
     for (SimpleMessageListenerContainer container : containers.keySet()) {
       container.start();
     }
-    LOGGER.debug("started {}", toString());
+    LOGGER.debug("started {}", this);
     return this;
   }
 
@@ -321,7 +328,7 @@ public class Receiver {
     for (SimpleMessageListenerContainer container : containers.keySet()) {
       container.stop();
     }
-    LOGGER.debug("stopped {}", toString());
+    LOGGER.debug("stopped {}", this);
   }
 
   /**
@@ -342,11 +349,11 @@ public class Receiver {
   /**
    * Stop receiving messages, release all resources. Once called, this instance can't be used again.
    * @param now if true will attempts to stop all actively executing tasks, halts the processing of waiting tasks in underlying Executor Services
-   * that's it {@link java.util.concurrent.ExecutorService#shutdownNow()} vs {@link java.util.concurrent.ExecutorService#shutdown()}
+   * that's it {@link ExecutorService#shutdownNow()} vs {@link ExecutorService#shutdown()}
    */
   public void shutdown(boolean now) {
     if (!shutDown.compareAndSet(false, true)) {
-      throw new IllegalStateException("Already shut down: " + toString());
+      throw new IllegalStateException("Already shut down: " + this);
     }
     if (isActive()) {
       doStop();
@@ -363,7 +370,7 @@ public class Receiver {
         executor.shutdown();
       }
     }
-    LOGGER.debug("shut down {}", toString());
+    LOGGER.debug("shut down {}", this);
   }
 
   @Override
@@ -371,7 +378,7 @@ public class Receiver {
     if (names == null) {
       return "uninitialized";
     }
-    return Joiner.on(',').join(names.values());
+    return String.join(",", names.values());
   }
 
 }

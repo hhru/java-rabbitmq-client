@@ -1,8 +1,9 @@
 package ru.hh.rabbitmq.spring;
 
-import com.google.common.collect.Maps;
 import com.rabbitmq.client.AMQP.BasicProperties;
 import com.rabbitmq.client.Envelope;
+
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import org.slf4j.MDC;
@@ -29,7 +30,7 @@ public class MDCMessagePropertiesConverter extends DefaultMessagePropertiesConve
     BasicProperties properties = super.fromMessageProperties(source, charset);
     Map<String, String> mdcContext = MDC.getCopyOfContextMap();
     if (mdcContext != null && !mdcContext.isEmpty()) {
-      Map<String, Object> headers = Maps.newHashMap(properties.getHeaders());
+      Map<String, Object> headers = new HashMap<>(properties.getHeaders());
       for (Entry<String, String> entry : mdcContext.entrySet()) {
         headers.put(MDC_PREFIX + entry.getKey(), entry.getValue());
       }

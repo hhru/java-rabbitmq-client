@@ -1,24 +1,22 @@
 package ru.hh.rabbitmq.spring;
 
-import com.google.common.base.Joiner;
-import com.google.common.base.Splitter;
-import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
+import java.util.stream.Stream;
 import javax.annotation.Nullable;
 import org.springframework.amqp.rabbit.connection.CachingConnectionFactory;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import ru.hh.metrics.StatsDSender;
-import static java.util.Collections.emptyList;
+
+import static java.util.stream.Collectors.toList;
 import static org.springframework.util.StringUtils.hasText;
 import static ru.hh.rabbitmq.spring.ConfigKeys.AUTOMATIC_RECOVERY;
 import static ru.hh.rabbitmq.spring.ConfigKeys.CHANNEL_CACHE_SIZE;
 import static ru.hh.rabbitmq.spring.ConfigKeys.CLOSE_TIMEOUT;
 import static ru.hh.rabbitmq.spring.ConfigKeys.CONNECTION_TIMEOUT_MS;
 import static ru.hh.rabbitmq.spring.ConfigKeys.HEARTBIT_SEC;
-import static ru.hh.rabbitmq.spring.ConfigKeys.HOSTS_PORT_SEPARATOR;
-import static ru.hh.rabbitmq.spring.ConfigKeys.HOSTS_SEPARATOR;
+import static ru.hh.rabbitmq.spring.ConfigKeys.HOSTS_PORT_SEPARATOR_PATTERN;
+import static ru.hh.rabbitmq.spring.ConfigKeys.HOSTS_SEPARATOR_PATTERN;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PASSWORD;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PORT;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_CONFIRMS;
@@ -48,40 +46,33 @@ abstract class ConnectionsFactory {
     this(properties, null, null, false);
   }
 
-  private Iterable<String> getHosts(boolean throwOnEmpty, String... settingNames) {
+  private Stream<String> getHosts(boolean throwOnEmpty, String... settingNames) {
     String value;
     for (String settingName : settingNames) {
       value = !hasText(settingName) ? null : properties.getString(settingName);
       if (hasText(value)) {
-        return splitHosts(value);
+        return HOSTS_SEPARATOR_PATTERN.splitAsStream(value);
       }
     }
     if (throwOnEmpty) {
-      throw new ConfigException(String.format("Any of these properties must be set and not empty: %s", Joiner.on(',').join(settingNames)));
+      throw new ConfigException(String.format("Any of these properties must be set and not empty: %s", String.join(",", settingNames)));
     }
-    return emptyList();
-  }
-
-  private static Iterable<String> splitHosts(String hosts) {
-    return Splitter.on(HOSTS_SEPARATOR).split(hosts);
+    return Stream.empty();
   }
 
   public List<ConnectionFactory> createConnectionFactories(boolean throwOnEmpty, String... hostsSettingNames) {
-    List<ConnectionFactory> factories = new ArrayList<>();
     try {
       Integer commonPort = properties.getInteger(PORT);
       // something_HOSTS -> HOSTS -> HOST -> exception
-      Iterable<String> hosts = getHosts(throwOnEmpty, hostsSettingNames);
-      for (String hostAndPortString : hosts) {
-        Iterator<String> hostAndPort = Splitter.on(HOSTS_PORT_SEPARATOR).split(hostAndPortString).iterator();
-        String host = hostAndPort.next();
+      return getHosts(throwOnEmpty, hostsSettingNames).map(hostAndPortString -> {
+        String[] hostAndPort = HOSTS_PORT_SEPARATOR_PATTERN.split(hostAndPortString);
+        String host = hostAndPort[0];
         Integer port = commonPort;
-        if (hostAndPort.hasNext()) {
-          port = Integer.parseInt(hostAndPort.next());
+        if (hostAndPort.length > 1) {
+          port = Integer.parseInt(hostAndPort[1]);
         }
-        factories.add(createConnectionFactory(host, port));
-      }
-      return factories;
+        return createConnectionFactory(host, port);
+      }).collect(toList());
     }
     catch (ConfigException e) {
       throw e;
@@ -94,6 +85,7 @@ abstract class ConnectionsFactory {
   protected ConnectionFactory createConnectionFactory(String host, Integer port) {
     try {
       com.rabbitmq.client.ConnectionFactory rabbitConnectionFactory = new com.rabbitmq.client.ConnectionFactory();
+      rabbitConnectionFactory.load(properties.getProperties());
       rabbitConnectionFactory.setAutomaticRecoveryEnabled(properties.getBoolean(AUTOMATIC_RECOVERY, false));
       rabbitConnectionFactory.setTopologyRecoveryEnabled(properties.getBoolean(TOPOLOGY_RECOVERY, false));
 
