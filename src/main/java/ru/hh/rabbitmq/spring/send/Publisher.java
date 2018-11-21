@@ -6,6 +6,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.Service;
 import static com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
 import static java.lang.System.currentTimeMillis;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -61,7 +62,7 @@ public class Publisher extends AbstractService {
 
       String workerName = "rabbit-publisher-" + commonName + '-' + connectionFactoryName;
       MessageSender messageSender = new MessageSender(template, serviceName, statsDSender);
-      ChannelWorker worker = new ChannelWorker(messageSender, taskQueue, workerName, retryDelayMs);
+      ChannelWorker worker = new ChannelWorker(workerName, messageSender, taskQueue, Duration.ofMillis(retryDelayMs));
       workers.add(worker);
 
       connectionFactoriesNames.add(connectionFactoryName);

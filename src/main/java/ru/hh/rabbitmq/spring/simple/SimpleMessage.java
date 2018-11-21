@@ -53,4 +53,11 @@ public class SimpleMessage {
     return true;
   }
 
+  @Override
+  public String toString() {
+    return "SimpleMessage{" +
+      "headers=" + headers +
+      ", body=" + body +
+      '}';
+  }
 }

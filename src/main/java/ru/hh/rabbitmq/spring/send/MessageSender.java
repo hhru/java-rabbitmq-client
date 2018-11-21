@@ -9,7 +9,7 @@ import ru.hh.metrics.Counters;
 import ru.hh.metrics.StatsDSender;
 import ru.hh.metrics.Tag;
 
-class MessageSender {
+public class MessageSender {
   private final RabbitTemplate template;
   @Nullable
   private final Counters publishedCounters;
@@ -34,15 +34,15 @@ class MessageSender {
     }
   }
 
-  void publishMessages(Map<Object, Destination> messages) {
-    for (Map.Entry<Object, Destination> entry : messages.entrySet()) {
+  public void publishMessages(Map<?, Destination> messages) {
+    for (Map.Entry<?, Destination> entry : messages.entrySet()) {
       Object message = entry.getKey();
       Destination destination = entry.getValue();
       publishMessage(message, destination);
     }
   }
 
-  void publishMessage(Object message, Destination destination) {
+  public void publishMessage(Object message, Destination destination) {
     CorrelationData correlationData = null;
     if (message instanceof CorrelatedMessage) {
       CorrelatedMessage correlated = (CorrelatedMessage) message;

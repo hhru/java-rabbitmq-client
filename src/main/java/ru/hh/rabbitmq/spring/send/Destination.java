@@ -19,4 +19,12 @@ public class Destination {
   public String getRoutingKey() {
     return routingKey;
   }
+
+  @Override
+  public String toString() {
+    return "Destination{" +
+      "exchange='" + exchange + '\'' +
+      ", routingKey='" + routingKey + '\'' +
+      '}';
+  }
 }
