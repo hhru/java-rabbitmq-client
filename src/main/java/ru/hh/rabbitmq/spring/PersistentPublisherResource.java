@@ -15,15 +15,15 @@ public class PersistentPublisherResource {
   public static final String RETRY_MS = "retryEventDelayMs";
 
   private final InvokerClient invokerClient;
-  private final PgqService pgqService;
+  private final DatabaseQueueService databaseQueueService;
 
-  public PersistentPublisherResource(InvokerClient invokerClient, PgqService pgqService) {
+  public PersistentPublisherResource(InvokerClient invokerClient, DatabaseQueueService databaseQueueService) {
     this.invokerClient = invokerClient;
-    this.pgqService = pgqService;
+    this.databaseQueueService = databaseQueueService;
   }
 
   @POST
   public void acceptInvoke(@QueryParam("taskId") int taskId, @QueryParam("launchId") int launchId, @QueryParam(RETRY_MS) long retryEventDelayMs) {
-    createTaskJob(invokerClient, taskId, launchId, context -> pgqService.sendBatch(Duration.ofMillis(retryEventDelayMs))).run();
+    createTaskJob(invokerClient, taskId, launchId, context -> databaseQueueService.sendBatch(Duration.ofMillis(retryEventDelayMs))).run();
   }
 }

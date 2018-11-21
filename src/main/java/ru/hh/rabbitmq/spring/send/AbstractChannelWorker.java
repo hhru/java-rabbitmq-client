@@ -24,11 +24,8 @@ abstract class AbstractChannelWorker extends AbstractService {
       public void run() {
         try {
           notifyStarted();
-
           processQueue();
-
           notifyStopped();
-
         } catch (RuntimeException e) {
           notifyFailed(e);
           LOGGER.error("crash", e);
@@ -38,7 +35,6 @@ abstract class AbstractChannelWorker extends AbstractService {
   }
 
   private void processQueue() {
-
     while (isRunning() && !currentThread().isInterrupted()) {
       try {
         handleTask();

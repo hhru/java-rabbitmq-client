@@ -16,7 +16,7 @@ public class MessageSender {
   @Nullable
   private final Counters errorsCounters;
 
-  MessageSender(RabbitTemplate template,
+  public MessageSender(RabbitTemplate template,
                 @Nullable
                 String serviceName,
                 @Nullable
