@@ -4,13 +4,11 @@ import com.google.common.util.concurrent.ForwardingFuture;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Future;
-import java.util.function.Function;
-
-import static java.util.stream.Collectors.toMap;
 
 class PublishTaskFuture extends ForwardingFuture<Void> implements ListenableFuture<Void> {
   private final Map<Object, Destination> messages;
@@ -18,7 +16,7 @@ class PublishTaskFuture extends ForwardingFuture<Void> implements ListenableFutu
   private Optional<Map<String, String>> MDCContext;
 
   PublishTaskFuture(Destination destination, Collection<Object> messages) {
-    this.messages = messages.stream().collect(toMap(Function.identity(), message -> destination));
+    this.messages = messages.stream().collect(HashMap::new, (m, v) -> m.put(v, destination), HashMap::putAll);
   }
 
   PublishTaskFuture(Map<Object, Destination> messages) {
