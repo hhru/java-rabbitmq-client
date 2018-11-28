@@ -37,9 +37,7 @@ public abstract class AbstractPublisherBuilder {
     }
 
     commonName = props.getString(PUBLISHER_NAME, "");
-
-    String exchange = props.getString(PUBLISHER_EXCHANGE);
-    String routingKey = props.getString(PUBLISHER_ROUTING_KEY);
+    Destination destination = createDestination(properties);
     Boolean mandatory = props.getBoolean(PUBLISHER_MANDATORY);
     useMDC = props.getBoolean(PUBLISHER_USE_MDC, false);
 
@@ -47,12 +45,12 @@ public abstract class AbstractPublisherBuilder {
     for (ConnectionFactory factory : connectionFactories) {
       RabbitTemplate template = new RabbitTemplate(factory);
 
-      if (exchange != null) {
-        template.setExchange(exchange);
+      if (destination.getExchange() != null) {
+        template.setExchange(destination.getExchange());
       }
 
-      if (routingKey != null) {
-        template.setRoutingKey(routingKey);
+      if (destination.getRoutingKey() != null) {
+        template.setRoutingKey(destination.getRoutingKey());
       }
 
       if (mandatory != null) {
@@ -94,5 +92,12 @@ public abstract class AbstractPublisherBuilder {
     for (RabbitTemplate template : templates) {
       template.setReturnCallback(callback);
     }
+  }
+
+  public static Destination createDestination(Properties properties) {
+    PropertiesHelper props = new PropertiesHelper(properties);
+    String exchange = props.getString(PUBLISHER_EXCHANGE);
+    String routingKey = props.getString(PUBLISHER_ROUTING_KEY);
+    return new Destination(exchange, routingKey);
   }
 }

@@ -4,12 +4,15 @@ package ru.hh.rabbitmq.spring.send;
  * {@link com.rabbitmq.client.Channel#basicPublish(java.lang.String, java.lang.String, boolean, boolean, com.rabbitmq.client.AMQP.BasicProperties, byte[])}
  */
 public class Destination {
-  private final String exchange;
-  private final String routingKey;
+  private String exchange;
+  private String routingKey;
 
   public Destination(String exchange, String routingKey) {
     this.exchange = exchange;
     this.routingKey = routingKey;
+  }
+
+  public Destination() {
   }
 
   public String getExchange() {
@@ -18,6 +21,14 @@ public class Destination {
 
   public String getRoutingKey() {
     return routingKey;
+  }
+
+  public void setExchange(String exchange) {
+    this.exchange = exchange;
+  }
+
+  public void setRoutingKey(String routingKey) {
+    this.routingKey = routingKey;
   }
 
   @Override

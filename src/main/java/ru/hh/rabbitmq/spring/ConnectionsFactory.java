@@ -46,7 +46,7 @@ abstract class ConnectionsFactory {
     this(properties, null, null, false);
   }
 
-  private Stream<String> getHosts(boolean throwOnEmpty, String... settingNames) {
+  private static Stream<String> getHosts(PropertiesHelper properties, boolean throwOnEmpty, String... settingNames) {
     String value;
     for (String settingName : settingNames) {
       value = !hasText(settingName) ? null : properties.getString(settingName);
@@ -61,17 +61,21 @@ abstract class ConnectionsFactory {
   }
 
   public List<ConnectionFactory> createConnectionFactories(boolean throwOnEmpty, String... hostsSettingNames) {
+    return createConnectionFactories(properties, throwOnEmpty, hostsSettingNames);
+  }
+
+  public static List<ConnectionFactory> createConnectionFactories(PropertiesHelper properties, boolean throwOnEmpty, String... hostsSettingNames) {
     try {
       Integer commonPort = properties.getInteger(PORT);
       // something_HOSTS -> HOSTS -> HOST -> exception
-      return getHosts(throwOnEmpty, hostsSettingNames).map(hostAndPortString -> {
+      return getHosts(properties, throwOnEmpty, hostsSettingNames).map(hostAndPortString -> {
         String[] hostAndPort = HOSTS_PORT_SEPARATOR_PATTERN.split(hostAndPortString);
         String host = hostAndPort[0];
         Integer port = commonPort;
         if (hostAndPort.length > 1) {
           port = Integer.parseInt(hostAndPort[1]);
         }
-        return createConnectionFactory(host, port);
+        return createConnectionFactory(properties, host, port);
       }).collect(toList());
     }
     catch (ConfigException e) {
@@ -82,10 +86,10 @@ abstract class ConnectionsFactory {
     }
   }
 
-  protected ConnectionFactory createConnectionFactory(String host, Integer port) {
+  protected static ConnectionFactory createConnectionFactory(PropertiesHelper properties, String host, Integer port) {
     try {
       com.rabbitmq.client.ConnectionFactory rabbitConnectionFactory = new com.rabbitmq.client.ConnectionFactory();
-      rabbitConnectionFactory.load(properties.getProperties());
+//      rabbitConnectionFactory.load(properties.getProperties());
       rabbitConnectionFactory.setAutomaticRecoveryEnabled(properties.getBoolean(AUTOMATIC_RECOVERY, false));
       rabbitConnectionFactory.setTopologyRecoveryEnabled(properties.getBoolean(TOPOLOGY_RECOVERY, false));
 

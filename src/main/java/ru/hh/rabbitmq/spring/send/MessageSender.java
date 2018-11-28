@@ -34,8 +34,8 @@ public class MessageSender {
     }
   }
 
-  public void publishMessages(Map<?, Destination> messages) {
-    for (Map.Entry<?, Destination> entry : messages.entrySet()) {
+  public void publishMessages(Map<?, ? extends Destination> messages) {
+    for (Map.Entry<?, ? extends Destination> entry : messages.entrySet()) {
       Object message = entry.getKey();
       Destination destination = entry.getValue();
       publishMessage(message, destination);
