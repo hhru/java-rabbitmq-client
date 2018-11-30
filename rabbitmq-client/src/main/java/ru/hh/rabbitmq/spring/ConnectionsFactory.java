@@ -3,10 +3,8 @@ package ru.hh.rabbitmq.spring;
 import java.util.List;
 import java.util.Properties;
 import java.util.stream.Stream;
-import javax.annotation.Nullable;
 import org.springframework.amqp.rabbit.connection.CachingConnectionFactory;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
-import ru.hh.metrics.StatsDSender;
 
 import static java.util.stream.Collectors.toList;
 import static org.springframework.util.StringUtils.hasText;
@@ -25,46 +23,19 @@ import static ru.hh.rabbitmq.spring.ConfigKeys.TOPOLOGY_RECOVERY;
 import static ru.hh.rabbitmq.spring.ConfigKeys.USERNAME;
 import static ru.hh.rabbitmq.spring.ConfigKeys.VIRTUALHOST;
 
-abstract class ConnectionsFactory {
+public class ConnectionsFactory {
 
   protected final PropertiesHelper properties;
-  @Nullable
-  final StatsDSender statsDSender;
-  @Nullable
-  final String serviceName;
 
-  ConnectionsFactory(Properties properties, @Nullable String serviceName, @Nullable StatsDSender statsDSender, boolean sendStats) {
+  public ConnectionsFactory(Properties properties) {
     this.properties = new PropertiesHelper(properties);
-    if (!sendStats) {
-      statsDSender = null;
-    }
-    this.serviceName = serviceName;
-    this.statsDSender = statsDSender;
-  }
-
-  ConnectionsFactory(Properties properties) {
-    this(properties, null, null, false);
-  }
-
-  private static Stream<String> getHosts(PropertiesHelper properties, boolean throwOnEmpty, String... settingNames) {
-    String value;
-    for (String settingName : settingNames) {
-      value = !hasText(settingName) ? null : properties.getString(settingName);
-      if (hasText(value)) {
-        return HOSTS_SEPARATOR_PATTERN.splitAsStream(value);
-      }
-    }
-    if (throwOnEmpty) {
-      throw new ConfigException(String.format("Any of these properties must be set and not empty: %s", String.join(",", settingNames)));
-    }
-    return Stream.empty();
   }
 
   public List<ConnectionFactory> createConnectionFactories(boolean throwOnEmpty, String... hostsSettingNames) {
     return createConnectionFactories(properties, throwOnEmpty, hostsSettingNames);
   }
 
-  public static List<ConnectionFactory> createConnectionFactories(PropertiesHelper properties, boolean throwOnEmpty, String... hostsSettingNames) {
+  private static List<ConnectionFactory> createConnectionFactories(PropertiesHelper properties, boolean throwOnEmpty, String... hostsSettingNames) {
     try {
       Integer commonPort = properties.getInteger(PORT);
       // something_HOSTS -> HOSTS -> HOST -> exception
@@ -86,10 +57,24 @@ abstract class ConnectionsFactory {
     }
   }
 
-  protected static ConnectionFactory createConnectionFactory(PropertiesHelper properties, String host, Integer port) {
+  private static Stream<String> getHosts(PropertiesHelper properties, boolean throwOnEmpty, String... settingNames) {
+    String value;
+    for (String settingName : settingNames) {
+      value = !hasText(settingName) ? null : properties.getString(settingName);
+      if (hasText(value)) {
+        return HOSTS_SEPARATOR_PATTERN.splitAsStream(value);
+      }
+    }
+    if (throwOnEmpty) {
+      throw new ConfigException(String.format("Any of these properties must be set and not empty: %s", String.join(",", settingNames)));
+    }
+    return Stream.empty();
+  }
+
+  private static ConnectionFactory createConnectionFactory(PropertiesHelper properties, String host, Integer port) {
     try {
       com.rabbitmq.client.ConnectionFactory rabbitConnectionFactory = new com.rabbitmq.client.ConnectionFactory();
-//      rabbitConnectionFactory.load(properties.getProperties());
+      rabbitConnectionFactory.load(properties.getProperties());
       rabbitConnectionFactory.setAutomaticRecoveryEnabled(properties.getBoolean(AUTOMATIC_RECOVERY, false));
       rabbitConnectionFactory.setTopologyRecoveryEnabled(properties.getBoolean(TOPOLOGY_RECOVERY, false));
 

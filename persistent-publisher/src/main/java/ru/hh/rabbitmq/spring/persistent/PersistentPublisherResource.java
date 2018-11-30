@@ -1,18 +1,17 @@
 package ru.hh.rabbitmq.spring.persistent;
 
-import java.time.Duration;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.QueryParam;
 import ru.hh.hhinvoker.client.InvokerClient;
 import static ru.hh.hhinvoker.remote.RemoteTaskJob.createTaskJob;
-import static ru.hh.rabbitmq.spring.persistent.PersistentPublisherResource.PGQ_PUBLISH;
+import static ru.hh.rabbitmq.spring.persistent.PersistentPublisherResource.DATABASE_QUEUE_RABBIT_PUBLISH;
 
-@Path(PGQ_PUBLISH)
+@Path(DATABASE_QUEUE_RABBIT_PUBLISH)
 public class PersistentPublisherResource {
 
-  public static final String PGQ_PUBLISH = "/pgq-publish";
-  public static final String RETRY_MS = "retryEventDelayMs";
+  public static final String DATABASE_QUEUE_RABBIT_PUBLISH = "/rabbit/db-events/publish";
+  public static final String SENDER_KEY = "senderKey";
 
   private final InvokerClient invokerClient;
   private final DatabaseQueueService databaseQueueService;
@@ -23,7 +22,8 @@ public class PersistentPublisherResource {
   }
 
   @POST
-  public void acceptInvoke(@QueryParam("taskId") int taskId, @QueryParam("launchId") int launchId, @QueryParam(RETRY_MS) long retryEventDelayMs) {
-    createTaskJob(invokerClient, taskId, launchId, context -> databaseQueueService.sendBatch(Duration.ofMillis(retryEventDelayMs))).run();
+  public void acceptInvoke(@QueryParam("taskId") int taskId, @QueryParam("launchId") int launchId,
+    @QueryParam(SENDER_KEY) String senderKey) {
+    createTaskJob(invokerClient, taskId, launchId, context -> databaseQueueService.sendBatch(senderKey)).run();
   }
 }

@@ -1,10 +1,10 @@
 package ru.hh.rabbitmq.spring.send;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import static java.util.Collections.unmodifiableList;
 import java.util.List;
 import java.util.Properties;
+import java.util.stream.Collectors;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.amqp.rabbit.core.RabbitTemplate.ConfirmCallback;
@@ -12,22 +12,16 @@ import org.springframework.amqp.rabbit.core.RabbitTemplate.ReturnCallback;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
 import ru.hh.rabbitmq.spring.ConfigException;
-import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_EXCHANGE;
-import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_MANDATORY;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_NAME;
-import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_ROUTING_KEY;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_TRANSACTIONAL;
-import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_USE_MDC;
-import ru.hh.rabbitmq.spring.MDCMessagePropertiesConverter;
 import ru.hh.rabbitmq.spring.PropertiesHelper;
 
 public abstract class AbstractPublisherBuilder {
 
   protected final String commonName;
   protected final Collection<RabbitTemplate> templates;
-  protected final boolean useMDC;
 
-  AbstractPublisherBuilder(Collection<ConnectionFactory> connectionFactories, Properties properties) {
+  protected AbstractPublisherBuilder(Collection<ConnectionFactory> connectionFactories, Properties properties) {
     PropertiesHelper props = new PropertiesHelper(properties);
 
     Boolean transactional = props.getBoolean(PUBLISHER_TRANSACTIONAL);
@@ -37,32 +31,8 @@ public abstract class AbstractPublisherBuilder {
     }
 
     commonName = props.getString(PUBLISHER_NAME, "");
-    Destination destination = createDestination(properties);
-    Boolean mandatory = props.getBoolean(PUBLISHER_MANDATORY);
-    useMDC = props.getBoolean(PUBLISHER_USE_MDC, false);
-
-    List<RabbitTemplate> templates = new ArrayList<>(connectionFactories.size());
-    for (ConnectionFactory factory : connectionFactories) {
-      RabbitTemplate template = new RabbitTemplate(factory);
-
-      if (destination.getExchange() != null) {
-        template.setExchange(destination.getExchange());
-      }
-
-      if (destination.getRoutingKey() != null) {
-        template.setRoutingKey(destination.getRoutingKey());
-      }
-
-      if (mandatory != null) {
-        template.setMandatory(mandatory);
-      }
-
-      if (useMDC) {
-        template.setMessagePropertiesConverter(new MDCMessagePropertiesConverter());
-      }
-
-      templates.add(template);
-    }
+    RabbitTemplateFactory templateFactory = new RabbitTemplateFactory(properties);
+    List<RabbitTemplate> templates = connectionFactories.stream().map(templateFactory::createTemplate).collect(Collectors.toList());
     this.templates = unmodifiableList(templates);
   }
 
@@ -92,12 +62,5 @@ public abstract class AbstractPublisherBuilder {
     for (RabbitTemplate template : templates) {
       template.setReturnCallback(callback);
     }
-  }
-
-  public static Destination createDestination(Properties properties) {
-    PropertiesHelper props = new PropertiesHelper(properties);
-    String exchange = props.getString(PUBLISHER_EXCHANGE);
-    String routingKey = props.getString(PUBLISHER_ROUTING_KEY);
-    return new Destination(exchange, routingKey);
   }
 }

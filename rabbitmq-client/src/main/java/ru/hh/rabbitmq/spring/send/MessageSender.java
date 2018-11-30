@@ -51,7 +51,7 @@ public class MessageSender {
     }
 
     try {
-      if (destination != null) {
+      if (destination != null && destination.getRoutingKey() != null) {
           template.convertAndSend(destination.getExchange(), destination.getRoutingKey(), message, correlationData);
       } else {
           template.correlationConvertAndSend(message, correlationData);

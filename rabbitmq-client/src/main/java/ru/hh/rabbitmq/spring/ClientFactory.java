@@ -22,12 +22,28 @@ import ru.hh.rabbitmq.spring.send.SyncPublisherBuilder;
  */
 public class ClientFactory extends ConnectionsFactory {
 
+  @Nullable
+  protected final StatsDSender statsDSender;
+  @Nullable
+  protected final String serviceName;
+
+  @Deprecated
+  public ClientFactory(Properties properties, @Nullable String serviceName, @Nullable StatsDSender statsDSender) {
+    super(properties);
+    this.serviceName = serviceName;
+    this.statsDSender = statsDSender;
+  }
+
+  /**
+   * @param sendStats - no longer used
+   */
+  @Deprecated
   public ClientFactory(Properties properties, @Nullable String serviceName, @Nullable StatsDSender statsDSender, boolean sendStats) {
-    super(properties, serviceName, statsDSender, sendStats);
+    this(properties, serviceName, statsDSender);
   }
 
   public ClientFactory(Properties properties) {
-    super(properties);
+    this(properties, null, null);
   }
 
   public Receiver createReceiver() {

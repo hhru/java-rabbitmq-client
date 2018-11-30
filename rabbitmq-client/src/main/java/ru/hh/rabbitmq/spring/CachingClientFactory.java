@@ -26,15 +26,29 @@ public class CachingClientFactory extends ConnectionsFactory {
   private final List<ConnectionFactory> receiverFactories;
   private final List<ConnectionFactory> publisherFactories;
 
-  public CachingClientFactory(Properties properties, @Nullable String serviceName, @Nullable StatsDSender statsDSender, boolean sendStats) {
-    super(properties, serviceName, statsDSender, sendStats);
-    List<ConnectionFactory> generic = createConnectionFactories(false, HOSTS, HOST);
+  @Nullable
+  protected final StatsDSender statsDSender;
+  @Nullable
+  protected final String serviceName;
 
+  /**
+   * @param sendStats not used anymore. Pass null to statsDSender to disable stats sending
+   */
+  public CachingClientFactory(Properties properties, @Nullable String serviceName, @Nullable StatsDSender statsDSender, boolean sendStats) {
+    this(properties, serviceName, statsDSender);
+  }
+
+  public CachingClientFactory(Properties properties, @Nullable String serviceName, @Nullable StatsDSender statsDSender) {
+    super(properties);
+    List<ConnectionFactory> generic = createConnectionFactories(false, HOSTS, HOST);
     receiverFactories = new ArrayList<>(generic);
     receiverFactories.addAll(createConnectionFactories(false, RECEIVER_HOSTS));
 
     publisherFactories = new ArrayList<>(generic);
     publisherFactories.addAll(createConnectionFactories(false, PUBLISHER_HOSTS));
+
+    this.serviceName = serviceName;
+    this.statsDSender = statsDSender;
   }
 
   public Receiver createReceiver(Properties properties) {
