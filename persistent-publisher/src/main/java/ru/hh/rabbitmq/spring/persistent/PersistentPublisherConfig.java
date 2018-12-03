@@ -33,10 +33,10 @@ public class PersistentPublisherConfig {
   }
 
   @Bean
-  PersistentPublisherFactory persistentPublisherBuilder(DatabaseQueueDao databaseQueueDao, DatabaseQueueService databaseQueueService,
+  PersistentPublisherBuilderFactory persistentPublisherBuilder(DatabaseQueueDao databaseQueueDao, DatabaseQueueService databaseQueueService,
       PersistentPublisherRegistry persistentPublisherRegistry, FileSettings settings, String serviceName, Optional<StatsDSender> statsDSender) {
 
-    return new PersistentPublisherFactory(databaseQueueDao, databaseQueueService, persistentPublisherRegistry, settings,
+    return new PersistentPublisherBuilderFactory(databaseQueueDao, databaseQueueService, persistentPublisherRegistry, settings,
       statsDSender.orElse(null), serviceName);
   }
 }

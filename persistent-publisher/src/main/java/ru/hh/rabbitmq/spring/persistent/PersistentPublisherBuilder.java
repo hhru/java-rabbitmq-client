@@ -29,7 +29,7 @@ public class PersistentPublisherBuilder {
     private final String jerseyBasePath;
   private final String upstreamName;
   private final String publisherKey;
-  private final FileSettings fileSettings;
+  private final FileSettings publisherFileSettings;
 
   private final String databaseQueueName;
   private final Duration pollingInterval;
@@ -41,16 +41,17 @@ public class PersistentPublisherBuilder {
 
   PersistentPublisherBuilder(DatabaseQueueService databaseQueueService, DatabaseQueueDao databaseQueueDao,
       PersistentPublisherRegistry persistentPublisherRegistry,
-      String jerseyBasePath, String upstreamName, String publisherKey, FileSettings fileSettings, StatsDSender statsDSender, String serviceName) {
+      String jerseyBasePath, String upstreamName, String publisherKey, FileSettings persistentFileSettings, StatsDSender statsDSender,
+      String serviceName) {
     this.databaseQueueService = databaseQueueService;
     this.databaseQueueDao = databaseQueueDao;
     this.persistentPublisherRegistry = persistentPublisherRegistry;
     this.jerseyBasePath = jerseyBasePath;
     this.upstreamName = upstreamName;
     this.publisherKey = publisherKey;
-    this.fileSettings = fileSettings.getSubSettings(publisherKey);
-    databaseQueueName = fileSettings.getString(DB_QUEUE_NAME_PROPERTY);
-    pollingInterval = Duration.ofSeconds(fileSettings.getLong(POLLING_INTERVAL_SEC_PROPERTY));
+    publisherFileSettings = persistentFileSettings.getSubSettings(publisherKey);
+    databaseQueueName = persistentFileSettings.getString(DB_QUEUE_NAME_PROPERTY);
+    pollingInterval = Duration.ofSeconds(this.publisherFileSettings.getLong(POLLING_INTERVAL_SEC_PROPERTY));
     this.serviceName = serviceName;
     this.statsDSender = statsDSender;
     rabbitTemplate = createRabbitTemplate();
@@ -71,7 +72,7 @@ public class PersistentPublisherBuilder {
 
       @Override
       public void onAmpqException(Exception e, long eventId, long batchId, Destination type, Object data) {
-        Duration duration = Duration.ofSeconds(fileSettings.getLong(RETRY_DELAY_SEC_PROPERTY));
+        Duration duration = Duration.ofSeconds(publisherFileSettings.getLong(RETRY_DELAY_SEC_PROPERTY));
         sendLogger.info("Got exception={} on sending event [id={}, destination={}, data={}], retrying on {}",
           e.getMessage(), eventId, type, data, duration);
         databaseQueueService.retryEvent(eventId, batchId, duration);
@@ -100,9 +101,9 @@ public class PersistentPublisherBuilder {
   }
 
   private RabbitTemplate createRabbitTemplate() {
-    ConnectionsFactory connectionsFactory = new ConnectionsFactory(fileSettings.getProperties());
+    ConnectionsFactory connectionsFactory = new ConnectionsFactory(publisherFileSettings.getProperties());
     List<ConnectionFactory> connectionFactories = connectionsFactory.createConnectionFactories(true, PUBLISHER_HOSTS, HOSTS, HOST);
-    RabbitTemplateFactory rabbitTemplateFactory = new RabbitTemplateFactory(fileSettings.getProperties());
+    RabbitTemplateFactory rabbitTemplateFactory = new RabbitTemplateFactory(publisherFileSettings.getProperties());
     return rabbitTemplateFactory.createTemplate(connectionFactories.get(0));
   }
 }
