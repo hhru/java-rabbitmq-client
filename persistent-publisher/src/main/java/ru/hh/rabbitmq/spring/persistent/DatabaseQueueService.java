@@ -12,7 +12,10 @@ import org.springframework.transaction.annotation.Transactional;
 import ru.hh.rabbitmq.spring.persistent.dto.TargetedDestination;
 import ru.hh.rabbitmq.spring.send.CorrelatedMessage;
 import ru.hh.rabbitmq.spring.send.MessageSender;
+import static java.lang.String.join;
 import static java.util.stream.Collectors.toList;
+import static ru.hh.rabbitmq.spring.persistent.PersistentPublisherResource.DATABASE_QUEUE_RABBIT_PUBLISH;
+import static ru.hh.rabbitmq.spring.persistent.PersistentPublisherResource.SENDER_KEY;
 
 public class DatabaseQueueService {
 
@@ -31,7 +34,8 @@ public class DatabaseQueueService {
   //TODO http API to register job
   @Transactional
   public void registerHhInvokerJob(String queueName, String upstreamName, String jerseyBasePath, Duration pollingInterval) {
-    databaseQueueDao.registerOrUpdateHhInvokerJob(queueName, upstreamName, jerseyBasePath, pollingInterval);
+    databaseQueueDao.registerOrUpdateHhInvokerJob(queueName + ":rabbit publication job",
+      upstreamName + jerseyBasePath + DATABASE_QUEUE_RABBIT_PUBLISH + '?' + join("=", SENDER_KEY, queueName), pollingInterval);
   }
 
   @Transactional

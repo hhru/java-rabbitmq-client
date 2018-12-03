@@ -10,9 +10,6 @@ import javax.persistence.Tuple;
 import org.hibernate.SessionFactory;
 import org.hibernate.type.IntegerType;
 import org.hibernate.type.LongType;
-import static java.lang.String.join;
-import static ru.hh.rabbitmq.spring.persistent.PersistentPublisherResource.DATABASE_QUEUE_RABBIT_PUBLISH;
-import static ru.hh.rabbitmq.spring.persistent.PersistentPublisherResource.SENDER_KEY;
 
 public class DatabaseQueueDao {
 
@@ -22,7 +19,7 @@ public class DatabaseQueueDao {
     this.sessionFactory = sessionFactory;
   }
 
-  public void registerOrUpdateHhInvokerJob(String publisherKey, String upstreamName, String jerseyBasePath, Duration pollingInterval) {
+  public void registerOrUpdateHhInvokerJob(String jobName, String targetUrl, Duration pollingInterval) {
     sessionFactory.getCurrentSession()
       .createNativeQuery("INSERT INTO hh_invoker.task(name, description, enabled, schedule_type, repeat_interval_sec, " +
         "target_url, " +
@@ -34,13 +31,12 @@ public class DatabaseQueueDao {
         "target_url = :targetUrl, " +
         "use_disabled_period_during_day = :useDisabledPeriodDuringDay, launch_lock_timeout_sec = :launchLockTimeoutSec, " +
         "fallback_timeout_sec = :fallbackTimeoutSec")
-      .setParameter("name", publisherKey + ":rabbit publication job")
+      .setParameter("name", jobName)
       .setParameter("description", "job to publish rabbit messages from pgq")
       .setParameter("enabled", true)
       .setParameter("scheduleType", "COUNTER_STARTS_AFTER_TASK_FINISH")
       .setParameter("repeatIntervalSec", pollingInterval.getSeconds())
-      .setParameter("targetUrl", "http://" + upstreamName + jerseyBasePath + DATABASE_QUEUE_RABBIT_PUBLISH + '?'
-        + join("=", SENDER_KEY, publisherKey))
+      .setParameter("targetUrl", targetUrl)
       .setParameter("useDisabledPeriodDuringDay", false)
       .setParameter("launchLockTimeoutSec", pollingInterval.getSeconds() / 2)
       .setParameter("fallbackTimeoutSec", TimeUnit.MINUTES.toSeconds(pollingInterval.getSeconds()))
