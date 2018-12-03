@@ -23,10 +23,10 @@ public class PersistentPublisherBuilderFactory {
     this.databaseQueueDao = databaseQueueDao;
     this.databaseQueueService = databaseQueueService;
     this.persistentPublisherRegistry = persistentPublisherRegistry;
-    this.persistenceFileSettings = fileSettings.getSubSettings(PERSISTENT_PUBLISHER_PREFIX);
-    jerseyBasePath = Objects.requireNonNull(fileSettings.getString(JERSEY_BASE_PATH_PROPERTY),
+    persistenceFileSettings = fileSettings.getSubSettings(PERSISTENT_PUBLISHER_PREFIX);
+    jerseyBasePath = Objects.requireNonNull(persistenceFileSettings.getString(JERSEY_BASE_PATH_PROPERTY),
       JERSEY_BASE_PATH_PROPERTY + " must be set in service config with prefix " + PERSISTENT_PUBLISHER_PREFIX);
-    upstreamName = Objects.requireNonNull(fileSettings.getString(UPSTREAM_PROPERTY),
+    upstreamName = Objects.requireNonNull(persistenceFileSettings.getString(UPSTREAM_PROPERTY),
       UPSTREAM_PROPERTY + " must be set in service config with prefix " + PERSISTENT_PUBLISHER_PREFIX);
     this.statsDSender = statsDSender;
     this.serviceName = serviceName;
