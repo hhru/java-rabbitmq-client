@@ -75,6 +75,7 @@ public class PublisherBuilder extends AbstractPublisherBuilder {
     if (messagePropertiesConverterField == null) {
       return false;
     }
+    ReflectionUtils.makeAccessible(messagePropertiesConverterField);
     return ReflectionUtils.getField(messagePropertiesConverterField, template) instanceof MDCMessagePropertiesConverter;
   }
 }
