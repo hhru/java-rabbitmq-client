@@ -1,12 +1,16 @@
 package ru.hh.rabbitmq.spring.persistent;
 
 import java.time.Duration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.SmartLifecycle;
 import ru.hh.rabbitmq.spring.persistent.dto.TargetedDestination;
 import ru.hh.rabbitmq.spring.send.Destination;
 import ru.hh.rabbitmq.spring.send.MessageSender;
 
 public abstract class PersistentPublisher implements DatabaseQueueSender, SmartLifecycle {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(PersistentPublisher.class);
 
   private final DatabaseQueueService databaseQueueService;
   private final String upstreamName;
@@ -41,14 +45,18 @@ public abstract class PersistentPublisher implements DatabaseQueueSender, SmartL
   @Override
   public void start() {
     databaseQueueService.registerConsumerIfPossible(databaseQueueName, databaseQueueName);
+    LOGGER.info("Registered consumer for queue {}, senderKey {}", databaseQueueName, senderKey);
   }
 
   @Override
-  public void stop() { }
+  public void stop() {
+    LOGGER.info("Stopping consumer for queue {}, senderKey {}", databaseQueueName, senderKey);
+  }
 
   @Override
   public boolean isRunning() {
     databaseQueueService.registerHhInvokerJob(databaseQueueName, upstreamName, jerseyBasePath, pollingInterval);
+    LOGGER.info("Registered hh-invoker job for senderKey {}", senderKey);
     return databaseQueueService.isAllRegistered(databaseQueueName, databaseQueueName);
   }
 

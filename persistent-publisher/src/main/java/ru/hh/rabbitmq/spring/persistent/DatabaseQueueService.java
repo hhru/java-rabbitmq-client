@@ -34,8 +34,9 @@ public class DatabaseQueueService {
   //TODO http API to register job
   @Transactional
   public void registerHhInvokerJob(String queueName, String upstreamName, String jerseyBasePath, Duration pollingInterval) {
-    databaseQueueDao.registerOrUpdateHhInvokerJob(queueName + ":rabbit publication job",
-      upstreamName + jerseyBasePath + DATABASE_QUEUE_RABBIT_PUBLISH + '?' + join("=", SENDER_KEY, queueName), pollingInterval);
+    String targetUrl = upstreamName + jerseyBasePath + DATABASE_QUEUE_RABBIT_PUBLISH + '?' + join("=", SENDER_KEY, queueName);
+    databaseQueueDao.registerOrUpdateHhInvokerJob(queueName + ":rabbit publication job", targetUrl, pollingInterval);
+    LOGGER.info("Regitered job for targetUrl={}", targetUrl);
   }
 
   @Transactional
@@ -79,6 +80,7 @@ public class DatabaseQueueService {
         }
       });
     databaseQueueDao.finishBatch(batchId.get());
+    LOGGER.debug("Batch {} finished", batchId);
   }
 
   @Transactional

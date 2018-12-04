@@ -2,6 +2,7 @@ package ru.hh.rabbitmq.spring.persistent;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Objects;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,8 +51,10 @@ public class PersistentPublisherBuilder {
     this.upstreamName = upstreamName;
     this.publisherKey = publisherKey;
     publisherFileSettings = persistentFileSettings.getSubSettings(publisherKey);
-    databaseQueueName = persistentFileSettings.getString(DB_QUEUE_NAME_PROPERTY);
-    pollingInterval = Duration.ofSeconds(this.publisherFileSettings.getLong(POLLING_INTERVAL_SEC_PROPERTY));
+    databaseQueueName = Objects.requireNonNull(persistentFileSettings.getString(DB_QUEUE_NAME_PROPERTY),
+      DB_QUEUE_NAME_PROPERTY + " must be set");
+    pollingInterval = Duration.ofSeconds(Objects.requireNonNull(publisherFileSettings.getLong(POLLING_INTERVAL_SEC_PROPERTY),
+      POLLING_INTERVAL_SEC_PROPERTY + " must be set"));
     this.serviceName = serviceName;
     this.statsDSender = statsDSender;
     rabbitTemplate = createRabbitTemplate();
@@ -72,7 +75,8 @@ public class PersistentPublisherBuilder {
 
       @Override
       public void onAmpqException(Exception e, long eventId, long batchId, Destination type, Object data) {
-        Duration duration = Duration.ofSeconds(publisherFileSettings.getLong(RETRY_DELAY_SEC_PROPERTY));
+        Duration duration = Duration.ofSeconds(Objects.requireNonNull(publisherFileSettings.getLong(RETRY_DELAY_SEC_PROPERTY),
+          RETRY_DELAY_SEC_PROPERTY + " must be set"));
         sendLogger.info("Got exception={} on sending event [id={}, destination={}, data={}], retrying on {}",
           e.getMessage(), eventId, type, data, duration);
         databaseQueueService.retryEvent(eventId, batchId, duration);
