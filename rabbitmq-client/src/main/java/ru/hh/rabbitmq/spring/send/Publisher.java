@@ -41,7 +41,7 @@ public class Publisher extends AbstractService {
 
   Publisher(String commonName,
             int innerQueueSize,
-            Collection<RabbitTemplate> templates,
+            Collection<? extends RabbitTemplate> templates,
             int retryDelayMs,
             boolean useMDC,
             int innerQueueShutdownMs,

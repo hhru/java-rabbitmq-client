@@ -19,7 +19,7 @@ import ru.hh.rabbitmq.spring.PropertiesHelper;
 public abstract class AbstractPublisherBuilder {
 
   protected final String commonName;
-  protected final Collection<RabbitTemplate> templates;
+  protected final Collection<HhRabbitTemplate> templates;
 
   protected AbstractPublisherBuilder(Collection<ConnectionFactory> connectionFactories, Properties properties) {
     PropertiesHelper props = new PropertiesHelper(properties);
@@ -32,12 +32,12 @@ public abstract class AbstractPublisherBuilder {
 
     commonName = props.getString(PUBLISHER_NAME, "");
     RabbitTemplateFactory templateFactory = new RabbitTemplateFactory(properties);
-    List<RabbitTemplate> templates = connectionFactories.stream().map(templateFactory::createTemplate).collect(Collectors.toList());
+    List<HhRabbitTemplate> templates = connectionFactories.stream().map(templateFactory::createTemplate).collect(Collectors.toList());
     this.templates = unmodifiableList(templates);
   }
 
   /** @return Immutable collection of all rabbit templates for additional configuration */
-  public Collection<RabbitTemplate> getRabbitTemplates() {
+  public Collection<? extends RabbitTemplate> getRabbitTemplates() {
     return templates;
   }
 

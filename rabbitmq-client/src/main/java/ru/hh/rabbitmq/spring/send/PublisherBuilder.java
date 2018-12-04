@@ -1,15 +1,12 @@
 package ru.hh.rabbitmq.spring.send;
 
-import java.lang.reflect.Field;
 import java.util.Collection;
 import java.util.Properties;
 import javax.annotation.Nullable;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.amqp.rabbit.core.RabbitTemplate.ConfirmCallback;
 import org.springframework.amqp.rabbit.core.RabbitTemplate.ReturnCallback;
 import org.springframework.amqp.support.converter.MessageConverter;
-import org.springframework.util.ReflectionUtils;
 import ru.hh.metrics.StatsDSender;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_INNER_QUEUE_SHUTDOWN_MS;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_INNER_QUEUE_SIZE;
@@ -68,14 +65,8 @@ public class PublisherBuilder extends AbstractPublisherBuilder {
     return new Publisher(commonName, innerQueueSize, templates, retryDelayMs, useMDC, innerQueueShutdownMs, serviceName, statsDSender);
   }
 
-  //TODO make a better way to check if useMDC, but respecting template creation procedure encapsulation
-  private static boolean checkIsUsingMdc(Collection<RabbitTemplate> templates) {
-    RabbitTemplate template = templates.iterator().next();
-    Field messagePropertiesConverterField = ReflectionUtils.findField(RabbitTemplate.class, "messagePropertiesConverter");
-    if (messagePropertiesConverterField == null) {
-      return false;
-    }
-    ReflectionUtils.makeAccessible(messagePropertiesConverterField);
-    return ReflectionUtils.getField(messagePropertiesConverterField, template) instanceof MDCMessagePropertiesConverter;
+  private static boolean checkIsUsingMdc(Collection<HhRabbitTemplate> templates) {
+    HhRabbitTemplate template = templates.iterator().next();
+    return template.getMessagePropertiesConverter() instanceof MDCMessagePropertiesConverter;
   }
 }

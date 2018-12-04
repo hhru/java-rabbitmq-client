@@ -2,7 +2,6 @@ package ru.hh.rabbitmq.spring.send;
 
 import java.util.Properties;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import ru.hh.rabbitmq.spring.MDCMessagePropertiesConverter;
 import ru.hh.rabbitmq.spring.PropertiesHelper;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_EXCHANGE;
@@ -22,8 +21,8 @@ public class RabbitTemplateFactory {
     useMDC = props.getBoolean(PUBLISHER_USE_MDC, false);
   }
 
-  public RabbitTemplate createTemplate(ConnectionFactory factory) {
-    RabbitTemplate template = new RabbitTemplate(factory);
+  public HhRabbitTemplate createTemplate(ConnectionFactory factory) {
+    HhRabbitTemplate template = new HhRabbitTemplate(factory);
 
     if (destination.getExchange() != null) {
       template.setExchange(destination.getExchange());
