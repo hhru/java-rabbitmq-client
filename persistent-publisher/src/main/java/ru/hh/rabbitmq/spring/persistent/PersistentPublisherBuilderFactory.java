@@ -34,7 +34,7 @@ public class PersistentPublisherBuilderFactory {
 
   public PersistentPublisherBuilder createPublisherBuilder(String publisherKey) {
     return new PersistentPublisherBuilder(databaseQueueService, databaseQueueDao, persistentPublisherRegistry, jerseyBasePath, upstreamName,
-      publisherKey, persistenceFileSettings, statsDSender, serviceName);
+      publisherKey, persistenceFileSettings.getSubSettings(publisherKey), statsDSender, serviceName);
   }
 
 }

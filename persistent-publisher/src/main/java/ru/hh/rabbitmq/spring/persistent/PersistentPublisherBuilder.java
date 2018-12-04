@@ -42,7 +42,7 @@ public class PersistentPublisherBuilder {
 
   PersistentPublisherBuilder(DatabaseQueueService databaseQueueService, DatabaseQueueDao databaseQueueDao,
       PersistentPublisherRegistry persistentPublisherRegistry,
-      String jerseyBasePath, String upstreamName, String publisherKey, FileSettings persistentFileSettings, StatsDSender statsDSender,
+      String jerseyBasePath, String upstreamName, String publisherKey, FileSettings publisherFileSettings, StatsDSender statsDSender,
       String serviceName) {
     this.databaseQueueService = databaseQueueService;
     this.databaseQueueDao = databaseQueueDao;
@@ -50,8 +50,8 @@ public class PersistentPublisherBuilder {
     this.jerseyBasePath = jerseyBasePath;
     this.upstreamName = upstreamName;
     this.publisherKey = publisherKey;
-    publisherFileSettings = persistentFileSettings.getSubSettings(publisherKey);
-    databaseQueueName = Objects.requireNonNull(persistentFileSettings.getString(DB_QUEUE_NAME_PROPERTY),
+    this.publisherFileSettings = publisherFileSettings;
+    databaseQueueName = Objects.requireNonNull(publisherFileSettings.getString(DB_QUEUE_NAME_PROPERTY),
       DB_QUEUE_NAME_PROPERTY + " must be set");
     pollingInterval = Duration.ofSeconds(Objects.requireNonNull(publisherFileSettings.getLong(POLLING_INTERVAL_SEC_PROPERTY),
       POLLING_INTERVAL_SEC_PROPERTY + " must be set"));
