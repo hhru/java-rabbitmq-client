@@ -1,6 +1,10 @@
 package ru.hh.rabbitmq.spring.persistent;
 
 import java.util.Objects;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.context.event.ContextRefreshedEvent;
+import org.springframework.context.event.EventListener;
 import ru.hh.metrics.StatsDSender;
 import ru.hh.nab.common.properties.FileSettings;
 import static ru.hh.rabbitmq.spring.persistent.PersistentPublisherConfigKeys.JERSEY_BASE_PATH_PROPERTY;
@@ -8,6 +12,8 @@ import static ru.hh.rabbitmq.spring.persistent.PersistentPublisherConfigKeys.PER
 import static ru.hh.rabbitmq.spring.persistent.PersistentPublisherConfigKeys.UPSTREAM_PROPERTY;
 
 public class PersistentPublisherBuilderFactory {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(PersistentPublisherBuilderFactory.class);
 
   private final DatabaseQueueDao databaseQueueDao;
   private final DatabaseQueueService databaseQueueService;
@@ -33,8 +39,14 @@ public class PersistentPublisherBuilderFactory {
   }
 
   public PersistentPublisherBuilder createPublisherBuilder(String publisherKey) {
-    return new PersistentPublisherBuilder(databaseQueueService, databaseQueueDao, persistentPublisherRegistry, jerseyBasePath, upstreamName,
-      publisherKey, persistenceFileSettings.getSubSettings(publisherKey), statsDSender, serviceName);
+    return new PersistentPublisherBuilder(databaseQueueService, databaseQueueDao, persistentPublisherRegistry,
+      serviceName, upstreamName + jerseyBasePath, publisherKey,
+      persistenceFileSettings.getSubSettings(publisherKey), statsDSender);
   }
 
+  @EventListener(ContextRefreshedEvent.class)
+  public void start() {
+    LOGGER.info("Got {}", ContextRefreshedEvent.class.getSimpleName());
+    persistentPublisherRegistry.getSenders().forEach(DatabaseQueueSender::start);
+  }
 }

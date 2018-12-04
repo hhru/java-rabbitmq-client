@@ -1,5 +1,6 @@
 package ru.hh.rabbitmq.spring.persistent;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
 
@@ -32,5 +33,9 @@ public class PersistentPublisherRegistry {
 
   public DatabaseQueueSender getSender(String key) {
     return senders.get(key);
+  }
+
+  Collection<DatabaseQueueSender> getSenders() {
+    return senders.values();
   }
 }

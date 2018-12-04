@@ -8,6 +8,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.context.event.ContextRefreshedEvent;
+import org.springframework.context.event.EventListener;
 import ru.hh.metrics.StatsDSender;
 import ru.hh.nab.common.properties.FileSettings;
 import ru.hh.rabbitmq.spring.ConnectionsFactory;
@@ -27,8 +29,7 @@ public class PersistentPublisherBuilder {
   private final DatabaseQueueService databaseQueueService;
   private final DatabaseQueueDao databaseQueueDao;
   private final PersistentPublisherRegistry persistentPublisherRegistry;
-    private final String jerseyBasePath;
-  private final String upstreamName;
+  private final String taskBaseUrl;
   private final String publisherKey;
   private final FileSettings publisherFileSettings;
 
@@ -41,36 +42,38 @@ public class PersistentPublisherBuilder {
   private final RabbitTemplate rabbitTemplate;
 
   PersistentPublisherBuilder(DatabaseQueueService databaseQueueService, DatabaseQueueDao databaseQueueDao,
-      PersistentPublisherRegistry persistentPublisherRegistry,
-      String jerseyBasePath, String upstreamName, String publisherKey, FileSettings publisherFileSettings, StatsDSender statsDSender,
-      String serviceName) {
+      PersistentPublisherRegistry persistentPublisherRegistry, String serviceName, String taskBaseUrl,
+      String publisherKey, FileSettings publisherFileSettings, StatsDSender statsDSender) {
     this.databaseQueueService = databaseQueueService;
     this.databaseQueueDao = databaseQueueDao;
     this.persistentPublisherRegistry = persistentPublisherRegistry;
-    this.jerseyBasePath = jerseyBasePath;
-    this.upstreamName = upstreamName;
+    this.serviceName = serviceName;
+    this.taskBaseUrl = taskBaseUrl;
     this.publisherKey = publisherKey;
     this.publisherFileSettings = publisherFileSettings;
     databaseQueueName = Objects.requireNonNull(publisherFileSettings.getString(DB_QUEUE_NAME_PROPERTY),
       DB_QUEUE_NAME_PROPERTY + " must be set");
     pollingInterval = Duration.ofSeconds(Objects.requireNonNull(publisherFileSettings.getLong(POLLING_INTERVAL_SEC_PROPERTY),
       POLLING_INTERVAL_SEC_PROPERTY + " must be set"));
-    this.serviceName = serviceName;
     this.statsDSender = statsDSender;
     rabbitTemplate = createRabbitTemplate();
   }
 
   public PersistentPublisher build() {
     MessageSender messageSender = new MessageSender(rabbitTemplate, serviceName, statsDSender);
-    PersistentPublisher persistentPublisher = new PersistentPublisher(databaseQueueService, databaseQueueName, upstreamName, jerseyBasePath,
-      pollingInterval, publisherKey, JACKSON_CONVERTER_KEY, messageSender) {
+    PersistentPublisher persistentPublisher = new PersistentPublisher(databaseQueueService, serviceName, taskBaseUrl,
+      databaseQueueName, publisherKey, JACKSON_CONVERTER_KEY,
+      pollingInterval, messageSender) {
 
       private final Logger sendLogger = LoggerFactory.getLogger(PersistentPublisher.class + "." + publisherKey);
       private final String errorQueueName = databaseQueueName + ":error";
       @Override
+      @EventListener(ContextRefreshedEvent.class)
       public void start() {
         super.start();
-        databaseQueueService.registerQueueIfPossible(errorQueueName);
+        if (!databaseQueueService.isQueueRegistered(errorQueueName)) {
+          databaseQueueService.registerQueueIfPossible(errorQueueName);
+        }
       }
 
       @Override
