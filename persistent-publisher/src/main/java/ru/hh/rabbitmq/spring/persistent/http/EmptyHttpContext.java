@@ -1,22 +1,24 @@
 package ru.hh.rabbitmq.spring.persistent.http;
 
 import java.util.Collections;
+import java.util.Optional;
 import java.util.concurrent.Callable;
 import ru.hh.jclient.common.HttpClientContextThreadLocalSupplier;
+import ru.hh.jclient.common.util.storage.ThreadLocalStorage;
 
 public class EmptyHttpContext {
-  private final HttpClientContextThreadLocalSupplier httpClientContextSupplier;
+  private final Optional<HttpClientContextThreadLocalSupplier> httpClientContextSupplier;
 
-  public EmptyHttpContext(HttpClientContextThreadLocalSupplier httpClientContextSupplier) {
+  public EmptyHttpContext(Optional<HttpClientContextThreadLocalSupplier> httpClientContextSupplier) {
     this.httpClientContextSupplier = httpClientContextSupplier;
   }
 
   public <T> T executeAsServerRequest(Callable<T> operation) throws Exception {
-    httpClientContextSupplier.addContext(Collections.emptyMap(), Collections.emptyMap());
+    httpClientContextSupplier.ifPresent(supplier -> supplier.addContext(Collections.emptyMap(), Collections.emptyMap()));
     try {
       return operation.call();
     } finally {
-      httpClientContextSupplier.clear();
+      httpClientContextSupplier.ifPresent(ThreadLocalStorage::clear);
     }
   }
 }
