@@ -7,7 +7,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.transaction.annotation.Transactional;
@@ -47,7 +46,7 @@ public class DatabaseQueueService {
     String targetUrl = taskBaseUrl + DATABASE_QUEUE_RABBIT_PUBLISH + '?' + join("=", SENDER_KEY, senderKey);
     TaskDto taskDto = new TaskDto(consumerKey, "job to publish rabbit messages from pgq", true,
       ScheduleType.COUNTER_STARTS_AFTER_TASK_FINISH, pollingInterval.getSeconds(), targetUrl, false,
-      pollingInterval.getSeconds() / 2, TimeUnit.MINUTES.toSeconds(pollingInterval.getSeconds()));
+      pollingInterval.getSeconds() / 2, pollingInterval.getSeconds());
     try {
       emptyHttpContext.executeAsServerRequest(() -> invokerClient.createOrUpdate(taskDto).get());
       LOGGER.info("Regitered job for targetUrl={}", targetUrl);
