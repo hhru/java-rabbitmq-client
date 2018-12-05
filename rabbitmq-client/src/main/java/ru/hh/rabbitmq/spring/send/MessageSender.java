@@ -1,6 +1,7 @@
 package ru.hh.rabbitmq.spring.send;
 
 import java.util.Map;
+import java.util.Optional;
 import javax.annotation.Nullable;
 import org.springframework.amqp.AmqpException;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -73,10 +74,7 @@ public class MessageSender {
   }
 
   private static void addValueToCountersWithDestinationTag(Counters counters, Destination destination) {
-    String routingKey = "unknown";
-    if (destination != null) {
-      routingKey = destination.getRoutingKey();
-    }
+    String routingKey = Optional.ofNullable(destination).map(Destination::getRoutingKey).orElse("unknown");
     counters.add(1, new Tag("routing_key", routingKey));
   }
 }
