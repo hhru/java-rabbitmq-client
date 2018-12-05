@@ -8,6 +8,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
+import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.context.event.ContextRefreshedEvent;
 import org.springframework.context.event.EventListener;
 import ru.hh.metrics.StatsDSender;
@@ -19,7 +21,6 @@ import ru.hh.rabbitmq.spring.send.RabbitTemplateFactory;
 import static ru.hh.rabbitmq.spring.ConfigKeys.HOST;
 import static ru.hh.rabbitmq.spring.ConfigKeys.HOSTS;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_HOSTS;
-import static ru.hh.rabbitmq.spring.persistent.JacksonMessageConverter.JACKSON_CONVERTER_KEY;
 import static ru.hh.rabbitmq.spring.persistent.PersistentPublisherConfigKeys.DB_QUEUE_NAME_PROPERTY;
 import static ru.hh.rabbitmq.spring.persistent.PersistentPublisherConfigKeys.POLLING_INTERVAL_SEC_PROPERTY;
 import static ru.hh.rabbitmq.spring.persistent.PersistentPublisherConfigKeys.RETRY_DELAY_SEC_PROPERTY;
@@ -40,6 +41,8 @@ public class PersistentPublisherBuilder {
   private final String serviceName;
 
   private final RabbitTemplate rabbitTemplate;
+
+  private String converterKey = JacksonDbQueueConverter.INSTANCE.getKey();
 
   PersistentPublisherBuilder(DatabaseQueueService databaseQueueService, DatabaseQueueDao databaseQueueDao,
       PersistentPublisherRegistry persistentPublisherRegistry, String serviceName, String taskBaseUrl,
@@ -62,7 +65,7 @@ public class PersistentPublisherBuilder {
   public PersistentPublisher build() {
     MessageSender messageSender = new MessageSender(rabbitTemplate, serviceName, statsDSender);
     PersistentPublisher persistentPublisher = new PersistentPublisher(databaseQueueService, serviceName, taskBaseUrl,
-      databaseQueueName, publisherKey, JACKSON_CONVERTER_KEY,
+      databaseQueueName, publisherKey, converterKey,
       pollingInterval, messageSender) {
 
       private final Logger sendLogger = LoggerFactory.getLogger(PersistentPublisher.class + "." + publisherKey);
@@ -104,6 +107,22 @@ public class PersistentPublisherBuilder {
 
   public PersistentPublisherBuilder withReturnCallback(RabbitTemplate.ReturnCallback callback) {
     rabbitTemplate.setReturnCallback(callback);
+    return this;
+  }
+
+  public PersistentPublisherBuilder withJsonMessageConverter() {
+    Jackson2JsonMessageConverter converter = new Jackson2JsonMessageConverter();
+    return withMessageConverter(converter);
+  }
+
+  public PersistentPublisherBuilder withMessageConverter(MessageConverter messageConverter) {
+    rabbitTemplate.setMessageConverter(messageConverter);
+    return this;
+  }
+
+  public PersistentPublisherBuilder withDbQueueConverter(DbQueueConverter messageConverter) {
+    persistentPublisherRegistry.registerConverter(messageConverter.getKey(), messageConverter);
+    converterKey = messageConverter.getKey();
     return this;
   }
 

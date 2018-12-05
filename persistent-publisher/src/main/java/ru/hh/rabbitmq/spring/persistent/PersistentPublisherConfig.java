@@ -28,7 +28,9 @@ public class PersistentPublisherConfig {
 
   @Bean
   PersistentPublisherRegistry persistentPublisherRegistry() {
-    return new PersistentPublisherRegistry(new ConcurrentHashMap<>());
+    PersistentPublisherRegistry persistentPublisherRegistry = new PersistentPublisherRegistry(new ConcurrentHashMap<>(), new ConcurrentHashMap<>());
+    persistentPublisherRegistry.registerConverter(JacksonDbQueueConverter.INSTANCE.getKey(), JacksonDbQueueConverter.INSTANCE);
+    return persistentPublisherRegistry;
   }
 
   @Bean

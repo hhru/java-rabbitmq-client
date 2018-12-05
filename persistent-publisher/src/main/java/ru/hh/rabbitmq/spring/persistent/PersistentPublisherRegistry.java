@@ -1,20 +1,19 @@
 package ru.hh.rabbitmq.spring.persistent;
 
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Map;
 
 public class PersistentPublisherRegistry {
-  private final Map<String, MessageConverter> converters;
+  private final Map<String, DbQueueConverter> converters;
   private final Map<String, DatabaseQueueSender> senders;
 
-  public PersistentPublisherRegistry(Map<String, DatabaseQueueSender> senders) {
-    converters = Collections.singletonMap(JacksonMessageConverter.INSTANCE.getKey(), JacksonMessageConverter.INSTANCE);
+  public PersistentPublisherRegistry(Map<String, DatabaseQueueSender> senders, Map<String, DbQueueConverter> converters) {
+    this.converters = converters;
     this.senders = senders;
   }
 
-  public void registerConverter(String key, MessageConverter converter) {
-    MessageConverter previous = converters.put(key, converter);
+  public void registerConverter(String key, DbQueueConverter converter) {
+    DbQueueConverter previous = converters.put(key, converter);
     if (previous != null) {
       throw new IllegalStateException("Key " + key + "is not unique");
     }
@@ -27,7 +26,7 @@ public class PersistentPublisherRegistry {
     }
   }
 
-  public MessageConverter getMessageConverter(String key) {
+  public DbQueueConverter getMessageConverter(String key) {
     return converters.get(key);
   }
 

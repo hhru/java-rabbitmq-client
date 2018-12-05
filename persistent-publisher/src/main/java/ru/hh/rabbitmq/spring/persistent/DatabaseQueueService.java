@@ -165,8 +165,8 @@ public class DatabaseQueueService {
       String type = row.get(2, String.class);
       try {
         TargetedDestination destination = DESTINATION_CONVERTER.readValue(type, TargetedDestination.class);
-        MessageConverter messageConverter = persistentPublisherRegistry.getMessageConverter(destination.getConverterKey());
-        return new MessageEventContainer(id, destination, messageConverter, data);
+        DbQueueConverter dbQueueConverter = persistentPublisherRegistry.getMessageConverter(destination.getConverterKey());
+        return new MessageEventContainer(id, destination, dbQueueConverter, data);
       } catch (Exception e) {
         return sender.onConvertationException(e, id, data, type);
       }
@@ -186,10 +186,10 @@ public class DatabaseQueueService {
     private final Object message;
     private final TargetedDestination destination;
 
-    private MessageEventContainer(long id, TargetedDestination destination, MessageConverter messageConverter, String data) {
+    private MessageEventContainer(long id, TargetedDestination destination, DbQueueConverter dbQueueConverter, String data) {
       this.id = id;
       this.destination = destination;
-      message = messageConverter.convertFromDb(data, destination.getMsgClass());
+      message = dbQueueConverter.convertFromDb(data, destination.getMsgClass());
     }
 
     @Override
