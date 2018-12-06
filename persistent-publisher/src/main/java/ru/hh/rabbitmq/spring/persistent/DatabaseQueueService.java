@@ -68,7 +68,7 @@ public class DatabaseQueueService {
   public void sendBatch(String senderKey) {
     DatabaseQueueSender sender = persistentPublisherRegistry.getSender(senderKey);
     if (sender == null) {
-      LOGGER.error("Trying to send batch for {}, but no publisher found for the key", senderKey);
+      LOGGER.warn("Trying to send batch for {}, but no publisher found for the key", senderKey);
       return;
     }
     String queueName = sender.getDatabaseQueueName();
