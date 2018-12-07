@@ -3,7 +3,9 @@ package ru.hh.rabbitmq.spring.persistent;
 import java.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.amqp.rabbit.support.CorrelationData;
 import ru.hh.rabbitmq.spring.persistent.dto.TargetedDestination;
+import ru.hh.rabbitmq.spring.send.CorrelatedMessage;
 import ru.hh.rabbitmq.spring.send.Destination;
 import ru.hh.rabbitmq.spring.send.MessageSender;
 
@@ -39,11 +41,19 @@ public abstract class PersistentPublisher implements DatabaseQueueSender {
   }
 
   public void send(Object message) {
-    databaseQueueService.publish(databaseQueueName, message, TargetedDestination.build(null, message, converterKey, publisherKey));
+    send(message, null);
   }
 
   public void send(Object message, Destination destination) {
-    databaseQueueService.publish(databaseQueueName, message, TargetedDestination.build(destination, message, converterKey, publisherKey));
+    CorrelationData correlationData = null;
+    if (message instanceof CorrelatedMessage) {
+      CorrelatedMessage correlatedMessage = (CorrelatedMessage) message;
+      message = correlatedMessage.getMessage();
+      correlationData = correlatedMessage.getCorrelationData();
+    }
+    databaseQueueService.publish(databaseQueueName, message,
+      TargetedDestination.build(destination, message, correlationData, converterKey, publisherKey)
+    );
   }
 
   @Override

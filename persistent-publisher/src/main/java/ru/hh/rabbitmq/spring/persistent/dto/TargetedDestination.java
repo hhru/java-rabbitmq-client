@@ -4,7 +4,6 @@ import java.util.Objects;
 import java.util.Optional;
 import javax.annotation.Nullable;
 import org.springframework.amqp.rabbit.support.CorrelationData;
-import ru.hh.rabbitmq.spring.send.CorrelatedMessage;
 import ru.hh.rabbitmq.spring.send.Destination;
 
 public class TargetedDestination extends Destination {
@@ -24,16 +23,13 @@ public class TargetedDestination extends Destination {
     this.correlationData = correlationData;
   }
 
-  public static TargetedDestination build(@Nullable Destination destination, Object message, String converterKey, String templateKey) {
-    CorrelationData correlationData = null;
-    Class<?> messageClass = message.getClass();
-    if (CorrelatedMessage.class.equals(messageClass)) {
-      correlationData = ((CorrelatedMessage) message).getCorrelationData();
-    }
+  public static TargetedDestination build(@Nullable Destination destination,
+      Object message, @Nullable CorrelationData correlationData,  String converterKey,
+      String senderKey) {
     return new TargetedDestination(
       Optional.ofNullable(destination).map(Destination::getExchange).orElse(null),
       Optional.ofNullable(destination).map(Destination::getRoutingKey).orElse(null),
-      messageClass, converterKey, templateKey, correlationData);
+      message.getClass(), converterKey, senderKey, correlationData);
   }
 
   private TargetedDestination() {
