@@ -3,24 +3,18 @@ package ru.hh.rabbitmq.spring.persistent;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Duration;
+import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.ExecutionException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.transaction.annotation.Transactional;
-import ru.hh.hhinvoker.api.dto.TaskDto;
-import ru.hh.hhinvoker.api.enums.ScheduleType;
-import ru.hh.hhinvoker.client.InvokerClient;
 import ru.hh.rabbitmq.spring.persistent.dto.TargetedDestination;
-import ru.hh.rabbitmq.spring.persistent.http.EmptyHttpContext;
 import ru.hh.rabbitmq.spring.send.CorrelatedMessage;
 import ru.hh.rabbitmq.spring.send.MessageSender;
-import static java.lang.String.join;
 import static java.util.stream.Collectors.toList;
-import static ru.hh.rabbitmq.spring.persistent.PersistentPublisherResource.DATABASE_QUEUE_RABBIT_PUBLISH;
-import static ru.hh.rabbitmq.spring.persistent.PersistentPublisherResource.SENDER_KEY;
+import static ru.hh.rabbitmq.spring.persistent.PersistentPublisherConfigKeys.DB_QUEUE_CONSUMER_NAME_PROPERTY;
 
 public class DatabaseQueueService {
 
@@ -30,32 +24,10 @@ public class DatabaseQueueService {
 
   private final DatabaseQueueDao databaseQueueDao;
   private final PersistentPublisherRegistry persistentPublisherRegistry;
-  private final InvokerClient invokerClient;
-  private final EmptyHttpContext emptyHttpContext;
 
-  public DatabaseQueueService(DatabaseQueueDao databaseQueueDao, PersistentPublisherRegistry persistentPublisherRegistry,
-      InvokerClient invokerClient, EmptyHttpContext emptyHttpContext) {
+  public DatabaseQueueService(DatabaseQueueDao databaseQueueDao, PersistentPublisherRegistry persistentPublisherRegistry) {
     this.databaseQueueDao = databaseQueueDao;
     this.persistentPublisherRegistry = persistentPublisherRegistry;
-    this.invokerClient = invokerClient;
-    this.emptyHttpContext = emptyHttpContext;
-  }
-
-  @Transactional
-  public void registerHhInvokerJob(String senderKey, String consumerKey, String taskBaseUrl, Duration pollingInterval) {
-    String targetUrl = taskBaseUrl + DATABASE_QUEUE_RABBIT_PUBLISH + '?' + join("=", SENDER_KEY, senderKey);
-    TaskDto taskDto = new TaskDto(consumerKey, "job to publish rabbit messages from pgq", true,
-      ScheduleType.COUNTER_STARTS_AFTER_TASK_FINISH, pollingInterval.getSeconds(), targetUrl, false,
-      pollingInterval.getSeconds() / 2, pollingInterval.getSeconds());
-    try {
-      emptyHttpContext.executeAsServerRequest(() -> invokerClient.createOrUpdate(taskDto).get());
-      LOGGER.info("Regitered job for targetUrl={}", targetUrl);
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      LOGGER.warn("Thread was interrupted while trying to register hh-invoker job for consumer {}", consumerKey, e);
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
   }
 
   @Transactional
@@ -68,8 +40,10 @@ public class DatabaseQueueService {
   public void sendBatch(String senderKey) {
     DatabaseQueueSender sender = persistentPublisherRegistry.getSender(senderKey);
     if (sender == null) {
-      LOGGER.warn("Trying to send batch for {}, but no publisher found for the key", senderKey);
-      return;
+      throw new RuntimeException("Trying to send batch for " + senderKey + "but no publisher found for the key");
+    }
+    if (sender.getConsumerName() == null) {
+      throw new RuntimeException(DB_QUEUE_CONSUMER_NAME_PROPERTY + " is not configured to get events from DB for sender " + senderKey);
     }
     String queueName = sender.getDatabaseQueueName();
     Optional<Long> batchId = databaseQueueDao.getNextBatchId(queueName, sender.getConsumerName());
@@ -94,33 +68,6 @@ public class DatabaseQueueService {
     LOGGER.debug("Batch {} finished", batchId);
   }
 
-  @Transactional
-  public boolean registerConsumerIfPossible(String queueName, String consumerName) {
-    registerQueueIfPossible(queueName);
-    LOGGER.debug("Registering same name PGQ consumer for queue: {}", consumerName);
-    Integer result = databaseQueueDao.registerConsumer(queueName, consumerName);
-    boolean newRegistration = NEW_REGISTRATION == result;
-    if (newRegistration) {
-      LOGGER.info("PGQ consumer {} for queue {} registered successfully for the first time", consumerName, queueName);
-    } else {
-      LOGGER.info("PGQ consumer {} for queue {} was already registered", consumerName, queueName);
-    }
-    return newRegistration;
-  }
-
-  @Transactional
-  public boolean registerQueueIfPossible(String queueName) {
-    LOGGER.debug("Registering queue: {}", queueName);
-    Integer result = databaseQueueDao.registerQueue(queueName);
-    boolean newRegistration = NEW_REGISTRATION == result;
-    if (newRegistration) {
-      LOGGER.info("PGQ queue {} registered successfully for the first time", queueName);
-    } else {
-      LOGGER.info("PGQ queue {} was already registered", queueName);
-    }
-    return newRegistration;
-  }
-
   @Transactional(readOnly = true)
   public boolean isQueueRegistered(String queueName) {
     return databaseQueueDao.getQueueInfo(queueName).isPresent();
@@ -131,30 +78,38 @@ public class DatabaseQueueService {
     return databaseQueueDao.getConsumerInfo(consumerName).isPresent();
   }
 
-  public boolean isTaskRegistered(String consumerName) {
-    try {
-      return emptyHttpContext.executeAsServerRequest(() -> invokerClient.getTaskInfo(consumerName).get().isSuccess());
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      return false;
-    } catch (ExecutionException e) {
-      LOGGER.warn("Failed to check if all is registered", e);
-      return false;
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
-  }
-
   @Transactional(readOnly = true)
   public boolean isAllDbQueueToolsRegistered(String queueName, String consumerName) {
     return isQueueRegistered(queueName) && isConsumerRegistered(consumerName);
   }
 
-  public void retryEvent(long eventId, long batchId, Duration retryEventDelay) {
-    int result = databaseQueueDao.retryEvent(eventId, batchId, Math.toIntExact(retryEventDelay.getSeconds()));
+  @Transactional
+  public void retryEvent(DatabaseQueueSender databaseQueueSender, long eventId, long batchId, Duration retryEventDelay,
+      TargetedDestination destination, Object message) {
+    int result = databaseQueueDao.retryEvent(eventId, batchId, retryEventDelay.getSeconds());
     if (NEW_REGISTRATION != result) {
       LOGGER.error("Error scheduling event {} for retry", eventId);
+      logErrorIfErrorTablePresent(databaseQueueSender, eventId, toDb(destination),
+        persistentPublisherRegistry.getMessageConverter(destination.getConverterKey()).convertToDb(message)
+      );
     }
+  }
+
+  @Transactional
+  public void logErrorIfErrorTablePresent(DatabaseQueueSender databaseQueueSender, long eventId, String destination, String message) {
+    if (!databaseQueueSender.getErrorTableName().isPresent()) {
+      LOGGER.warn("Error processing event {} by consumer {} in queue {}. " +
+        "Table for saving error data is not set, so dropping event", eventId, databaseQueueSender.getConsumerName(),
+        databaseQueueSender.getDatabaseQueueName()
+      );
+      return;
+    }
+    String errorTableName = databaseQueueSender.getErrorTableName().get();
+    LOGGER.error("Saving event {} in error table {}", eventId, errorTableName);
+    databaseQueueDao.saveError(errorTableName, ZonedDateTime.now(), eventId,
+      databaseQueueSender.getDatabaseQueueName(),
+      databaseQueueSender.getConsumerName(),
+      destination, message);
   }
 
   private List<MessageEventContainer> getNextBatchEvents(long batchId, DatabaseQueueSender sender) {

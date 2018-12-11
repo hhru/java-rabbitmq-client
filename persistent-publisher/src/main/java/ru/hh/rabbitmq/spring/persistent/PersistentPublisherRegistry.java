@@ -2,20 +2,21 @@ package ru.hh.rabbitmq.spring.persistent;
 
 import java.util.Collection;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class PersistentPublisherRegistry {
   private final Map<String, DbQueueConverter> converters;
   private final Map<String, DatabaseQueueSender> senders;
 
-  public PersistentPublisherRegistry(Map<String, DatabaseQueueSender> senders, Map<String, DbQueueConverter> converters) {
-    this.converters = converters;
-    this.senders = senders;
+  public PersistentPublisherRegistry() {
+    this.converters = new ConcurrentHashMap<>();
+    this.senders = new ConcurrentHashMap<>();
   }
 
-  public void registerConverter(String key, DbQueueConverter converter) {
-    DbQueueConverter previous = converters.put(key, converter);
+  public void registerConverter(DbQueueConverter converter) {
+    DbQueueConverter previous = converters.put(converter.getKey(), converter);
     if (previous != null) {
-      throw new IllegalStateException("Key " + key + "is not unique");
+      throw new IllegalStateException("Key " + converter.getKey() + "is not unique");
     }
   }
 

@@ -1,9 +1,8 @@
 package ru.hh.rabbitmq.spring.persistent;
 
+import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Optional;
-import javax.persistence.ParameterMode;
-import javax.persistence.StoredProcedureQuery;
 import javax.persistence.Tuple;
 import org.hibernate.SessionFactory;
 import org.hibernate.type.IntegerType;
@@ -24,26 +23,6 @@ public class DatabaseQueueDao {
       .setParameter("destination", type)
       .setParameter("message", data).getSingleResult();
     return ((Number) eventId).longValue();
-  }
-
-  public Integer registerQueue(String queueName) {
-    StoredProcedureQuery storedProcedureQuery = sessionFactory.getCurrentSession().createStoredProcedureQuery("pgq.create_queue")
-      .registerStoredProcedureParameter("queueName", String.class, ParameterMode.IN)
-      .registerStoredProcedureParameter("result", int.class, ParameterMode.OUT)
-      .setParameter("queueName", queueName);
-    storedProcedureQuery.execute();
-    return (Integer) storedProcedureQuery.getOutputParameterValue("result");
-  }
-
-  public Integer registerConsumer(String queueName, String consumerName) {
-    StoredProcedureQuery storedProcedureQuery = sessionFactory.getCurrentSession().createStoredProcedureQuery("pgq.register_consumer")
-      .registerStoredProcedureParameter("queueName", String.class, ParameterMode.IN)
-      .registerStoredProcedureParameter("consumerName", String.class, ParameterMode.IN)
-      .registerStoredProcedureParameter("result", int.class, ParameterMode.OUT)
-      .setParameter("queueName", queueName)
-      .setParameter("consumerName", consumerName);
-    storedProcedureQuery.execute();
-    return (Integer) storedProcedureQuery.getOutputParameterValue("result");
   }
 
   @SuppressWarnings("unchecked")
@@ -79,11 +58,25 @@ public class DatabaseQueueDao {
       .getResultList();
   }
 
-  public int retryEvent(long eventId, long batchId, int retryEventDelaySec) {
+  public int retryEvent(long eventId, long batchId, long retryEventDelaySec) {
     return ((Number)sessionFactory.getCurrentSession()
       .createNativeQuery("SELECT * FROM pgq.event_retry(:batchId, :eventId, :retryEventSec)")
       .setParameter("batchId", batchId, LongType.INSTANCE)
       .setParameter("eventId", eventId, LongType.INSTANCE)
       .setParameter("retryEventSec", retryEventDelaySec, IntegerType.INSTANCE).getSingleResult()).intValue();
+  }
+
+  public void saveError(String tableName, ZonedDateTime timestamp, long eventId, String queueName, String consumerName,
+      String destinationContent, String msgContent) {
+    sessionFactory.getCurrentSession().createNativeQuery("INSERT INTO " + tableName + "(event_id, log_date, " +
+      "queue_name, consumer_name, " +
+      "destination_content, message_content) VALUES (:eventId, :logDate, :queueName, :consumerName, :destinationContent, :msgContent)")
+      .setParameter("eventId", eventId)
+      .setParameter("logDate", timestamp)
+      .setParameter("queueName", queueName)
+      .setParameter("consumerName", consumerName)
+      .setParameter("destinationContent", destinationContent)
+      .setParameter("msgContent", msgContent)
+      .executeUpdate();
   }
 }
