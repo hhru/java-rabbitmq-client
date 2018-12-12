@@ -81,17 +81,6 @@ public class PersistentPublisherBuilder {
     return this;
   }
 
-  public PersistentPublisherBuilder withDbQueueConverter(String messageConverterKey) {
-    converterKey = messageConverterKey;
-    return this;
-  }
-
-  public PersistentPublisherBuilder withDbQueueConverter(DbQueueConverter messageConverter) {
-    persistentPublisherRegistry.registerConverter(messageConverter);
-    converterKey = messageConverter.getKey();
-    return this;
-  }
-
   private RabbitTemplate createRabbitTemplate() {
     ConnectionsFactory connectionsFactory = new ConnectionsFactory(publisherFileSettings.getProperties());
     List<ConnectionFactory> connectionFactories = connectionsFactory.createConnectionFactories(true, PUBLISHER_HOSTS, HOSTS, HOST);

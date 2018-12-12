@@ -1,6 +1,5 @@
 package ru.hh.rabbitmq.spring.persistent;
 
-import java.util.Collection;
 import java.util.Optional;
 import org.hibernate.SessionFactory;
 import org.springframework.context.annotation.Bean;
@@ -17,15 +16,8 @@ public class PersistentPublisherConfig {
   }
 
   @Bean
-  JacksonDbQueueConverter jacksonDbQueueConverter() {
-    return JacksonDbQueueConverter.INSTANCE;
-  }
-
-  @Bean
-  PersistentPublisherRegistry persistentPublisherRegistry(Collection<DbQueueConverter> converters) {
-    PersistentPublisherRegistry persistentPublisherRegistry = new PersistentPublisherRegistry();
-    converters.forEach(persistentPublisherRegistry::registerConverter);
-    return persistentPublisherRegistry;
+  PersistentPublisherRegistry persistentPublisherRegistry() {
+    return new PersistentPublisherRegistry();
   }
 
   @Bean
@@ -34,8 +26,9 @@ public class PersistentPublisherConfig {
   }
 
   @Bean
-  PersistentPublisherBuilderFactory persistentPublisherBuilder(DatabaseQueueDao databaseQueueDao, DatabaseQueueService databaseQueueService,
-      PersistentPublisherRegistry persistentPublisherRegistry, FileSettings settings, String serviceName, Optional<StatsDSender> statsDSender) {
+  PersistentPublisherBuilderFactory persistentPublisherBuilder(DatabaseQueueService databaseQueueService,
+      PersistentPublisherRegistry persistentPublisherRegistry, FileSettings settings,
+      String serviceName, Optional<StatsDSender> statsDSender) {
 
     return new PersistentPublisherBuilderFactory(databaseQueueService, persistentPublisherRegistry, settings,
       statsDSender.orElse(null), serviceName);
