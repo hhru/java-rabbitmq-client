@@ -1,6 +1,6 @@
 package ru.hh.rabbitmq.spring.persistent;
 
-import java.time.ZonedDateTime;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import javax.persistence.Tuple;
@@ -66,7 +66,7 @@ public class DatabaseQueueDao {
       .setParameter("retryEventSec", retryEventDelaySec, IntegerType.INSTANCE).getSingleResult()).intValue();
   }
 
-  public void saveError(String tableName, ZonedDateTime timestamp, long eventId, String queueName, String consumerName,
+  public void saveError(String tableName, LocalDateTime timestamp, long eventId, String queueName, String consumerName,
       String destinationContent, String msgContent) {
     sessionFactory.getCurrentSession().createNativeQuery("INSERT INTO " + tableName + "(event_id, log_date, " +
       "queue_name, consumer_name, " +

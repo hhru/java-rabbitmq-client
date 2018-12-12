@@ -3,7 +3,7 @@ package ru.hh.rabbitmq.spring.persistent;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Duration;
-import java.time.ZonedDateTime;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -106,7 +106,7 @@ public class DatabaseQueueService {
     }
     String errorTableName = databaseQueueSender.getErrorTableName().get();
     LOGGER.error("Saving event {} in error table {}", eventId, errorTableName);
-    databaseQueueDao.saveError(errorTableName, ZonedDateTime.now(), eventId,
+    databaseQueueDao.saveError(errorTableName, LocalDateTime.now(), eventId,
       databaseQueueSender.getDatabaseQueueName(),
       databaseQueueSender.getConsumerName(),
       destination, message);
