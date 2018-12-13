@@ -47,7 +47,11 @@ public class DatabaseQueueService {
     String queueName = sender.getDatabaseQueueName();
     Optional<Long> batchId;
     int i = 0;
-    while((batchId = databaseQueueDao.getNextBatchId(queueName, sender.getConsumerName())).isPresent() && i < batchProcessingLimit) {
+    while(i < batchProcessingLimit) {
+      batchId = databaseQueueDao.getNextBatchId(queueName, sender.getConsumerName());
+      if (!batchId.isPresent()) {
+        return;
+      }
       Long batchIdValue = batchId.get();
       List<MessageEventContainer> events = getNextBatchEvents(batchIdValue, sender);
       events.forEach(messageEventContainer -> {
