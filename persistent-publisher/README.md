@@ -52,5 +52,5 @@
     persistentPublisherBuilderFactory.createPublisherBuilder("updateTopicsVisibilityRequest")
     ```
 8. Создать крон для отправки сообщений, который вызывает `ru.hh.rabbitmq.spring.persistent.DatabaseQueueService.sendBatch`
-> Крон лучше делать на hh-invoker, т.к. один и тот же консюмер не должен читать конкурентно.  
+> Крон лучше делать на [hh-invoker](https://github.com/hhru/hh-invoker), т.к. один и тот же консюмер не должен читать конкурентно.  
 Ну или на каждый инстанс заводить отдельного консюмера))
