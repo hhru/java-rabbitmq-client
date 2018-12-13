@@ -36,7 +36,7 @@ public class DatabaseQueueService {
   }
 
   @Transactional
-  public void sendBatch(String senderKey) {
+  public void sendBatch(String senderKey, int batchProcessingLimit) {
     DatabaseQueueSender sender = persistentPublisherRegistry.getSender(senderKey);
     if (sender == null) {
       throw new RuntimeException("Trying to send batch for " + senderKey + "but no publisher found for the key");
@@ -45,41 +45,27 @@ public class DatabaseQueueService {
       throw new RuntimeException(DB_QUEUE_CONSUMER_NAME_PROPERTY + " is not configured to get events from DB for sender " + senderKey);
     }
     String queueName = sender.getDatabaseQueueName();
-    Optional<Long> batchId = databaseQueueDao.getNextBatchId(queueName, sender.getConsumerName());
-    if (!batchId.isPresent()) {
-      LOGGER.info("No batchId is available. Just wait for next iteration");
-      return;
+    Optional<Long> batchId;
+    int i = 0;
+    while((batchId = databaseQueueDao.getNextBatchId(queueName, sender.getConsumerName())).isPresent() && i < batchProcessingLimit) {
+      Long batchIdValue = batchId.get();
+      List<MessageEventContainer> events = getNextBatchEvents(batchIdValue, sender);
+      events.forEach(messageEventContainer -> {
+        TargetedDestination destination = messageEventContainer.getDestination();
+        try {
+          Object message = Optional.ofNullable(destination.getCorrelationData())
+            .map(correlationData -> (Object) new CorrelatedMessage(correlationData, messageEventContainer.getMessage()))
+            .orElseGet(messageEventContainer::getMessage);
+          MessageSender messageSender = persistentPublisherRegistry.getSender(destination.getSenderKey()).getMessageSender();
+          messageSender.publishMessage(message, destination);
+        } catch (Exception e) {
+          sender.onAmpqException(e, messageEventContainer.getId(), batchIdValue, destination, messageEventContainer.getMessage());
+        }
+      });
+      databaseQueueDao.finishBatch(batchIdValue);
+      LOGGER.debug("Batch {} finished", batchIdValue);
+      i++;
     }
-    List<MessageEventContainer> events = getNextBatchEvents(batchId.get(), sender);
-    events.forEach(messageEventContainer -> {
-      TargetedDestination destination = messageEventContainer.getDestination();
-      try {
-        Object message = Optional.ofNullable(destination.getCorrelationData())
-          .map(correlationData -> (Object) new CorrelatedMessage(correlationData, messageEventContainer.getMessage()))
-          .orElseGet(messageEventContainer::getMessage);
-        MessageSender messageSender = persistentPublisherRegistry.getSender(destination.getSenderKey()).getMessageSender();
-        messageSender.publishMessage(message, destination);
-      } catch (Exception e) {
-        sender.onAmpqException(e, messageEventContainer.getId(), batchId.get(), destination, messageEventContainer.getMessage());
-      }
-    });
-    databaseQueueDao.finishBatch(batchId.get());
-    LOGGER.debug("Batch {} finished", batchId);
-  }
-
-  @Transactional(readOnly = true)
-  public boolean isQueueRegistered(String queueName) {
-    return databaseQueueDao.getQueueInfo(queueName).isPresent();
-  }
-
-  @Transactional(readOnly = true)
-  public boolean isConsumerRegistered(String consumerName) {
-    return databaseQueueDao.getConsumerInfo(consumerName).isPresent();
-  }
-
-  @Transactional(readOnly = true)
-  public boolean isAllDbQueueToolsRegistered(String queueName, String consumerName) {
-    return isQueueRegistered(queueName) && isConsumerRegistered(consumerName);
   }
 
   @Transactional

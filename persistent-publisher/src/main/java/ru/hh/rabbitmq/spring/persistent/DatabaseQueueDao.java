@@ -25,17 +25,17 @@ public class DatabaseQueueDao {
     return ((Number) eventId).longValue();
   }
 
-  @SuppressWarnings("unchecked")
-  public Optional<String> getQueueInfo(String queueName) {
-    return sessionFactory.getCurrentSession().createNativeQuery("SELECT queue_name FROM pgq.get_queue_info(:queueName)")
+  public Optional<Long> getQueueLastTick(String queueName) {
+    Optional<?> lastTick = sessionFactory.getCurrentSession().createNativeQuery("SELECT last_tick_id FROM pgq.get_queue_info(:queueName)")
       .setParameter("queueName", queueName).uniqueResultOptional();
+    return lastTick.map(id -> ((Number) id).longValue());
   }
 
-  @SuppressWarnings("unchecked")
-  public Optional<String> getConsumerInfo(String consumerName) {
-    return sessionFactory.getCurrentSession()
-      .createNativeQuery("SELECT consumer_name FROM pgq.get_consumer_info(:consumerName)")
+  public Optional<Long> getConsumerLastTick(String consumerName) {
+    Optional<?> lastTick = sessionFactory.getCurrentSession()
+      .createNativeQuery("SELECT last_tick FROM pgq.get_consumer_info(:consumerName)")
       .setParameter("consumerName", consumerName).uniqueResultOptional();
+    return lastTick.map(id -> ((Number) id).longValue());
   }
 
   public Optional<Long> getNextBatchId(String queueName, String consumerName) {
