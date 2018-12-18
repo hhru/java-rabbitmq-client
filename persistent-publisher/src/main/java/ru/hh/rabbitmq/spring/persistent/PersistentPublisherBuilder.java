@@ -32,7 +32,8 @@ public class PersistentPublisherBuilder {
 
   private final RabbitTemplate rabbitTemplate;
 
-  private String converterKey = JacksonDbQueueConverter.INSTANCE.getKey();
+  private DbQueueProcessor mainDbQueueProcessor;
+  private DbQueueProcessor[] additionalQueueConverters = new DbQueueProcessor[0];
 
   PersistentPublisherBuilder(DatabaseQueueService databaseQueueService, PersistentPublisherRegistry persistentPublisherRegistry,
       String serviceName, String publisherKey, FileSettings publisherFileSettings, StatsDSender statsDSender) {
@@ -55,8 +56,7 @@ public class PersistentPublisherBuilder {
     String databaseQueueConsumerName = publisherFileSettings.getString(DB_QUEUE_CONSUMER_NAME_PROPERTY);
     PersistentPublisher persistentPublisher = new PersistentPublisher(databaseQueueService,
       databaseQueueName, databaseQueueConsumerName, errorTableName,
-      publisherKey, converterKey,
-      retryDelay, messageSender);
+      publisherKey, retryDelay, messageSender, mainDbQueueProcessor, additionalQueueConverters);
     persistentPublisherRegistry.registerSender(publisherKey, persistentPublisher);
     return persistentPublisher;
   }
@@ -78,6 +78,16 @@ public class PersistentPublisherBuilder {
 
   public PersistentPublisherBuilder withMessageConverter(MessageConverter messageConverter) {
     rabbitTemplate.setMessageConverter(messageConverter);
+    return this;
+  }
+
+  public PersistentPublisherBuilder withMainDbQueueProcessor(DbQueueProcessor dbQueueProcessor) {
+    mainDbQueueProcessor = dbQueueProcessor;
+    return this;
+  }
+
+  public PersistentPublisherBuilder withAdditionalDbQueueProcessors(DbQueueProcessor... dbQueueProcessors) {
+    additionalQueueConverters = dbQueueProcessors;
     return this;
   }
 

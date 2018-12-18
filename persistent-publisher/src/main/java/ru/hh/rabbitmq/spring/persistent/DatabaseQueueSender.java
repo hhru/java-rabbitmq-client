@@ -10,6 +10,7 @@ public interface DatabaseQueueSender {
   Optional<String> getErrorTableName();
   String getConsumerName();
   MessageSender getMessageSender();
+  DbQueueProcessor getConverter(String converterKey);
   void onAmpqException(Exception e, long eventId, long batchId, TargetedDestination destination, Object message);
   @Nullable
   <T> T onConvertationException(Exception e, long eventId, String destinationContent, String messageContent);

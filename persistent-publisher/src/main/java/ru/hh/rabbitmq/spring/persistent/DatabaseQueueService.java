@@ -32,7 +32,7 @@ public class DatabaseQueueService {
 
   @Transactional
   public Long publish(String queueName, Object message, TargetedDestination destination) {
-    return databaseQueueDao.publish(queueName, toDb(destination), JacksonDbQueueConverter.INSTANCE.convertToDb(message));
+    return databaseQueueDao.publish(queueName, toDb(destination), JacksonDbQueueProcessor.INSTANCE.convertToDb(message));
   }
 
   @Transactional
@@ -79,7 +79,7 @@ public class DatabaseQueueService {
     if (NEW_REGISTRATION != result) {
       LOGGER.error("Error scheduling event {} for retry", eventId);
       logErrorIfErrorTablePresent(databaseQueueSender, eventId, toDb(destination),
-        JacksonDbQueueConverter.INSTANCE.convertToDb(message)
+        JacksonDbQueueProcessor.INSTANCE.convertToDb(message)
       );
     }
   }
@@ -109,7 +109,7 @@ public class DatabaseQueueService {
       String type = row.get(2, String.class);
       try {
         TargetedDestination destination = DESTINATION_CONVERTER.readValue(type, TargetedDestination.class);
-        return new MessageEventContainer(id, destination, JacksonDbQueueConverter.INSTANCE, data);
+        return new MessageEventContainer(id, destination, sender.getConverter(destination.getConverterKey()), data);
       } catch (Exception e) {
         return sender.onConvertationException(e, id, data, type);
       }
@@ -129,10 +129,10 @@ public class DatabaseQueueService {
     private final Object message;
     private final TargetedDestination destination;
 
-    private MessageEventContainer(long id, TargetedDestination destination, DbQueueConverter dbQueueConverter, String data) {
+    private MessageEventContainer(long id, TargetedDestination destination, DbQueueProcessor dbQueueProcessor, String data) {
       this.id = id;
       this.destination = destination;
-      message = dbQueueConverter.convertFromDb(data, destination.getMsgClass());
+      message = dbQueueProcessor.convertFromDb(data, destination.getMsgClass());
     }
 
     @Override

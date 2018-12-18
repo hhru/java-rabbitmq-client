@@ -4,15 +4,15 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 
-public final class JacksonDbQueueConverter implements DbQueueConverter {
+public final class JacksonDbQueueProcessor implements DbQueueProcessor {
 
   private static final String JACKSON_CONVERTER_KEY = "JacksonMessageConverter";
 
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
-  public static final JacksonDbQueueConverter INSTANCE = new JacksonDbQueueConverter();
+  public static final JacksonDbQueueProcessor INSTANCE = new JacksonDbQueueProcessor();
 
-  private JacksonDbQueueConverter() {
+  private JacksonDbQueueProcessor() {
   }
 
   @Override
