@@ -9,6 +9,11 @@ import java.util.regex.Pattern;
 public interface ConfigKeys {
 
   /**
+   * If connections is used more than {@link #RECREATE_CONNECTION_INTERVAL_MINUTES} - connection needs to be reopen. It helps to keep balancing
+   */
+  String RECREATE_CONNECTION_INTERVAL_MINUTES = "connection.recreate.interval.mins";
+
+  /**
    * Port for {@link #HOST} or {@link #HOSTS} (if it does not include it specifically).
    */
   String PORT = "port";

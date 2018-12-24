@@ -1,6 +1,8 @@
 package ru.hh.rabbitmq.spring;
 
+import java.time.Duration;
 import java.util.List;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.stream.Stream;
 import org.springframework.amqp.rabbit.connection.CachingConnectionFactory;
@@ -19,6 +21,7 @@ import static ru.hh.rabbitmq.spring.ConfigKeys.PASSWORD;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PORT;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_CONFIRMS;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_RETURNS;
+import static ru.hh.rabbitmq.spring.ConfigKeys.RECREATE_CONNECTION_INTERVAL_MINUTES;
 import static ru.hh.rabbitmq.spring.ConfigKeys.TOPOLOGY_RECOVERY;
 import static ru.hh.rabbitmq.spring.ConfigKeys.USERNAME;
 import static ru.hh.rabbitmq.spring.ConfigKeys.VIRTUALHOST;
@@ -73,7 +76,9 @@ public class ConnectionsFactory {
 
   private static ConnectionFactory createConnectionFactory(PropertiesHelper properties, String host, Integer port) {
     try {
-      com.rabbitmq.client.ConnectionFactory rabbitConnectionFactory = new com.rabbitmq.client.ConnectionFactory();
+      com.rabbitmq.client.ConnectionFactory rabbitConnectionFactory = new ClosingTooOldConnectionFactory(
+        Duration.ofMinutes(properties.getLong(RECREATE_CONNECTION_INTERVAL_MINUTES, 2L))
+      );
       rabbitConnectionFactory.load(properties.getProperties());
       rabbitConnectionFactory.setAutomaticRecoveryEnabled(properties.getBoolean(AUTOMATIC_RECOVERY, false));
       rabbitConnectionFactory.setTopologyRecoveryEnabled(properties.getBoolean(TOPOLOGY_RECOVERY, false));
