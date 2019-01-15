@@ -68,6 +68,9 @@ public class DatabaseQueueService {
       });
       databaseQueueDao.finishBatch(batchIdValue);
       LOGGER.debug("Batch {} finished", batchIdValue);
+      if (!events.isEmpty()) {
+        return;
+      }
       i++;
     }
   }
