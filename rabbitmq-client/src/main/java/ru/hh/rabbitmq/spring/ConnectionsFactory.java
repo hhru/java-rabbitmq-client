@@ -2,7 +2,6 @@ package ru.hh.rabbitmq.spring;
 
 import java.time.Duration;
 import java.util.List;
-import java.util.Optional;
 import java.util.Properties;
 import java.util.stream.Stream;
 import org.springframework.amqp.rabbit.connection.CachingConnectionFactory;
@@ -76,7 +75,7 @@ public class ConnectionsFactory {
 
   private static ConnectionFactory createConnectionFactory(PropertiesHelper properties, String host, Integer port) {
     try {
-      com.rabbitmq.client.ConnectionFactory rabbitConnectionFactory = new ClosingTooOldConnectionFactory(
+      com.rabbitmq.client.ConnectionFactory rabbitConnectionFactory = new RefreshingConnectionFactory(
         Duration.ofMinutes(properties.getLong(RECREATE_CONNECTION_INTERVAL_MINUTES, 2L))
       );
       rabbitConnectionFactory.load(properties.getProperties());
