@@ -101,4 +101,9 @@ public class PersistentPublisher implements DatabaseQueueSender {
     databaseQueueService.logErrorIfErrorTablePresent(this, eventId, destinationContent, messageContent);
     return null;
   }
+
+  @Override
+  public Duration getRetryDuration() {
+    return retryDelay;
+  }
 }
