@@ -7,6 +7,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import javax.persistence.Tuple;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,7 +37,7 @@ public class DatabaseQueueService {
   }
 
   @Transactional
-  public void sendBatch(String senderKey, int batchProcessingLimit) {
+  public void sendBatch(String senderKey, int maxEventsPerBatchToProcess, int maxBatchesToProcessInTx, boolean multiBatchOnlyForEmptyBatches) {
     DatabaseQueueSender sender = persistentPublisherRegistry.getSender(senderKey);
     if (sender == null) {
       throw new RuntimeException("Trying to send batch for " + senderKey + "but no publisher found for the key");
@@ -47,13 +48,13 @@ public class DatabaseQueueService {
     String queueName = sender.getDatabaseQueueName();
     Optional<Long> batchId;
     int i = 0;
-    while(i < batchProcessingLimit) {
+    while(i < maxBatchesToProcessInTx) {
       batchId = databaseQueueDao.getNextBatchId(queueName, sender.getConsumerName());
       if (!batchId.isPresent()) {
         return;
       }
       Long batchIdValue = batchId.get();
-      List<MessageEventContainer> events = getNextBatchEvents(batchIdValue, sender);
+      List<MessageEventContainer> events = getNextBatchEvents(batchIdValue, sender, maxEventsPerBatchToProcess);
       events.forEach(messageEventContainer -> {
         TargetedDestination destination = messageEventContainer.getDestination();
         try {
@@ -68,11 +69,12 @@ public class DatabaseQueueService {
       });
       databaseQueueDao.finishBatch(batchIdValue);
       LOGGER.debug("Batch {} finished", batchIdValue);
-      if (!events.isEmpty()) {
+      if (multiBatchOnlyForEmptyBatches && !events.isEmpty()) {
         return;
       }
       i++;
     }
+    LOGGER.info("Processed {} batches", i);
   }
 
   @Transactional
@@ -104,19 +106,30 @@ public class DatabaseQueueService {
       destination, message);
   }
 
-  private List<MessageEventContainer> getNextBatchEvents(long batchId, DatabaseQueueSender sender) {
+  private List<MessageEventContainer> getNextBatchEvents(long batchId, DatabaseQueueSender sender, int maxEventsToProcess) {
     LOGGER.debug("Getting next events batch for ID {}", batchId);
-    return databaseQueueDao.getNextBatchEvents(batchId).stream().map(row -> {
-      long id = row.get(0, Number.class).longValue();
-      String data = row.get(1, String.class);
-      String type = row.get(2, String.class);
+    List<Tuple> currentBatch = databaseQueueDao.getNextBatchEvents(batchId);
+    List<MessageEventContainer> readyToSend = currentBatch.stream().limit(maxEventsToProcess).map(event -> {
+      long eventId = event.get(0, Number.class).longValue();
+      String data = event.get(1, String.class);
+      String type = event.get(2, String.class);
       try {
         TargetedDestination destination = DESTINATION_CONVERTER.readValue(type, TargetedDestination.class);
-        return new MessageEventContainer(id, destination, sender.getConverter(destination.getConverterKey()), data);
+        return new MessageEventContainer(eventId, destination, sender.getConverter(destination.getConverterKey()), data);
       } catch (Exception e) {
-        return sender.onConvertationException(e, id, data, type);
+        return sender.onConvertationException(e, eventId, data, type);
       }
     }).filter(Objects::nonNull).collect(toList());
+
+    int size = currentBatch.size();
+    if (size > maxEventsToProcess) {
+      LOGGER.warn("In batch {} we have {} events and limit={}, the rest will be retried", batchId, size, maxEventsToProcess);
+      currentBatch.subList(maxEventsToProcess, size).forEach(event -> {
+        long eventId = event.get(0, Number.class).longValue();
+        databaseQueueDao.retryEvent(eventId, batchId, sender.getRetryDuration().getSeconds());
+      });
+    }
+    return readyToSend;
   }
 
   private static String toDb(TargetedDestination destination) {

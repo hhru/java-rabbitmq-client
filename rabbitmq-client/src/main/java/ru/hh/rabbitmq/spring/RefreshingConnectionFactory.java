@@ -205,5 +205,10 @@ public class RefreshingConnectionFactory extends ConnectionFactory {
     public void notifyListeners() {
       delegate.notifyListeners();
     }
+
+    @Override
+    public String toString() {
+      return "ClosingProxy{delegate=" + delegate + ", creationTimestamp=" + creationTimestamp + ", maxAgeMillis=" + maxAgeMillis + '}';
+    }
   }
 }
