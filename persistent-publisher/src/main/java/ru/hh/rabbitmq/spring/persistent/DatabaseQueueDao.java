@@ -63,7 +63,7 @@ public class DatabaseQueueDao {
       .createNativeQuery("SELECT * FROM pgq.event_retry(:batchId, :eventId, :retryEventSec)")
       .setParameter("batchId", batchId, LongType.INSTANCE)
       .setParameter("eventId", eventId, LongType.INSTANCE)
-      .setParameter("retryEventSec", retryEventDelaySec, IntegerType.INSTANCE).getSingleResult()).intValue();
+      .setParameter("retryEventSec", Math.toIntExact(retryEventDelaySec), IntegerType.INSTANCE).getSingleResult()).intValue();
   }
 
   public void saveError(String tableName, LocalDateTime timestamp, long eventId, String queueName, String consumerName,
