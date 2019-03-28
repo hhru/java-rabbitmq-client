@@ -6,9 +6,9 @@ import javax.annotation.Nullable;
 import org.springframework.amqp.AmqpException;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.amqp.rabbit.support.CorrelationData;
-import ru.hh.metrics.Counters;
-import ru.hh.metrics.StatsDSender;
-import ru.hh.metrics.Tag;
+import ru.hh.nab.metrics.Counters;
+import ru.hh.nab.metrics.StatsDSender;
+import ru.hh.nab.metrics.Tag;
 
 public class MessageSender {
   private final RabbitTemplate template;
@@ -25,10 +25,13 @@ public class MessageSender {
     this.template = template;
     if (statsDSender != null) {
       publishedCounters = new Counters(20);
-      statsDSender.sendCountersPeriodically(serviceName + ".rabbit.publishers.messages", publishedCounters);
-
       errorsCounters = new Counters(20);
-      statsDSender.sendCountersPeriodically(serviceName + ".rabbit.publishers.errors", errorsCounters);
+
+      statsDSender.sendPeriodically(() -> {
+        statsDSender.sendCounters(serviceName + ".rabbit.publishers.messages", publishedCounters);
+        statsDSender.sendCounters(serviceName + ".rabbit.publishers.errors", errorsCounters);
+      });
+
     } else {
       publishedCounters = null;
       errorsCounters = null;

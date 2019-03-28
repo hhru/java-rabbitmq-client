@@ -1,6 +1,6 @@
 package ru.hh.rabbitmq.spring.persistent;
 
-import ru.hh.metrics.StatsDSender;
+import ru.hh.nab.metrics.StatsDSender;
 import ru.hh.nab.common.properties.FileSettings;
 import static ru.hh.rabbitmq.spring.persistent.PersistentPublisherConfigKeys.PERSISTENT_PUBLISHER_PREFIX;
 

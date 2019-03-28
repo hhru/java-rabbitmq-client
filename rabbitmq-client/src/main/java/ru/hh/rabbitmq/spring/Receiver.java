@@ -27,9 +27,9 @@ import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.amqp.support.converter.SimpleMessageConverter;
 import org.springframework.util.ErrorHandler;
-import ru.hh.metrics.Counters;
-import ru.hh.metrics.StatsDSender;
-import ru.hh.metrics.Tag;
+import ru.hh.nab.metrics.Counters;
+import ru.hh.nab.metrics.StatsDSender;
+import ru.hh.nab.metrics.Tag;
 import static ru.hh.rabbitmq.spring.ConfigKeys.RECEIVER_NAME;
 import static ru.hh.rabbitmq.spring.ConfigKeys.RECEIVER_PREFETCH_COUNT;
 import static ru.hh.rabbitmq.spring.ConfigKeys.RECEIVER_QUEUES;
@@ -112,7 +112,7 @@ public class Receiver {
 
     if (statsDSender != null) {
       receiverCounters = new Counters(20);
-      statsDSender.sendCountersPeriodically(serviceName + ".rabbit.receivers.messages", receiverCounters);
+      statsDSender.sendPeriodically(() -> statsDSender.sendCounters(serviceName + ".rabbit.receivers.messages", receiverCounters));
     }
   }
 
