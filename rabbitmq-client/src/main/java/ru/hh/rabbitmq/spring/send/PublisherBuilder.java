@@ -7,7 +7,7 @@ import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate.ConfirmCallback;
 import org.springframework.amqp.rabbit.core.RabbitTemplate.ReturnCallback;
 import org.springframework.amqp.support.converter.MessageConverter;
-import ru.hh.metrics.StatsDSender;
+import ru.hh.nab.metrics.StatsDSender;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_INNER_QUEUE_SHUTDOWN_MS;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_INNER_QUEUE_SIZE;
 import static ru.hh.rabbitmq.spring.ConfigKeys.PUBLISHER_RETRY_DELAY_MS;

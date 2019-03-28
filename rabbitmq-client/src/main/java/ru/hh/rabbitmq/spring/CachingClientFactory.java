@@ -5,7 +5,7 @@ import java.util.List;
 import java.util.Properties;
 import javax.annotation.Nullable;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
-import ru.hh.metrics.StatsDSender;
+import ru.hh.nab.metrics.StatsDSender;
 import ru.hh.rabbitmq.spring.send.PublisherBuilder;
 import ru.hh.rabbitmq.spring.send.SyncPublisherBuilder;
 import static ru.hh.rabbitmq.spring.ConfigKeys.HOST;

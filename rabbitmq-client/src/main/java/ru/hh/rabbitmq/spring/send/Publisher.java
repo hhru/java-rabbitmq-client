@@ -25,7 +25,7 @@ import org.slf4j.MDC;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.amqp.rabbit.support.CorrelationData;
-import ru.hh.metrics.StatsDSender;
+import ru.hh.nab.metrics.StatsDSender;
 import ru.hh.rabbitmq.spring.ConfigKeys;
 
 public class Publisher extends AbstractService {
