@@ -31,11 +31,8 @@ public class CachingClientFactory extends ConnectionsFactory {
   @Nullable
   protected final String serviceName;
 
-  /**
-   * @param sendStats not used anymore. Pass null to statsDSender to disable stats sending
-   */
   public CachingClientFactory(Properties properties, @Nullable String serviceName, @Nullable StatsDSender statsDSender, boolean sendStats) {
-    this(properties, serviceName, statsDSender);
+    this(properties, serviceName, sendStats ? statsDSender : null);
   }
 
   public CachingClientFactory(Properties properties, @Nullable String serviceName, @Nullable StatsDSender statsDSender) {

@@ -27,19 +27,14 @@ public class ClientFactory extends ConnectionsFactory {
   @Nullable
   protected final String serviceName;
 
-  @Deprecated
   public ClientFactory(Properties properties, @Nullable String serviceName, @Nullable StatsDSender statsDSender) {
     super(properties);
     this.serviceName = serviceName;
     this.statsDSender = statsDSender;
   }
 
-  /**
-   * @param sendStats - no longer used
-   */
-  @Deprecated
   public ClientFactory(Properties properties, @Nullable String serviceName, @Nullable StatsDSender statsDSender, boolean sendStats) {
-    this(properties, serviceName, statsDSender);
+    this(properties, serviceName, sendStats ? statsDSender : null);
   }
 
   public ClientFactory(Properties properties) {
