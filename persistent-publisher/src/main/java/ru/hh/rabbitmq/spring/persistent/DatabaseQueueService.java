@@ -13,8 +13,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.transaction.annotation.Transactional;
 import ru.hh.metrics.timinglogger.StageTimings;
-import ru.hh.nab.metrics.Histogram;
+import ru.hh.nab.metrics.Histograms;
 import ru.hh.nab.metrics.StatsDSender;
+import ru.hh.nab.metrics.Tag;
 import ru.hh.rabbitmq.spring.persistent.dto.TargetedDestination;
 import ru.hh.rabbitmq.spring.send.CorrelatedMessage;
 import ru.hh.rabbitmq.spring.send.MessageSender;
@@ -33,7 +34,7 @@ public class DatabaseQueueService {
   private StageTimings<SendingStage> stageTimings;
   private final StatsDSender statsDSender;
 
-  private final Histogram batchSizeHistogram;
+  private final Histograms batchSizeHistogram;
   private final int stageHistogramsSize;
   private final int statsSendIntervalMs;
 
@@ -43,7 +44,7 @@ public class DatabaseQueueService {
     this.databaseQueueDao = databaseQueueDao;
     this.persistentPublisherRegistry = persistentPublisherRegistry;
     this.statsDSender = statsDSender;
-    this.batchSizeHistogram = new Histogram(batchSizeHistogramSize);
+    this.batchSizeHistogram = new Histograms(batchSizeHistogramSize, persistentPublisherRegistry.numberOfSenders());
     this.stageHistogramsSize = stageHistogramsSize;
     this.statsSendIntervalMs = Math.toIntExact(statsSendIntervalMs);
   }
@@ -51,10 +52,10 @@ public class DatabaseQueueService {
   @PostConstruct
   public void init() {
     stageTimings = new StageTimings.Builder<>("databaseQueueTimings", SendingStage.class)
-      .withTagName("databaseQueueTimings")
+      .withTagName("stages")
       .withPercentiles(StatsDSender.DEFAULT_PERCENTILES)
       .withMaxHistogramSize(stageHistogramsSize).startOn(statsDSender, statsSendIntervalMs);
-    statsDSender.sendPeriodically(() -> statsDSender.sendHistogram("databaseQueueBatchSize", batchSizeHistogram, StatsDSender.DEFAULT_PERCENTILES),
+    statsDSender.sendPeriodically(() -> statsDSender.sendHistograms("databaseQueueBatchSize", batchSizeHistogram, StatsDSender.DEFAULT_PERCENTILES),
       statsSendIntervalMs
     );
   }
@@ -101,7 +102,7 @@ public class DatabaseQueueService {
       stageTimings.markStage(SendingStage.SEND_BATCH_EVENTS_TO_RABBIT);
       databaseQueueDao.finishBatch(batchIdValue);
       stageTimings.markStage(SendingStage.FINISH_BATCH);
-      batchSizeHistogram.save(events.size());
+      batchSizeHistogram.save(events.size(), new Tag("queueName", queueName));
       LOGGER.debug("Batch {}, containing {} events finished", batchIdValue, events.size());
       if (multiBatchOnlyForEmptyBatches && !events.isEmpty()) {
         return;

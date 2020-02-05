@@ -20,4 +20,8 @@ public class PersistentPublisherRegistry {
   public DatabaseQueueSender getSender(String key) {
     return senders.get(key);
   }
+
+  public int numberOfSenders() {
+    return senders.size();
+  }
 }
