@@ -6,6 +6,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import ru.hh.nab.metrics.StatsDSender;
 import ru.hh.nab.common.properties.FileSettings;
+import static java.util.Optional.ofNullable;
 
 @Configuration
 public class PersistentPublisherConfig {
@@ -21,8 +22,17 @@ public class PersistentPublisherConfig {
   }
 
   @Bean
-  DatabaseQueueService databaseQueueService(DatabaseQueueDao databaseQueueDao, PersistentPublisherRegistry persistentPublisherRegistry) {
-    return new DatabaseQueueService(databaseQueueDao, persistentPublisherRegistry);
+  DatabaseQueueService databaseQueueService(DatabaseQueueDao databaseQueueDao, PersistentPublisherRegistry persistentPublisherRegistry,
+                                            StatsDSender statsDSender, FileSettings settings) {
+    int batchSizeHistogramSize = ofNullable(settings.getInteger(String.join(".", DatabaseQueueService.CONFIG_KEY, "batchSizeHistogramSize")))
+      .orElse(1000);
+    int stageHistogramSize = ofNullable(settings.getInteger(String.join(".", DatabaseQueueService.CONFIG_KEY, "stageHistogramSize")))
+      .orElse(batchSizeHistogramSize * DatabaseQueueService.SendingStage.values().length);
+    long statsSendIntervalMs = ofNullable(settings.getLong(String.join(".", DatabaseQueueService.CONFIG_KEY, "statsSendIntervalMs")))
+      .orElse(30L);
+    return new DatabaseQueueService(databaseQueueDao, persistentPublisherRegistry, statsDSender, batchSizeHistogramSize, stageHistogramSize,
+      statsSendIntervalMs
+    );
   }
 
   @Bean

@@ -7,10 +7,15 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import javax.annotation.PostConstruct;
 import javax.persistence.Tuple;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.transaction.annotation.Transactional;
+import ru.hh.metrics.timinglogger.StageTimings;
+import ru.hh.nab.metrics.Histograms;
+import ru.hh.nab.metrics.StatsDSender;
+import ru.hh.nab.metrics.Tag;
 import ru.hh.rabbitmq.spring.persistent.dto.TargetedDestination;
 import ru.hh.rabbitmq.spring.send.CorrelatedMessage;
 import ru.hh.rabbitmq.spring.send.MessageSender;
@@ -22,13 +27,37 @@ public class DatabaseQueueService {
   private static final Logger LOGGER = LoggerFactory.getLogger(DatabaseQueueService.class);
   private static final ObjectMapper DESTINATION_CONVERTER = new ObjectMapper();
   private static final int NEW_REGISTRATION = 1;
+  public static final String CONFIG_KEY = "database.queue.service";
 
   private final DatabaseQueueDao databaseQueueDao;
   private final PersistentPublisherRegistry persistentPublisherRegistry;
+  private StageTimings<SendingStage> stageTimings;
+  private final StatsDSender statsDSender;
 
-  public DatabaseQueueService(DatabaseQueueDao databaseQueueDao, PersistentPublisherRegistry persistentPublisherRegistry) {
+  private final Histograms batchSizeHistogram;
+  private final int stageHistogramsSize;
+  private final int statsSendIntervalMs;
+
+  public DatabaseQueueService(DatabaseQueueDao databaseQueueDao, PersistentPublisherRegistry persistentPublisherRegistry, StatsDSender statsDSender,
+                              int batchSizeHistogramSize, int stageHistogramsSize,
+                              long statsSendIntervalMs) {
     this.databaseQueueDao = databaseQueueDao;
     this.persistentPublisherRegistry = persistentPublisherRegistry;
+    this.statsDSender = statsDSender;
+    this.batchSizeHistogram = new Histograms(batchSizeHistogramSize, persistentPublisherRegistry.numberOfSenders());
+    this.stageHistogramsSize = stageHistogramsSize;
+    this.statsSendIntervalMs = Math.toIntExact(statsSendIntervalMs);
+  }
+
+  @PostConstruct
+  public void init() {
+    stageTimings = new StageTimings.Builder<>("databaseQueueTimings", SendingStage.class)
+      .withTagName("stages")
+      .withPercentiles(StatsDSender.DEFAULT_PERCENTILES)
+      .withMaxHistogramSize(stageHistogramsSize).startOn(statsDSender, statsSendIntervalMs);
+    statsDSender.sendPeriodically(() -> statsDSender.sendHistograms("databaseQueueBatchSize", batchSizeHistogram, StatsDSender.DEFAULT_PERCENTILES),
+      statsSendIntervalMs
+    );
   }
 
   @Transactional
@@ -38,6 +67,7 @@ public class DatabaseQueueService {
 
   @Transactional
   public void sendBatch(String senderKey, int maxEventsPerBatchToProcess, int maxBatchesToProcessInTx, boolean multiBatchOnlyForEmptyBatches) {
+    long sendStartMs = System.currentTimeMillis();
     DatabaseQueueSender sender = persistentPublisherRegistry.getSender(senderKey);
     if (sender == null) {
       throw new RuntimeException("Trying to send batch for " + senderKey + "but no publisher found for the key");
@@ -49,12 +79,14 @@ public class DatabaseQueueService {
     Optional<Long> batchId;
     int i = 0;
     while(i < maxBatchesToProcessInTx) {
+      stageTimings.start();
       batchId = databaseQueueDao.getNextBatchId(queueName, sender.getConsumerName());
-      if (!batchId.isPresent()) {
+      if (batchId.isEmpty()) {
         return;
       }
-      Long batchIdValue = batchId.get();
+      long batchIdValue = batchId.get();
       List<MessageEventContainer> events = getNextBatchEvents(batchIdValue, sender, maxEventsPerBatchToProcess);
+      stageTimings.markStage(SendingStage.GET_BATCH_EVENTS);
       events.forEach(messageEventContainer -> {
         TargetedDestination destination = messageEventContainer.getDestination();
         try {
@@ -67,14 +99,17 @@ public class DatabaseQueueService {
           sender.onAmpqException(e, messageEventContainer.getId(), batchIdValue, destination, messageEventContainer.getMessage());
         }
       });
+      stageTimings.markStage(SendingStage.SEND_BATCH_EVENTS_TO_RABBIT);
       databaseQueueDao.finishBatch(batchIdValue);
-      LOGGER.debug("Batch {} finished", batchIdValue);
+      stageTimings.markStage(SendingStage.FINISH_BATCH);
+      batchSizeHistogram.save(events.size(), new Tag("queueName", queueName));
+      LOGGER.debug("Batch {}, containing {} events finished", batchIdValue, events.size());
       if (multiBatchOnlyForEmptyBatches && !events.isEmpty()) {
         return;
       }
       i++;
     }
-    LOGGER.info("Processed {} batches", i);
+    LOGGER.info("Processed {} batches in {}ms", i, System.currentTimeMillis() - sendStartMs);
   }
 
   @Transactional
@@ -91,7 +126,7 @@ public class DatabaseQueueService {
 
   @Transactional
   public void logErrorIfErrorTablePresent(DatabaseQueueSender databaseQueueSender, long eventId, String destination, String message) {
-    if (!databaseQueueSender.getErrorTableName().isPresent()) {
+    if (databaseQueueSender.getErrorTableName().isEmpty()) {
       LOGGER.warn("Error processing event {} by consumer {} in queue {}. " +
         "Table for saving error data is not set, so dropping event", eventId, databaseQueueSender.getConsumerName(),
         databaseQueueSender.getDatabaseQueueName()
@@ -167,5 +202,11 @@ public class DatabaseQueueService {
     public TargetedDestination getDestination() {
       return destination;
     }
+  }
+
+  enum SendingStage {
+    GET_BATCH_EVENTS,
+    SEND_BATCH_EVENTS_TO_RABBIT,
+    FINISH_BATCH
   }
 }
