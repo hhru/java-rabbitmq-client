@@ -46,7 +46,8 @@ public class DatabaseQueueService {
     this.databaseQueueDao = databaseQueueDao;
     this.persistentPublisherRegistry = persistentPublisherRegistry;
     this.statsDSender = statsDSender;
-    this.batchSizeHistogram = new AdjustingHistograms(batchSizeHistogramSize, batchSizeHistogramNumLimit, persistentPublisherRegistry::numberOfSenders);
+    this.batchSizeHistogram = new AdjustingHistograms(batchSizeHistogramSize, batchSizeHistogramNumLimit,
+      persistentPublisherRegistry::numberOfSenders);
     this.stageHistogramsSize = stageHistogramsSize;
     this.statsSendIntervalMs = Math.toIntExact(statsSendIntervalMs);
   }
