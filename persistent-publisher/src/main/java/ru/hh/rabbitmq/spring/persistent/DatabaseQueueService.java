@@ -13,6 +13,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.transaction.annotation.Transactional;
 import ru.hh.metrics.timinglogger.StageTimings;
+import ru.hh.nab.metrics.AdjustingHistograms;
 import ru.hh.nab.metrics.Histograms;
 import ru.hh.nab.metrics.StatsDSender;
 import ru.hh.nab.metrics.Tag;
@@ -39,12 +40,13 @@ public class DatabaseQueueService {
   private final int statsSendIntervalMs;
 
   public DatabaseQueueService(DatabaseQueueDao databaseQueueDao, PersistentPublisherRegistry persistentPublisherRegistry, StatsDSender statsDSender,
-                              int batchSizeHistogramSize, int stageHistogramsSize,
+                              int batchSizeHistogramSize, int batchSizeHistogramNumLimit,
+                              int stageHistogramsSize,
                               long statsSendIntervalMs) {
     this.databaseQueueDao = databaseQueueDao;
     this.persistentPublisherRegistry = persistentPublisherRegistry;
     this.statsDSender = statsDSender;
-    this.batchSizeHistogram = new Histograms(batchSizeHistogramSize, persistentPublisherRegistry.numberOfSenders());
+    this.batchSizeHistogram = new AdjustingHistograms(batchSizeHistogramSize, batchSizeHistogramNumLimit, persistentPublisherRegistry::numberOfSenders);
     this.stageHistogramsSize = stageHistogramsSize;
     this.statsSendIntervalMs = Math.toIntExact(statsSendIntervalMs);
   }

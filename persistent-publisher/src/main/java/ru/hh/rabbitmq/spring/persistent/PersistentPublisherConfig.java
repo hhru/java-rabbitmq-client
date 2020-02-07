@@ -26,11 +26,15 @@ public class PersistentPublisherConfig {
                                             StatsDSender statsDSender, FileSettings settings) {
     int batchSizeHistogramSize = ofNullable(settings.getInteger(String.join(".", DatabaseQueueService.CONFIG_KEY, "batchSizeHistogramSize")))
       .orElse(1000);
+    int batchSizeHistogramNumLimit = ofNullable(settings.getInteger(String.join(".", DatabaseQueueService.CONFIG_KEY, "batchSizeHistogramNumLimit")))
+      .orElse(50);
     int stageHistogramSize = ofNullable(settings.getInteger(String.join(".", DatabaseQueueService.CONFIG_KEY, "stageHistogramSize")))
       .orElse(batchSizeHistogramSize * DatabaseQueueService.SendingStage.values().length);
     long statsSendIntervalMs = ofNullable(settings.getLong(String.join(".", DatabaseQueueService.CONFIG_KEY, "statsSendIntervalMs")))
       .orElse(30L);
-    return new DatabaseQueueService(databaseQueueDao, persistentPublisherRegistry, statsDSender, batchSizeHistogramSize, stageHistogramSize,
+    return new DatabaseQueueService(databaseQueueDao, persistentPublisherRegistry, statsDSender,
+      batchSizeHistogramSize, batchSizeHistogramNumLimit,
+      stageHistogramSize,
       statsSendIntervalMs
     );
   }
