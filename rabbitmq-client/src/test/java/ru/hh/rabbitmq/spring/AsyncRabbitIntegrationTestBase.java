@@ -5,19 +5,19 @@ import ru.hh.rabbitmq.spring.send.PublisherBuilder;
 
 public class AsyncRabbitIntegrationTestBase extends RabbitIntegrationTestBase {
 
-  protected static PublisherBuilder publisher(String host, boolean withDirections, int innerQueueSize) {
-    Properties properties = properties(host);
+  protected static PublisherBuilder publisher(String host, int port, boolean withDirections, int innerQueueSize) {
+    Properties properties = properties(host, port);
     properties.setProperty(ConfigKeys.PUBLISHER_INNER_QUEUE_SIZE, Integer.toString(innerQueueSize));
     return publisher(properties, withDirections, false);
   }
 
-  protected static PublisherBuilder publisher(String host, boolean withDirections) {
-    Properties properties = properties(host);
+  protected static PublisherBuilder publisher(String host, int port, boolean withDirections) {
+    Properties properties = properties(host, port);
     return publisher(properties, withDirections, false);
   }
 
-  protected static PublisherBuilder publisher(String host, boolean withDirections, boolean withConfirms) {
-    Properties properties = properties(host);
+  protected static PublisherBuilder publisher(String host, int port, boolean withDirections, boolean withConfirms) {
+    Properties properties = properties(host, port);
     return publisher(properties, withDirections, withConfirms);
   }
 
@@ -32,8 +32,8 @@ public class AsyncRabbitIntegrationTestBase extends RabbitIntegrationTestBase {
     return factory.createPublisherBuilder();
   }
 
-  protected static PublisherBuilder publisherMDC(String host) {
-    Properties properties = properties(host);
+  protected static PublisherBuilder publisherMDC(String host, int port) {
+    Properties properties = properties(host, port);
     appendDirections(properties);
     properties.setProperty(ConfigKeys.PUBLISHER_USE_MDC, "true");
     ClientFactory factory = new ClientFactory(properties);

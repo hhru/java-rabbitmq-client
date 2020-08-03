@@ -66,6 +66,17 @@ Use the following command to run tests:
 mvn-hh install -P test
 ```
 
+#### Example
+ - Deploy two rabbits locally:
+ ```
+docker run -d -p 15673:15672 -p 5673:5672 --name rabbit-1 rabbitmq:3-management
+docker run -d -p 15674:15672 -p 5674:5672 --name rabbit-2 rabbitmq:3-management
+```
+- Run tests with custom rabbit hosts and ports:
+```
+mvn-hh install -P test -Drabbit.integrationtest.host1=localhost -Drabbit.integrationtest.port1=5673 -Drabbit.integrationtest.host2=localhost -Drabbit.integrationtest.port2=5674
+```
+
 # MDC
 
 If following property is set:

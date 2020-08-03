@@ -15,10 +15,10 @@ public abstract class SyncRabbitIntegrationTestBase extends RabbitIntegrationTes
   public static final long TIMEOUT_MILLIS = 5000;
 
   protected static class MessageHandler implements MapMessageListener {
-    private ArrayBlockingQueue<Map<String, Object>> queue = new ArrayBlockingQueue<>(100);
-    private ArrayBlockingQueue<Map<String, String>> mdcContextQueue = new ArrayBlockingQueue<>(100);
+    private final ArrayBlockingQueue<Map<String, Object>> queue = new ArrayBlockingQueue<>(100);
+    private final ArrayBlockingQueue<Map<String, String>> mdcContextQueue = new ArrayBlockingQueue<>(100);
 
-    private boolean useMDC;
+    private final boolean useMDC;
 
     public MessageHandler() {
       this.useMDC = false;
@@ -46,9 +46,8 @@ public abstract class SyncRabbitIntegrationTestBase extends RabbitIntegrationTes
   }
 
   protected static class TestConfirmCallback implements ConfirmCallback {
-    private ArrayBlockingQueue<String> queue = new ArrayBlockingQueue<>(3);
+    private final ArrayBlockingQueue<String> queue = new ArrayBlockingQueue<>(3);
 
-    @SuppressWarnings("unused")
     @Override
     public void confirm(CorrelationData correlationData, boolean ack, String cause) {
       queue.add(correlationData.getId());
@@ -59,13 +58,13 @@ public abstract class SyncRabbitIntegrationTestBase extends RabbitIntegrationTes
     }
   }
 
-  protected static SyncPublisherBuilder publisher(String host, boolean withDirections) {
-    Properties properties = properties(host);
+  protected static SyncPublisherBuilder publisher(String host, int port, boolean withDirections) {
+    Properties properties = properties(host, port);
     return publisher(properties, withDirections, false);
   }
 
-  protected static SyncPublisherBuilder publisher(String host, boolean withDirections, boolean withConfirms) {
-    Properties properties = properties(host);
+  protected static SyncPublisherBuilder publisher(String host, int port, boolean withDirections, boolean withConfirms) {
+    Properties properties = properties(host, port);
     return publisher(properties, withDirections, withConfirms);
   }
 
@@ -80,8 +79,8 @@ public abstract class SyncRabbitIntegrationTestBase extends RabbitIntegrationTes
     return factory.createSyncPublisherBuilder();
   }
 
-  protected static SyncPublisherBuilder publisherMDC(String host) {
-    Properties properties = properties(host);
+  protected static SyncPublisherBuilder publisherMDC(String host, int port) {
+    Properties properties = properties(host, port);
     appendDirections(properties);
     properties.setProperty(ConfigKeys.PUBLISHER_USE_MDC, "true");
     ClientFactory factory = new ClientFactory(properties);

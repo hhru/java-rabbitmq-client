@@ -15,7 +15,7 @@ class PublishTaskFuture extends ForwardingFuture<Void> implements ListenableFutu
   private final SettableFuture<Void> future = SettableFuture.create();
   private Optional<Map<String, String>> mdcContext;
 
-  PublishTaskFuture(Destination destination, Collection<Object> messages) {
+  PublishTaskFuture(Destination destination, Collection<?> messages) {
     this.messages = messages.stream().collect(HashMap::new, (m, v) -> m.put(v, destination), HashMap::putAll);
   }
 

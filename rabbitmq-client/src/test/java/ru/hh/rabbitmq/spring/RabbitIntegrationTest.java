@@ -27,8 +27,8 @@ public class RabbitIntegrationTest extends AsyncRabbitIntegrationTestBase {
 
   @Test
   public void testDirectionsConfigured() throws InterruptedException {
-    Publisher publisherHost1 = publisher(HOST1, true).withJsonMessageConverter().build();
-    Publisher publisherHost2 = publisher(HOST2, true).withJsonMessageConverter().build();
+    Publisher publisherHost1 = publisher(HOST1, PORT1, true).withJsonMessageConverter().build();
+    Publisher publisherHost2 = publisher(HOST2, PORT2, true).withJsonMessageConverter().build();
     publisherHost1.startSync();
     publisherHost2.startSync();
 
@@ -59,8 +59,8 @@ public class RabbitIntegrationTest extends AsyncRabbitIntegrationTestBase {
   public void testDirectionsDeclared() throws InterruptedException {
     Destination destination = new Destination(EXCHANGE, ROUTING_KEY1);
 
-    Publisher publisherHost1 = publisher(HOST1, false).withJsonMessageConverter().build();
-    Publisher publisherHost2 = publisher(HOST2, false).withJsonMessageConverter().build();
+    Publisher publisherHost1 = publisher(HOST1, PORT1, false).withJsonMessageConverter().build();
+    Publisher publisherHost2 = publisher(HOST2, PORT2, false).withJsonMessageConverter().build();
     publisherHost1.startSync();
     publisherHost2.startSync();
 
@@ -92,7 +92,7 @@ public class RabbitIntegrationTest extends AsyncRabbitIntegrationTestBase {
     Destination destination1 = new Destination(EXCHANGE, ROUTING_KEY1);
     Destination destination2 = new Destination(EXCHANGE, ROUTING_KEY2);
 
-    Publisher publisher = publisher(HOST1, false).withJsonMessageConverter().build();
+    Publisher publisher = publisher(HOST1, PORT1, false).withJsonMessageConverter().build();
     publisher.startSync();
 
     MessageHandler handler = new MessageHandler();
@@ -119,7 +119,7 @@ public class RabbitIntegrationTest extends AsyncRabbitIntegrationTestBase {
 
   @Test
   public void testReceiverRestart() throws InterruptedException {
-    Publisher publisher = publisher(HOST1, true).withJsonMessageConverter().build();
+    Publisher publisher = publisher(HOST1, PORT1, true).withJsonMessageConverter().build();
     publisher.startSync();
 
     MessageHandler handler = new MessageHandler();
@@ -148,8 +148,8 @@ public class RabbitIntegrationTest extends AsyncRabbitIntegrationTestBase {
   }
 
   @Test(expected = IllegalStateException.class)
-  public void testStoppedPublisher() throws InterruptedException {
-    Publisher publisher = publisher(HOST1, true).withJsonMessageConverter().build();
+  public void testStoppedPublisher() {
+    Publisher publisher = publisher(HOST1, PORT1, true).withJsonMessageConverter().build();
     publisher.startSync();
 
     publisher.stopSync();
@@ -161,9 +161,9 @@ public class RabbitIntegrationTest extends AsyncRabbitIntegrationTestBase {
   }
 
   @Test(expected = QueueIsFullException.class)
-  public void testImmediateFullQueue() throws InterruptedException {
+  public void testImmediateFullQueue() {
 
-    Publisher publisher = publisher("unknownhost_for_queue_is_full", true, 2).withJsonMessageConverter().build();
+    Publisher publisher = publisher("unknown_host_for_queue_is_full", PORT1, true, 2).withJsonMessageConverter().build();
     publisher.startSync();
     assertEquals(2, publisher.getInnerQueueRemainingCapacity());
 
@@ -183,7 +183,7 @@ public class RabbitIntegrationTest extends AsyncRabbitIntegrationTestBase {
   @Test
   public void testTimedOutFullQueue() throws InterruptedException {
 
-    Publisher publisher = publisher("unknownhost_for_queue_is_full", true, 2).withJsonMessageConverter().build();
+    Publisher publisher = publisher("unknown_host_for_queue_is_full", PORT1, true, 2).withJsonMessageConverter().build();
     publisher.startSync();
 
     publisher.send("message1");
@@ -206,7 +206,7 @@ public class RabbitIntegrationTest extends AsyncRabbitIntegrationTestBase {
   @Test
   public void testPublisherConfirms() throws InterruptedException, ExecutionException {
     TestConfirmCallback callback = new TestConfirmCallback();
-    Publisher publisher = publisher(HOST2, true, true).withJsonMessageConverter().withConfirmCallback(callback).build();
+    Publisher publisher = publisher(HOST2, PORT2, true, true).withJsonMessageConverter().withConfirmCallback(callback).build();
     publisher.startSync();
 
     Map<String, Object> sentMessage = new HashMap<>();
@@ -223,15 +223,15 @@ public class RabbitIntegrationTest extends AsyncRabbitIntegrationTestBase {
     String callbackValue;
     callbackValue = callback.get();
     assertNotNull("first callback value must not be null", callbackValue);
-    assertTrue("first callback value not in original: " + callbackValue, data.values().contains(callbackValue));
+    assertTrue("first callback value not in original: " + callbackValue, data.containsValue(callbackValue));
 
     callbackValue = callback.get();
     assertNotNull("second callback value must not be null", callbackValue);
-    assertTrue("second callback value not in original: " + callbackValue, data.values().contains(callbackValue));
+    assertTrue("second callback value not in original: " + callbackValue, data.containsValue(callbackValue));
 
     callbackValue = callback.get();
     assertNotNull("third callback value must not be null", callbackValue);
-    assertTrue("third callback value not in original: " + callbackValue, data.values().contains(callbackValue));
+    assertTrue("third callback value not in original: " + callbackValue, data.containsValue(callbackValue));
 
     MessageHandler handler = new MessageHandler();
     Receiver receiver = receiverAllHosts(true).withJsonListener(handler).forQueues(QUEUE1).start();
@@ -245,11 +245,11 @@ public class RabbitIntegrationTest extends AsyncRabbitIntegrationTestBase {
 
   @Test
   public void testMDC() throws InterruptedException {
-    String MDCKey = "mdctestkey";
-    String MDCValue = "mdctestvalue";
+    String MDCKey = "mdc_test_key";
+    String MDCValue = "mdc_test_value";
 
     MDC.put(MDCKey, MDCValue);
-    Publisher publisherHost1 = publisherMDC(HOST1).withJsonMessageConverter().build();
+    Publisher publisherHost1 = publisherMDC(HOST1, PORT1).withJsonMessageConverter().build();
     publisherHost1.startSync();
 
     MessageHandler handler = new MessageHandler(true);
@@ -276,10 +276,10 @@ public class RabbitIntegrationTest extends AsyncRabbitIntegrationTestBase {
   }
 
   private static class MessageHandler implements MapMessageListener {
-    private ArrayBlockingQueue<Map<String, Object>> queue = new ArrayBlockingQueue<>(1);
-    private ArrayBlockingQueue<Map<String, String>> mdcContextQueue = new ArrayBlockingQueue<>(1);
+    private final ArrayBlockingQueue<Map<String, Object>> queue = new ArrayBlockingQueue<>(1);
+    private final ArrayBlockingQueue<Map<String, String>> mdcContextQueue = new ArrayBlockingQueue<>(1);
 
-    private boolean useMDC;
+    private final boolean useMDC;
 
     public MessageHandler() {
       this.useMDC = false;
@@ -296,6 +296,7 @@ public class RabbitIntegrationTest extends AsyncRabbitIntegrationTestBase {
         mdcContextQueue.add(MDC.getCopyOfContextMap());
       }
     }
+
     public Map<String, Object> get() throws InterruptedException {
       return queue.poll(TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
     }
@@ -306,13 +307,13 @@ public class RabbitIntegrationTest extends AsyncRabbitIntegrationTestBase {
   }
 
   private static class TestConfirmCallback implements ConfirmCallback {
-    private ArrayBlockingQueue<String> queue = new ArrayBlockingQueue<>(3);
+    private final ArrayBlockingQueue<String> queue = new ArrayBlockingQueue<>(3);
 
-    @SuppressWarnings("unused")
     @Override
     public void confirm(CorrelationData correlationData, boolean ack, String cause) {
       queue.add(correlationData.getId());
     }
+
     public String get() throws InterruptedException {
       return queue.poll(TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
     }
