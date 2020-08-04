@@ -8,7 +8,6 @@ import static com.google.common.util.concurrent.Uninterruptibles.sleepUninterrup
 import static java.lang.System.currentTimeMillis;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -128,7 +127,7 @@ public class Publisher extends AbstractService {
   }
 
   /**
-   * Potentially blocking method, enqueues messages internally, waiting if necessary, throws exception if local queue is full.
+   * Potentially blocking method, enqueues message internally, waiting if necessary, throws exception if local queue is full.
    * <p>
    * Wrap message with {@link CorrelatedMessage} to attach {@link CorrelationData} for publisher confirms.
    * </p>
@@ -136,8 +135,8 @@ public class Publisher extends AbstractService {
    * @return ListenableFuture that gets completed after successful sending
    * @throws InterruptedException
    */
-  public ListenableFuture<Void> offer(long timeoutMs, Destination destination, Object... messages) throws InterruptedException {
-    return offer(timeoutMs, destination, Arrays.asList(messages));
+  public ListenableFuture<Void> offer(long timeoutMs, Destination destination, Object message) throws InterruptedException {
+    return offer(timeoutMs, destination, List.of(message));
   }
 
   /**
@@ -149,7 +148,7 @@ public class Publisher extends AbstractService {
    * @return ListenableFuture that gets completed after successful sending
    * @throws InterruptedException
    */
-  public ListenableFuture<Void> offer(long timeoutMs, Destination destination, Collection<Object> messages) throws InterruptedException {
+  public ListenableFuture<Void> offer(long timeoutMs, Destination destination, Collection<?> messages) throws InterruptedException {
     checkNotNull(destination, "Destination can't be null");
     PublishTaskFuture future = new PublishTaskFuture(destination, messages);
     offerFuture(future, timeoutMs);
@@ -176,7 +175,7 @@ public class Publisher extends AbstractService {
 
   /**
    * <p>
-   * Potentially blocking method, enqueues messages internally, waiting if necessary, throws exception if local queue is full.
+   * Potentially blocking method, enqueues message internally, waiting if necessary, throws exception if local queue is full.
    * </p>
    * <p>
    * Wrap message with {@link CorrelatedMessage} to attach {@link CorrelationData} for publisher confirms.
@@ -188,8 +187,8 @@ public class Publisher extends AbstractService {
    * @return ListenableFuture that gets completed after successful sending
    * @throws InterruptedException
    */
-  public ListenableFuture<Void> offer(long timeoutMs, Object... messages) throws InterruptedException {
-    return offer(timeoutMs, Arrays.asList(messages));
+  public ListenableFuture<Void> offer(long timeoutMs, Object message) throws InterruptedException {
+    return offer(timeoutMs, List.of(message));
   }
 
   /**
@@ -206,7 +205,7 @@ public class Publisher extends AbstractService {
    * @return ListenableFuture that gets completed after successful sending
    * @throws InterruptedException
    */
-  public ListenableFuture<Void> offer(long timeoutMs, Collection<Object> messages) throws InterruptedException {
+  public ListenableFuture<Void> offer(long timeoutMs, Collection<?> messages) throws InterruptedException {
     PublishTaskFuture future = new PublishTaskFuture(null, messages);
     offerFuture(future, timeoutMs);
     return future;
@@ -222,15 +221,15 @@ public class Publisher extends AbstractService {
   }
 
   /**
-   * Nonblocking method, enqueues messages internally, throws exception if local queue is full.
+   * Nonblocking method, enqueues message internally, throws exception if local queue is full.
    * <p>
    * Wrap message with {@link CorrelatedMessage} to attach {@link CorrelationData} for publisher confirms.
    * </p>
    *
    * @return ListenableFuture that gets completed after successful sending
    */
-  public ListenableFuture<Void> send(Destination destination, Object... messages) {
-    return send(destination, Arrays.asList(messages));
+  public ListenableFuture<Void> send(Destination destination, Object message) {
+    return send(destination, List.of((message)));
   }
 
   /**
@@ -241,7 +240,7 @@ public class Publisher extends AbstractService {
    *
    * @return ListenableFuture that gets completed after successful sending
    */
-  public ListenableFuture<Void> send(Destination destination, Collection<Object> messages) {
+  public ListenableFuture<Void> send(Destination destination, Collection<?> messages) {
     checkNotNull(destination, "Destination can't be null");
     PublishTaskFuture future = new PublishTaskFuture(destination, messages);
     addFuture(future);
@@ -267,7 +266,7 @@ public class Publisher extends AbstractService {
 
   /**
    * <p>
-   * Nonblocking method, enqueues messages internally, throws exception if local queue is full.
+   * Nonblocking method, enqueues message internally, throws exception if local queue is full.
    * </p>
    * <p>
    * Wrap message with {@link CorrelatedMessage} to attach {@link CorrelationData} for publisher confirms.
@@ -278,8 +277,8 @@ public class Publisher extends AbstractService {
    *
    * @return ListenableFuture that gets completed after successful sending
    */
-  public ListenableFuture<Void> send(Object... messages) {
-    return send(Arrays.asList(messages));
+  public ListenableFuture<Void> send(Object message) {
+    return send(List.of(message));
   }
 
   /**
@@ -295,7 +294,7 @@ public class Publisher extends AbstractService {
    *
    * @return ListenableFuture that gets completed after successful sending
    */
-  public ListenableFuture<Void> send(Collection<Object> messages) {
+  public ListenableFuture<Void> send(Collection<?> messages) {
     PublishTaskFuture future = new PublishTaskFuture(null, messages);
     addFuture(future);
     return future;

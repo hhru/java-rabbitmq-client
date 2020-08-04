@@ -8,8 +8,6 @@ import java.util.HashMap;
 import java.util.Map;
 import org.junit.Test;
 import org.springframework.amqp.rabbit.transaction.RabbitTransactionManager;
-import org.springframework.transaction.TransactionStatus;
-import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionTemplate;
 import ru.hh.rabbitmq.spring.Receiver;
 import ru.hh.rabbitmq.spring.SyncRabbitIntegrationTestBase;
@@ -18,7 +16,7 @@ public class SyncPublisherTransactionTest extends SyncRabbitIntegrationTestBase 
 
   @Test
   public void testTransaction() throws InterruptedException {
-    final SyncPublisher publisher = publisher(HOST1, true).withJsonMessageConverter().setTransactional(true).build();
+    final SyncPublisher publisher = publisher(HOST1, PORT1, true).withJsonMessageConverter().setTransactional(true).build();
     RabbitTransactionManager transactionManager = new RabbitTransactionManager(publisher.getTemplate().getConnectionFactory());
     TransactionTemplate transaction = new TransactionTemplate(transactionManager);
     publisher.startAsync();
@@ -31,12 +29,9 @@ public class SyncPublisherTransactionTest extends SyncRabbitIntegrationTestBase 
     final Map<String, Object> sentMessage = new HashMap<>();
     sentMessage.put("data", QUEUE1);
 
-    transaction.execute(new TransactionCallback<Void>() {
-      @Override
-      public Void doInTransaction(@SuppressWarnings("unused") TransactionStatus status) {
-        publisher.send(sentMessage);
-        return null;
-      }
+    transaction.execute(status -> {
+      publisher.send(sentMessage);
+      return null;
     });
 
     Map<String, Object> receivedMessage = handler.get();
@@ -49,7 +44,7 @@ public class SyncPublisherTransactionTest extends SyncRabbitIntegrationTestBase 
 
   @Test
   public void testTransactionWithRollback() throws InterruptedException {
-    final SyncPublisher publisher = publisher(HOST1, true).withJsonMessageConverter().setTransactional(true).build();
+    final SyncPublisher publisher = publisher(HOST1, PORT1, true).withJsonMessageConverter().setTransactional(true).build();
     RabbitTransactionManager transactionManager = new RabbitTransactionManager(publisher.getTemplate().getConnectionFactory());
     TransactionTemplate transaction = new TransactionTemplate(transactionManager);
     publisher.startAsync();
@@ -63,15 +58,11 @@ public class SyncPublisherTransactionTest extends SyncRabbitIntegrationTestBase 
     sentMessage.put("data", QUEUE1);
 
     try {
-      transaction.execute(new TransactionCallback<Void>() {
-        @Override
-        public Void doInTransaction(@SuppressWarnings("unused") TransactionStatus status) {
-          publisher.send(sentMessage);
-          throw new PlannedException();
-        }
+      transaction.execute(status -> {
+        publisher.send(sentMessage);
+        throw new PlannedException();
       });
-    }
-    catch (PlannedException e) {
+    } catch (PlannedException e) {
     }
 
     Map<String, Object> receivedMessage = handler.get();

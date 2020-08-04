@@ -4,7 +4,6 @@ import com.google.common.collect.ImmutableMap;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.concurrent.ExecutionException;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -20,8 +19,8 @@ public class SyncRabbitIntegrationTest extends SyncRabbitIntegrationTestBase {
 
   @Test
   public void testDirectionsConfigured() throws InterruptedException {
-    SyncPublisher publisherHost1 = publisher(HOST1, true).withJsonMessageConverter().build();
-    SyncPublisher publisherHost2 = publisher(HOST2, true).withJsonMessageConverter().build();
+    SyncPublisher publisherHost1 = publisher(HOST1, PORT1, true).withJsonMessageConverter().build();
+    SyncPublisher publisherHost2 = publisher(HOST2, PORT2, true).withJsonMessageConverter().build();
     publisherHost1.startAsync();
     publisherHost2.startAsync();
 
@@ -52,8 +51,8 @@ public class SyncRabbitIntegrationTest extends SyncRabbitIntegrationTestBase {
   public void testDirectionsDeclared() throws InterruptedException {
     Destination destination = new Destination(EXCHANGE, ROUTING_KEY1);
 
-    SyncPublisher publisherHost1 = publisher(HOST1, false).withJsonMessageConverter().build();
-    SyncPublisher publisherHost2 = publisher(HOST2, false).withJsonMessageConverter().build();
+    SyncPublisher publisherHost1 = publisher(HOST1, PORT1, false).withJsonMessageConverter().build();
+    SyncPublisher publisherHost2 = publisher(HOST2, PORT2, false).withJsonMessageConverter().build();
     publisherHost1.startAsync();
     publisherHost2.startAsync();
 
@@ -85,7 +84,7 @@ public class SyncRabbitIntegrationTest extends SyncRabbitIntegrationTestBase {
     Destination destination1 = new Destination(EXCHANGE, ROUTING_KEY1);
     Destination destination2 = new Destination(EXCHANGE, ROUTING_KEY2);
 
-    SyncPublisher publisher = publisher(HOST1, false).withJsonMessageConverter().build();
+    SyncPublisher publisher = publisher(HOST1, PORT1, false).withJsonMessageConverter().build();
     publisher.startAsync();
 
     MessageHandler handler = new MessageHandler();
@@ -111,8 +110,8 @@ public class SyncRabbitIntegrationTest extends SyncRabbitIntegrationTestBase {
   }
 
   @Test(expected = IllegalStateException.class)
-  public void testStoppedPublisher() throws InterruptedException {
-    SyncPublisher publisher = publisher(HOST1, true).withJsonMessageConverter().build();
+  public void testStoppedPublisher() {
+    SyncPublisher publisher = publisher(HOST1, PORT1, true).withJsonMessageConverter().build();
     publisher.startAsync();
 
     publisher.stopSync();
@@ -124,9 +123,9 @@ public class SyncRabbitIntegrationTest extends SyncRabbitIntegrationTestBase {
   }
 
   @Test
-  public void testPublisherConfirms() throws InterruptedException, ExecutionException {
+  public void testPublisherConfirms() throws InterruptedException {
     TestConfirmCallback callback = new TestConfirmCallback();
-    SyncPublisher publisher = publisher(HOST2, true, true).withJsonMessageConverter().withConfirmCallback(callback).build();
+    SyncPublisher publisher = publisher(HOST2, PORT2, true, true).withJsonMessageConverter().withConfirmCallback(callback).build();
     publisher.startAsync();
 
     Map<String, Object> sentMessage = new HashMap<>();
@@ -143,15 +142,15 @@ public class SyncRabbitIntegrationTest extends SyncRabbitIntegrationTestBase {
     String callbackValue;
     callbackValue = callback.get();
     assertNotNull("first callback value must not be null", callbackValue);
-    assertTrue("first callback value not in original: " + callbackValue, data.values().contains(callbackValue));
+    assertTrue("first callback value not in original: " + callbackValue, data.containsValue(callbackValue));
 
     callbackValue = callback.get();
     assertNotNull("second callback value must not be null", callbackValue);
-    assertTrue("second callback value not in original: " + callbackValue, data.values().contains(callbackValue));
+    assertTrue("second callback value not in original: " + callbackValue, data.containsValue(callbackValue));
 
     callbackValue = callback.get();
     assertNotNull("third callback value must not be null", callbackValue);
-    assertTrue("third callback value not in original: " + callbackValue, data.values().contains(callbackValue));
+    assertTrue("third callback value not in original: " + callbackValue, data.containsValue(callbackValue));
 
     MessageHandler handler = new MessageHandler();
     Receiver receiver = receiverAllHosts(true).withJsonListener(handler).forQueues(QUEUE1).start();
@@ -165,11 +164,11 @@ public class SyncRabbitIntegrationTest extends SyncRabbitIntegrationTestBase {
 
   @Test
   public void testMDC() throws InterruptedException {
-    String MDCKey = "mdctestkey";
-    String MDCValue = "mdctestvalue";
+    String MDCKey = "mdc_test_key";
+    String MDCValue = "mdc_test_value";
 
     MDC.put(MDCKey, MDCValue);
-    SyncPublisher publisherHost1 = publisherMDC(HOST1).withJsonMessageConverter().build();
+    SyncPublisher publisherHost1 = publisherMDC(HOST1, PORT1).withJsonMessageConverter().build();
     publisherHost1.startAsync();
 
     MessageHandler handler = new MessageHandler(true);

@@ -1,12 +1,13 @@
 package ru.hh.rabbitmq.spring;
 
-import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.TimeUnit;
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import org.junit.Test;
 import org.springframework.amqp.support.converter.MessageConverter;
 import ru.hh.rabbitmq.spring.send.Publisher;
@@ -22,38 +23,96 @@ public class SimpleMessageIntegrationTest extends AsyncRabbitIntegrationTestBase
   public void testSimpleMessages() throws InterruptedException {
     MessageConverter converter = new SimpleMessageConverter();
 
-    Publisher publisherHost1 = publisher(HOST1, true).withMessageConverter(converter).build();
-    publisherHost1.startSync();
+    Publisher publisherHost = publisher(HOST1, PORT1, true).withMessageConverter(converter).build();
+    publisherHost.startSync();
 
     MessageHandler handler = new MessageHandler();
     Receiver receiver = receiverAllHosts(true).withListenerAndConverter(handler, converter).start();
 
-    Map<String, Object> body = new HashMap<>();
-    body.put("data1", 1);
-    body.put("data2", "2");
+    SimpleMessage sentMessage1 = new SimpleMessage(
+      Map.of(
+        "id", 1,
+        "header11", 123,
+        "header21", "321"
+      ),
+      Map.of(
+        "data11", 456,
+        "data21", "789"
+      )
+    );
 
-    Map<String, Object> headers = new HashMap<>();
-    headers.put("header1", 1);
-    headers.put("header2", "2");
+    SimpleMessage sentMessage2 = new SimpleMessage(
+      Map.of(
+        "id", 2,
+        "header12", 321,
+        "header22", "123"
+      ),
+      Map.of(
+        "data12", 654,
+        "data22", "987"
+      )
+    );
 
-    SimpleMessage sentMessage = new SimpleMessage(headers, body);
-    publisherHost1.send(sentMessage);
-    SimpleMessage receivedMessage = handler.get();
+    List<SimpleMessage> sentMessages = List.of(sentMessage1, sentMessage2);
+    publisherHost.send(sentMessages);
 
-    for (Entry<String, Object> entry : headers.entrySet()) {
-      assertTrue(receivedMessage.getHeaders().entrySet().contains(entry));
+    SimpleMessage receivedMessage1 = handler.get();
+    int id1 = getSimpleMessageId(receivedMessage1);
+
+    SimpleMessage receivedMessage2 = handler.get();
+    int id2 = getSimpleMessageId(receivedMessage2);
+
+    // there is no guarantee that messages will be received at the same order
+    if (id1 == 1) {
+      assertSimpleMessageEquals(sentMessage1, receivedMessage1);
+      assertSame("Second message hasn't been received", id2, 2);
+      assertSimpleMessageEquals(sentMessage2, receivedMessage2);
+    } else if (id1 == 2) {
+      assertSimpleMessageEquals(sentMessage2, receivedMessage1);
+      assertSame("First message hasn't been received", id2, 1);
+      assertSimpleMessageEquals(sentMessage1, receivedMessage2);
+    } else {
+      fail("Unexpected 'id' header value: " + id1);
     }
-    assertEquals(sentMessage.getBody(), receivedMessage.getBody());
 
-    publisherHost1.stopSync();
+    publisherHost.stopSync();
     receiver.shutdown();
   }
 
+  private void assertSimpleMessageEquals(SimpleMessage expected, SimpleMessage actual) {
+    var actualHeadersSet = actual.getHeaders().entrySet();
+    var expectedHeadersSet = expected.getHeaders().entrySet();
+    var actualBodySet = actual.getBody().entrySet();
+    var expectedBodySet = expected.getBody().entrySet();
+
+    for (var entry : expectedHeadersSet) {
+      assertTrue(
+        String.format("Header '%s:%s' hasn't received", entry.getKey(), entry.getValue()),
+        actualHeadersSet.contains(entry)
+      );
+    }
+
+    for (var entry : expectedBodySet) {
+      assertTrue(
+        String.format("Body entry '%s:%s' hasn't received", entry.getKey(), entry.getValue()),
+        actualBodySet.contains(entry)
+      );
+    }
+  }
+
+  private int getSimpleMessageId(SimpleMessage receivedMessage) {
+    assertNotNull("Message hasn't been received", receivedMessage);
+    Object index = receivedMessage.getHeaders().get("id");
+    assertNotNull("Header 'id' hasn't been received", index);
+    assertSame("Received 'id' header isn't integer", index.getClass(), Integer.class);
+    return (Integer) index;
+  }
+
   private static class MessageHandler implements SimpleMessageListener {
-    private ArrayBlockingQueue<SimpleMessage> queue = new ArrayBlockingQueue<>(1);
+    private final ArrayBlockingQueue<SimpleMessage> queue = new ArrayBlockingQueue<>(2);
 
     @Override
-    public void handleMessage(SimpleMessage message) throws Exception {
+    public void handleMessage(SimpleMessage message) {
       queue.add(message);
     }
 
