@@ -2,11 +2,15 @@ package ru.hh.rabbitmq.spring.persistent;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.IOException;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Function;
 import javax.annotation.PostConstruct;
 import javax.persistence.Tuple;
 import org.slf4j.Logger;
@@ -20,7 +24,9 @@ import ru.hh.nab.metrics.Tag;
 import ru.hh.rabbitmq.spring.persistent.dto.TargetedDestination;
 import ru.hh.rabbitmq.spring.send.CorrelatedMessage;
 import ru.hh.rabbitmq.spring.send.MessageSender;
+import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.toList;
+import static java.util.stream.Collectors.toMap;
 import static ru.hh.rabbitmq.spring.persistent.PersistentPublisherConfigKeys.DB_QUEUE_CONSUMER_NAME_PROPERTY;
 
 public class DatabaseQueueService {
@@ -88,31 +94,50 @@ public class DatabaseQueueService {
         return;
       }
       long batchIdValue = batchId.get();
-      List<MessageEventContainer> events = getNextBatchEvents(batchIdValue, sender, maxEventsPerBatchToProcess);
-      stageTimings.markStage(SendingStage.GET_BATCH_EVENTS);
-      events.forEach(messageEventContainer -> {
-        TargetedDestination destination = messageEventContainer.getDestination();
-        try {
-          Object message = Optional.ofNullable(destination.getCorrelationData())
-            .map(correlationData -> (Object) new CorrelatedMessage(correlationData, messageEventContainer.getMessage()))
-            .orElseGet(messageEventContainer::getMessage);
-          MessageSender messageSender = persistentPublisherRegistry.getSender(destination.getSenderKey()).getMessageSender();
-          messageSender.publishMessage(message, destination);
-        } catch (Exception e) {
-          sender.onAmpqException(e, messageEventContainer.getId(), batchIdValue, destination, messageEventContainer.getMessage());
-        }
+      Map<SendHandle, ? extends Collection<MessageEventContainer>> events = getNextBatchEvents(batchIdValue, sender, maxEventsPerBatchToProcess);
+      long eventsSize = events.values().stream().mapToLong(Collection::size).sum();
+      LOGGER.debug("Prepared to send {} messages for batch {}", eventsSize, batchIdValue);
+      events.forEach((sendHandle, messages) -> {
+        var messageSender = persistentPublisherRegistry.getSender(sendHandle.destination.getSenderKey()).getMessageSender();
+        var messageExtractor = Optional.ofNullable(sendHandle.destination.getCorrelationData()).map(
+          correlationData -> (Function<MessageEventContainer, Object>) msg -> (Object) new CorrelatedMessage(correlationData, msg.getMessage())
+        ).orElseGet(() -> MessageEventContainer::getMessage);
+        LOGGER.trace("Starting to send batch for handle {}", sendHandle);
+        sendMessages(sender, batchIdValue, sendHandle, messages, messageSender, messageExtractor);
+        LOGGER.trace("Finished sending batch for {}", sendHandle);
       });
       stageTimings.markStage(SendingStage.SEND_BATCH_EVENTS_TO_RABBIT);
       databaseQueueDao.finishBatch(batchIdValue);
       stageTimings.markStage(SendingStage.FINISH_BATCH);
-      batchSizeHistogram.save(events.size(), new Tag("queueName", queueName));
-      LOGGER.debug("Batch {}, containing {} events finished", batchIdValue, events.size());
+      batchSizeHistogram.save((int) eventsSize, new Tag("queueName", queueName));
+      LOGGER.debug("Batch {}, containing {} events finished", batchIdValue, eventsSize);
       if (multiBatchOnlyForEmptyBatches && !events.isEmpty()) {
         return;
       }
       i++;
     }
     LOGGER.info("Processed {} batches in {}ms", i, System.currentTimeMillis() - sendStartMs);
+  }
+
+  private void sendMessages(
+    DatabaseQueueSender sender, long batchId,
+    SendHandle sendHandle,
+    Collection<MessageEventContainer> messages,
+    MessageSender messageSender, Function<MessageEventContainer, Object> messageExtractor
+  ) {
+    int msgCount = 0;
+    for (MessageEventContainer message : messages) {
+      try {
+        messageSender.publishMessage(messageExtractor.apply(message), sendHandle.destination);
+      } catch (RuntimeException e) {
+        sender.onAmpqException(e, message.getId(), batchId, sendHandle.destination, message.getMessage());
+      } finally {
+        if (msgCount % 1000 == 0) {
+          LOGGER.trace("Sent {} messages for handle {} in batch ID {}", msgCount, sendHandle, batchId);
+        }
+        msgCount++;
+      }
+    }
   }
 
   @Transactional
@@ -144,20 +169,29 @@ public class DatabaseQueueService {
       destination, message);
   }
 
-  private List<MessageEventContainer> getNextBatchEvents(long batchId, DatabaseQueueSender sender, int maxEventsToProcess) {
-    LOGGER.debug("Getting next events batch for ID {}", batchId);
+  private Map<SendHandle, ? extends Collection<MessageEventContainer>> getNextBatchEvents(
+    long batchId,
+    DatabaseQueueSender sender,
+    int maxEventsToProcess
+  ) {
+    LOGGER.trace("Getting next events batch for ID {}", batchId);
     List<Tuple> currentBatch = databaseQueueDao.getNextBatchEvents(batchId);
-    List<MessageEventContainer> readyToSend = currentBatch.stream().limit(maxEventsToProcess).map(event -> {
-      long eventId = event.get(0, Number.class).longValue();
-      String data = event.get(1, String.class);
+    stageTimings.markStage(SendingStage.GET_BATCH_EVENTS);
+    LOGGER.trace("Got events from db for batch ID {}", batchId);
+    Map<SendHandle, List<Tuple>> eventDataBySendHandle = currentBatch.stream().limit(maxEventsToProcess).collect(groupingBy(event -> {
       String type = event.get(2, String.class);
       try {
         TargetedDestination destination = DESTINATION_CONVERTER.readValue(type, TargetedDestination.class);
-        return new MessageEventContainer(eventId, destination, sender.getConverter(destination.getConverterKey()), data);
-      } catch (Exception e) {
-        return sender.onConvertationException(e, eventId, data, type);
+        return new SendHandle(sender.getConverter(destination.getConverterKey()), destination);
+      } catch (RuntimeException | IOException e) {
+        long eventId = event.get(0, Number.class).longValue();
+        String data = event.get(1, String.class);
+        sender.onConvertationException(e, eventId, data, type);
+        return SendHandle.FAILED;
       }
-    }).filter(Objects::nonNull).collect(toList());
+    }, toList()));
+    stageTimings.markStage(SendingStage.GROUP_BATCH_EVENTS);
+    LOGGER.trace("Grouped events by sendHandle for batch ID {}", batchId);
 
     int size = currentBatch.size();
     if (size > maxEventsToProcess) {
@@ -167,7 +201,27 @@ public class DatabaseQueueService {
         databaseQueueDao.retryEvent(eventId, batchId, sender.getRetryDuration().getSeconds());
       });
     }
-    return readyToSend;
+    stageTimings.markStage(SendingStage.RETRY_OUT_OF_PROCESSING_LIMIT_EVENTS);
+    Map<SendHandle, List<MessageEventContainer>> convertedEvents = eventDataBySendHandle.entrySet().stream()
+      .filter(eventBatchBySendHandle -> !SendHandle.FAILED.equals(eventBatchBySendHandle.getKey()))
+      .collect(toMap(Map.Entry::getKey, eventBatchBySendHandle -> {
+        var sendHandle = eventBatchBySendHandle.getKey();
+        LOGGER.trace("Starting to convert {} messages for sendHandle {} in batch ID {}",
+          eventBatchBySendHandle.getValue().size(), sendHandle, batchId
+        );
+        var dataById = eventBatchBySendHandle.getValue().stream()
+          .collect(toMap(tuple -> tuple.get(0, Number.class).longValue(), tuple -> tuple.get(1, String.class)));
+        List<MessageEventContainer> result = sendHandle.converter.batchConvertFromDb(dataById, sendHandle.destination.getMsgClass()).entrySet()
+          .stream()
+          .map(entityById -> new MessageEventContainer(entityById.getKey(), entityById.getValue()))
+          .collect(toList());
+        LOGGER.trace("Converted {} messages for sendHandle {} in batch ID {}",
+          eventBatchBySendHandle.getValue().size(), sendHandle, batchId
+        );
+        return result;
+      }));
+    stageTimings.markStage(SendingStage.CONVERT_EVENTS);
+    return convertedEvents;
   }
 
   private static String toDb(TargetedDestination destination) {
@@ -181,17 +235,15 @@ public class DatabaseQueueService {
   private static final class MessageEventContainer {
     private final long id;
     private final Object message;
-    private final TargetedDestination destination;
 
-    private MessageEventContainer(long id, TargetedDestination destination, DbQueueProcessor dbQueueProcessor, String data) {
+    private MessageEventContainer(long id, Object message) {
       this.id = id;
-      this.destination = destination;
-      message = dbQueueProcessor.convertFromDb(data, destination.getMsgClass());
+      this.message = message;
     }
 
     @Override
     public String toString() {
-      return "MessageContainer{" + id + "}: message=" + message + ", destination=" + destination;
+      return "MessageContainer{" + id + "}: message=" + message;
     }
 
     public long getId() {
@@ -201,14 +253,57 @@ public class DatabaseQueueService {
     public Object getMessage() {
       return message;
     }
+  }
+
+  private static final class SendHandle {
+    private static final SendHandle FAILED = new SendHandle(null, null);
+    private final TargetedDestination destination;
+    private final DbQueueProcessor converter;
+
+    SendHandle(DbQueueProcessor converter, TargetedDestination destination) {
+      this.destination = destination;
+      this.converter = converter;
+    }
+
+    public DbQueueProcessor getConverter() {
+      return converter;
+    }
 
     public TargetedDestination getDestination() {
       return destination;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      SendHandle that = (SendHandle) o;
+      return Objects.equals(destination, that.destination);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(destination);
+    }
+
+    @Override
+    public String toString() {
+      return "SendHandle{" +
+        "destination=" + destination +
+        ", converter=" + converter +
+        '}';
     }
   }
 
   enum SendingStage {
     GET_BATCH_EVENTS,
+    GROUP_BATCH_EVENTS,
+    RETRY_OUT_OF_PROCESSING_LIMIT_EVENTS,
+    CONVERT_EVENTS,
     SEND_BATCH_EVENTS_TO_RABBIT,
     FINISH_BATCH
   }
