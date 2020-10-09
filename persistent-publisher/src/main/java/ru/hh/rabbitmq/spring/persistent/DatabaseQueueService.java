@@ -120,10 +120,12 @@ public class DatabaseQueueService {
   }
 
   private void sendMessages(
-    DatabaseQueueSender sender, long batchId,
+    DatabaseQueueSender sender,
+    long batchId,
     SendHandle sendHandle,
     Collection<MessageEventContainer> messages,
-    MessageSender messageSender, Function<MessageEventContainer, Object> messageExtractor
+    MessageSender messageSender,
+    Function<MessageEventContainer, Object> messageExtractor
   ) {
     int msgCount = 0;
     for (MessageEventContainer message : messages) {
@@ -204,24 +206,26 @@ public class DatabaseQueueService {
     stageTimings.markStage(SendingStage.RETRY_OUT_OF_PROCESSING_LIMIT_EVENTS);
     Map<SendHandle, List<MessageEventContainer>> convertedEvents = eventDataBySendHandle.entrySet().stream()
       .filter(eventBatchBySendHandle -> !SendHandle.FAILED.equals(eventBatchBySendHandle.getKey()))
-      .collect(toMap(Map.Entry::getKey, eventBatchBySendHandle -> {
-        var sendHandle = eventBatchBySendHandle.getKey();
-        LOGGER.trace("Starting to convert {} messages for sendHandle {} in batch ID {}",
-          eventBatchBySendHandle.getValue().size(), sendHandle, batchId
-        );
-        var dataById = eventBatchBySendHandle.getValue().stream()
-          .collect(toMap(tuple -> tuple.get(0, Number.class).longValue(), tuple -> tuple.get(1, String.class)));
-        List<MessageEventContainer> result = sendHandle.converter.batchConvertFromDb(dataById, sendHandle.destination.getMsgClass()).entrySet()
-          .stream()
-          .map(entityById -> new MessageEventContainer(entityById.getKey(), entityById.getValue()))
-          .collect(toList());
-        LOGGER.trace("Converted {} messages for sendHandle {} in batch ID {}",
-          eventBatchBySendHandle.getValue().size(), sendHandle, batchId
-        );
-        return result;
-      }));
+      .collect(toMap(Map.Entry::getKey, eventBatchBySendHandle -> convertMessagesForHandle(batchId, eventBatchBySendHandle)));
     stageTimings.markStage(SendingStage.CONVERT_EVENTS);
     return convertedEvents;
+  }
+
+  private List<MessageEventContainer> convertMessagesForHandle(long batchId, Map.Entry<SendHandle, List<Tuple>> eventBatchBySendHandle) {
+    var sendHandle = eventBatchBySendHandle.getKey();
+    LOGGER.trace("Starting to convert {} messages for sendHandle {} in batch ID {}",
+      eventBatchBySendHandle.getValue().size(), sendHandle, batchId
+    );
+    var dataById = eventBatchBySendHandle.getValue().stream()
+      .collect(toMap(tuple -> tuple.get(0, Number.class).longValue(), tuple -> tuple.get(1, String.class)));
+    List<MessageEventContainer> result = sendHandle.converter.batchConvertFromDb(dataById, sendHandle.destination.getMsgClass()).entrySet()
+      .stream()
+      .map(entityById -> new MessageEventContainer(entityById.getKey(), entityById.getValue()))
+      .collect(toList());
+    LOGGER.trace("Converted {} messages for sendHandle {} in batch ID {}",
+      eventBatchBySendHandle.getValue().size(), sendHandle, batchId
+    );
+    return result;
   }
 
   private static String toDb(TargetedDestination destination) {
