@@ -4,11 +4,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.TimeUnit;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import org.junit.Test;
+
+import static org.junit.jupiter.api.Assertions.fail;
+import static org.rnorth.visibleassertions.VisibleAssertions.assertNotNull;
+import static org.rnorth.visibleassertions.VisibleAssertions.assertSame;
+import static org.rnorth.visibleassertions.VisibleAssertions.assertTrue;
+
+import org.junit.jupiter.api.Test;
 import org.springframework.amqp.support.converter.MessageConverter;
 import ru.hh.rabbitmq.spring.send.Publisher;
 import ru.hh.rabbitmq.spring.simple.SimpleMessage;

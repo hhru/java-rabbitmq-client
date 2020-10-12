@@ -64,27 +64,6 @@
     </plugins>
   </build>
 
-  <profiles>
-    <profile>
-      <id>skip.tests.by.default</id>
-      <activation>
-        <activeByDefault>true</activeByDefault>
-      </activation>
-      <properties>
-        <maven.test.skip>true</maven.test.skip>
-      </properties>
-    </profile>
-    <profile>
-      <id>test</id>
-      <activation>
-        <activeByDefault>false</activeByDefault>
-      </activation>
-      <properties>
-        <maven.test.skip>false</maven.test.skip>
-      </properties>
-    </profile>
-  </profiles>
-
   <scm>
     <connection>scm:git:git@github.com:hhru/java-rabbitmq-client.git</connection>
     <developerConnection>scm:git:git@github.com:hhru/java-rabbitmq-client.git</developerConnection>

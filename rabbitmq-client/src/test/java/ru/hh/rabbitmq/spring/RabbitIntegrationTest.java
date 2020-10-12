@@ -7,11 +7,14 @@ import java.util.Map.Entry;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import org.junit.Test;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import org.junit.jupiter.api.Test;
 import org.slf4j.MDC;
 import org.springframework.amqp.rabbit.core.RabbitTemplate.ConfirmCallback;
 import org.springframework.amqp.rabbit.support.CorrelationData;
@@ -147,7 +150,7 @@ public class RabbitIntegrationTest extends AsyncRabbitIntegrationTestBase {
     receiver.shutdown();
   }
 
-  @Test(expected = IllegalStateException.class)
+  @Test
   public void testStoppedPublisher() {
     Publisher publisher = publisher(HOST1, PORT1, true).withJsonMessageConverter().build();
     publisher.startSync();
@@ -157,10 +160,10 @@ public class RabbitIntegrationTest extends AsyncRabbitIntegrationTestBase {
     Map<String, Object> sentMessage = new HashMap<>();
 
     sentMessage.put("data", "1");
-    publisher.send(sentMessage);
+    assertThrows(IllegalStateException.class, () -> publisher.send(sentMessage));
   }
 
-  @Test(expected = QueueIsFullException.class)
+  @Test
   public void testImmediateFullQueue() {
 
     Publisher publisher = publisher("unknown_host_for_queue_is_full", PORT1, true, 2).withJsonMessageConverter().build();
@@ -175,9 +178,7 @@ public class RabbitIntegrationTest extends AsyncRabbitIntegrationTestBase {
     assertTrue(publisher.getInnerQueueRemainingCapacity() <= 1);
 
     publisher.send("message3");
-    assertEquals(0, publisher.getInnerQueueRemainingCapacity());
-
-    publisher.send("message4");
+    assertThrows(QueueIsFullException.class, publisher::getInnerQueueRemainingCapacity);
   }
 
   @Test
@@ -222,16 +223,16 @@ public class RabbitIntegrationTest extends AsyncRabbitIntegrationTestBase {
 
     String callbackValue;
     callbackValue = callback.get();
-    assertNotNull("first callback value must not be null", callbackValue);
-    assertTrue("first callback value not in original: " + callbackValue, data.containsValue(callbackValue));
+    assertNotNull(callbackValue, "first callback value must not be null");
+    assertTrue(data.containsValue(callbackValue), "first callback value not in original: " + callbackValue);
 
     callbackValue = callback.get();
-    assertNotNull("second callback value must not be null", callbackValue);
-    assertTrue("second callback value not in original: " + callbackValue, data.containsValue(callbackValue));
+    assertNotNull(callbackValue, "second callback value must not be null");
+    assertTrue(data.containsValue(callbackValue), "second callback value not in original: " + callbackValue);
 
     callbackValue = callback.get();
-    assertNotNull("third callback value must not be null", callbackValue);
-    assertTrue("third callback value not in original: " + callbackValue, data.containsValue(callbackValue));
+    assertNotNull(callbackValue, "third callback value must not be null");
+    assertTrue(data.containsValue(callbackValue), "third callback value not in original: " + callbackValue);
 
     MessageHandler handler = new MessageHandler();
     Receiver receiver = receiverAllHosts(true).withJsonListener(handler).forQueues(QUEUE1).start();

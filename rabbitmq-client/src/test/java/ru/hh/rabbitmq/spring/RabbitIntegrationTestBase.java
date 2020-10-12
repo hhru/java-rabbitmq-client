@@ -4,18 +4,22 @@ import com.rabbitmq.client.AMQP;
 import static com.rabbitmq.client.ConnectionFactory.DEFAULT_PASS;
 import static com.rabbitmq.client.ConnectionFactory.DEFAULT_USER;
 import java.util.Properties;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
+
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
 import org.springframework.amqp.core.DirectExchange;
 import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.rabbit.connection.CachingConnectionFactory;
 import org.springframework.amqp.rabbit.core.RabbitAdmin;
+import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
+
 import static ru.hh.rabbitmq.spring.ConfigKeys.HOSTS_PORT_SEPARATOR;
 import static ru.hh.rabbitmq.spring.ConfigKeys.HOSTS_SEPARATOR;
-
+@Testcontainers
 public class RabbitIntegrationTestBase {
 
   public static String HOST1 = "localhost";
@@ -32,13 +36,18 @@ public class RabbitIntegrationTestBase {
   public static final String QUEUE1 = "hh-rabbit-client-spring-queue-1";
   public static final String QUEUE2 = "hh-rabbit-client-spring-queue-2";
   public static final String EXCHANGE = "hh-rabbit-client-spring-exchange";
+  @Container
+  public GenericContainer<?> rabbit1 = new GenericContainer<>("rabbitmq:3-management").withExposedPorts(5672);
+  @Container
+  public GenericContainer<?> rabbit2 = new GenericContainer<>("rabbitmq:3-management").withExposedPorts(5672);
 
-  @BeforeClass
-  public static void beforeClass() {
-    String host1 = System.getProperty("rabbit.integrationtest.host1");
-    String port1 = System.getProperty("rabbit.integrationtest.port1");
-    String host2 = System.getProperty("rabbit.integrationtest.host2");
-    String port2 = System.getProperty("rabbit.integrationtest.port2");
+  @BeforeEach
+  public void beforeClass() {
+
+    String host1 = rabbit1.getHost();
+    String port1 = String.valueOf(rabbit1.getFirstMappedPort());
+    String host2 = rabbit2.getHost();
+    String port2 = String.valueOf(rabbit2.getFirstMappedPort());
 
     if (host1 != null) {
       HOST1 = host1;
@@ -56,13 +65,13 @@ public class RabbitIntegrationTestBase {
     setUp(getConnectionFactory(HOST2, PORT2));
   }
 
-  @AfterClass
-  public static void afterClass() {
+  @AfterEach
+  public void afterClass() {
     tearDown(getConnectionFactory(HOST1, PORT1));
     tearDown(getConnectionFactory(HOST2, PORT2));
   }
 
-  @Before
+  @BeforeEach
   public void purgeQueues() {
     purgeQueue(HOST1, PORT1);
     purgeQueue(HOST2, PORT2);
