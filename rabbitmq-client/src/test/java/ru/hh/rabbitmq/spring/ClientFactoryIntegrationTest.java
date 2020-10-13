@@ -22,7 +22,6 @@ public class ClientFactoryIntegrationTest {
   public void testEmptyHost() {
     Properties properties = new Properties();
     properties.setProperty(ConfigKeys.HOST, "");
-    publisher(properties);
     assertThrows(ConfigException.class, () -> publisher(properties));
   }
 
@@ -30,7 +29,6 @@ public class ClientFactoryIntegrationTest {
   public void testEmptyHosts() {
     Properties properties = new Properties();
     properties.setProperty(ConfigKeys.HOSTS, "");
-    publisher(properties);
     assertThrows(ConfigException.class, () -> publisher(properties));
   }
 

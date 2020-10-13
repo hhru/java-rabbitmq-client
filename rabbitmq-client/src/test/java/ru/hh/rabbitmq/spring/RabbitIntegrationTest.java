@@ -169,16 +169,11 @@ public class RabbitIntegrationTest extends AsyncRabbitIntegrationTestBase {
     Publisher publisher = publisher("unknown_host_for_queue_is_full", PORT1, true, 2).withJsonMessageConverter().build();
     publisher.startSync();
     assertEquals(2, publisher.getInnerQueueRemainingCapacity());
-
-    publisher.send("message1");
-    // the task can be: in the queue, or out of the queue in the middle of processing
-    assertTrue(publisher.getInnerQueueRemainingCapacity() <= 2);
-
-    publisher.send("message2");
-    assertTrue(publisher.getInnerQueueRemainingCapacity() <= 1);
-
-    publisher.send("message3");
-    assertThrows(QueueIsFullException.class, publisher::getInnerQueueRemainingCapacity);
+    int i = 1;
+    do {
+      publisher.send("message" + i++);
+    } while (publisher.getInnerQueueRemainingCapacity() > 0);
+    assertThrows(QueueIsFullException.class, () -> publisher.send("queueIsFull"));
   }
 
   @Test

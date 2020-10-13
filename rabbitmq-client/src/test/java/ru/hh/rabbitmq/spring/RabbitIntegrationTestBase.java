@@ -1,6 +1,5 @@
 package ru.hh.rabbitmq.spring;
 
-import com.rabbitmq.client.AMQP;
 import static com.rabbitmq.client.ConnectionFactory.DEFAULT_PASS;
 import static com.rabbitmq.client.ConnectionFactory.DEFAULT_USER;
 import java.util.Properties;
@@ -22,11 +21,11 @@ import static ru.hh.rabbitmq.spring.ConfigKeys.HOSTS_SEPARATOR;
 @Testcontainers
 public class RabbitIntegrationTestBase {
 
-  public static String HOST1 = "localhost";
-  public static int PORT1 = AMQP.PROTOCOL.PORT;
+  public static String HOST1;
+  public static int PORT1;
 
-  public static String HOST2 = "dev";
-  public static int PORT2 = AMQP.PROTOCOL.PORT;
+  public static String HOST2;
+  public static int PORT2;
 
   public static final String USERNAME = DEFAULT_USER;
   public static final String PASSWORD = DEFAULT_PASS;
@@ -44,23 +43,10 @@ public class RabbitIntegrationTestBase {
   @BeforeEach
   public void beforeClass() {
 
-    String host1 = rabbit1.getHost();
-    String port1 = String.valueOf(rabbit1.getFirstMappedPort());
-    String host2 = rabbit2.getHost();
-    String port2 = String.valueOf(rabbit2.getFirstMappedPort());
-
-    if (host1 != null) {
-      HOST1 = host1;
-    }
-    if (port1 != null) {
-      PORT1 = Integer.parseInt(port1);
-    }
-    if (host2 != null) {
-      HOST2 = host2;
-    }
-    if (port2 != null) {
-      PORT2 = Integer.parseInt(port2);
-    }
+    HOST1 = rabbit1.getHost();
+    PORT1 = rabbit1.getFirstMappedPort();
+    HOST2 = rabbit2.getHost();
+    PORT2 = rabbit2.getFirstMappedPort();
     setUp(getConnectionFactory(HOST1, PORT1));
     setUp(getConnectionFactory(HOST2, PORT2));
   }
