@@ -4,11 +4,14 @@ import com.google.common.collect.ImmutableMap;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import org.junit.Test;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.rnorth.visibleassertions.VisibleAssertions.assertTrue;
+
+import org.junit.jupiter.api.Test;
 import org.slf4j.MDC;
 import org.springframework.amqp.rabbit.support.CorrelationData;
 import ru.hh.rabbitmq.spring.send.CorrelatedMessage;
@@ -109,7 +112,7 @@ public class SyncRabbitIntegrationTest extends SyncRabbitIntegrationTestBase {
     receiver.shutdown();
   }
 
-  @Test(expected = IllegalStateException.class)
+  @Test
   public void testStoppedPublisher() {
     SyncPublisher publisher = publisher(HOST1, PORT1, true).withJsonMessageConverter().build();
     publisher.startAsync();
@@ -119,7 +122,7 @@ public class SyncRabbitIntegrationTest extends SyncRabbitIntegrationTestBase {
     Map<String, Object> sentMessage = new HashMap<>();
 
     sentMessage.put("data", "1");
-    publisher.send(sentMessage);
+    assertThrows(IllegalStateException.class, () -> publisher.send(sentMessage));
   }
 
   @Test

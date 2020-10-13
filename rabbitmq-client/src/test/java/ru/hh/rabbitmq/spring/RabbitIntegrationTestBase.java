@@ -1,28 +1,32 @@
 package ru.hh.rabbitmq.spring;
 
-import com.rabbitmq.client.AMQP;
 import static com.rabbitmq.client.ConnectionFactory.DEFAULT_PASS;
 import static com.rabbitmq.client.ConnectionFactory.DEFAULT_USER;
 import java.util.Properties;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
+
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
 import org.springframework.amqp.core.DirectExchange;
 import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.rabbit.connection.CachingConnectionFactory;
 import org.springframework.amqp.rabbit.core.RabbitAdmin;
+import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
+
 import static ru.hh.rabbitmq.spring.ConfigKeys.HOSTS_PORT_SEPARATOR;
 import static ru.hh.rabbitmq.spring.ConfigKeys.HOSTS_SEPARATOR;
-
+@Testcontainers
 public class RabbitIntegrationTestBase {
 
-  public static String HOST1 = "localhost";
-  public static int PORT1 = AMQP.PROTOCOL.PORT;
+  public static String HOST1;
+  public static int PORT1;
 
-  public static String HOST2 = "dev";
-  public static int PORT2 = AMQP.PROTOCOL.PORT;
+  public static String HOST2;
+  public static int PORT2;
 
   public static final String USERNAME = DEFAULT_USER;
   public static final String PASSWORD = DEFAULT_PASS;
@@ -32,37 +36,29 @@ public class RabbitIntegrationTestBase {
   public static final String QUEUE1 = "hh-rabbit-client-spring-queue-1";
   public static final String QUEUE2 = "hh-rabbit-client-spring-queue-2";
   public static final String EXCHANGE = "hh-rabbit-client-spring-exchange";
+  @Container
+  public static GenericContainer<?> rabbit1 = new GenericContainer<>("rabbitmq:3-management").withExposedPorts(5672);
+  @Container
+  public static GenericContainer<?> rabbit2 = new GenericContainer<>("rabbitmq:3-management").withExposedPorts(5672);
 
-  @BeforeClass
+  @BeforeAll
   public static void beforeClass() {
-    String host1 = System.getProperty("rabbit.integrationtest.host1");
-    String port1 = System.getProperty("rabbit.integrationtest.port1");
-    String host2 = System.getProperty("rabbit.integrationtest.host2");
-    String port2 = System.getProperty("rabbit.integrationtest.port2");
 
-    if (host1 != null) {
-      HOST1 = host1;
-    }
-    if (port1 != null) {
-      PORT1 = Integer.parseInt(port1);
-    }
-    if (host2 != null) {
-      HOST2 = host2;
-    }
-    if (port2 != null) {
-      PORT2 = Integer.parseInt(port2);
-    }
+    HOST1 = rabbit1.getHost();
+    PORT1 = rabbit1.getFirstMappedPort();
+    HOST2 = rabbit2.getHost();
+    PORT2 = rabbit2.getFirstMappedPort();
     setUp(getConnectionFactory(HOST1, PORT1));
     setUp(getConnectionFactory(HOST2, PORT2));
   }
 
-  @AfterClass
+  @AfterAll
   public static void afterClass() {
     tearDown(getConnectionFactory(HOST1, PORT1));
     tearDown(getConnectionFactory(HOST2, PORT2));
   }
 
-  @Before
+  @BeforeEach
   public void purgeQueues() {
     purgeQueue(HOST1, PORT1);
     purgeQueue(HOST2, PORT2);

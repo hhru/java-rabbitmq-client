@@ -51,32 +51,6 @@ rabbit.server.publisher.transactional=false # this works for SyncPublisher only,
 rabbit.server.publisher.reconnection.delay.millis=60000
 ```
 
-# Testing
-
-There are integration tests that are disabled by default as they require special environment.
-To run integration tests you must have the following:
-
-- RabbitMQ broker running at 'localhost:5672', with username 'guest' and password 'guest';
-- RabbitMQ broker running at 'dev:5672', with username 'guest' and password 'guest'.
-
-You don't have to configure any exchanges, bindings or queues because tests will create and remove it automatically.
-
-Use the following command to run tests:
-```
-mvn-hh install -P test
-```
-
-#### Example
- - Deploy two rabbits locally:
- ```
-docker run -d -p 15673:15672 -p 5673:5672 --name rabbit-1 rabbitmq:3-management
-docker run -d -p 15674:15672 -p 5674:5672 --name rabbit-2 rabbitmq:3-management
-```
-- Run tests with custom rabbit hosts and ports:
-```
-mvn-hh install -P test -Drabbit.integrationtest.host1=localhost -Drabbit.integrationtest.port1=5673 -Drabbit.integrationtest.host2=localhost -Drabbit.integrationtest.port2=5674
-```
-
 # MDC
 
 If following property is set:
