@@ -14,6 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import org.junit.Assert;
 import org.junit.jupiter.api.Test;
 import org.slf4j.MDC;
 import org.springframework.amqp.rabbit.core.RabbitTemplate.ConfirmCallback;
@@ -169,10 +170,15 @@ public class RabbitIntegrationTest extends AsyncRabbitIntegrationTestBase {
     Publisher publisher = publisher("unknown_host_for_queue_is_full", PORT1, true, 2).withJsonMessageConverter().build();
     publisher.startSync();
     assertEquals(2, publisher.getInnerQueueRemainingCapacity());
-    int i = 1;
-    do {
-      publisher.send("message" + i++);
-    } while (publisher.getInnerQueueRemainingCapacity() > 0);
+    publisher.send("message1");
+    // the task can be: in the queue, or out of the queue in the middle of processing
+    Assert.assertTrue(publisher.getInnerQueueRemainingCapacity() <= 2);
+
+    publisher.send("message2");
+    Assert.assertTrue(publisher.getInnerQueueRemainingCapacity() <= 1);
+
+    publisher.send("message3");
+    Assert.assertEquals(0, publisher.getInnerQueueRemainingCapacity());
     assertThrows(QueueIsFullException.class, () -> publisher.send("queueIsFull"));
   }
 

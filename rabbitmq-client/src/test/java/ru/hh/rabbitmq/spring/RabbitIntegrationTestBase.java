@@ -4,7 +4,8 @@ import static com.rabbitmq.client.ConnectionFactory.DEFAULT_PASS;
 import static com.rabbitmq.client.ConnectionFactory.DEFAULT_USER;
 import java.util.Properties;
 
-import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
@@ -36,12 +37,12 @@ public class RabbitIntegrationTestBase {
   public static final String QUEUE2 = "hh-rabbit-client-spring-queue-2";
   public static final String EXCHANGE = "hh-rabbit-client-spring-exchange";
   @Container
-  public GenericContainer<?> rabbit1 = new GenericContainer<>("rabbitmq:3-management").withExposedPorts(5672);
+  public static GenericContainer<?> rabbit1 = new GenericContainer<>("rabbitmq:3-management").withExposedPorts(5672);
   @Container
-  public GenericContainer<?> rabbit2 = new GenericContainer<>("rabbitmq:3-management").withExposedPorts(5672);
+  public static GenericContainer<?> rabbit2 = new GenericContainer<>("rabbitmq:3-management").withExposedPorts(5672);
 
-  @BeforeEach
-  public void beforeClass() {
+  @BeforeAll
+  public static void beforeClass() {
 
     HOST1 = rabbit1.getHost();
     PORT1 = rabbit1.getFirstMappedPort();
@@ -51,8 +52,8 @@ public class RabbitIntegrationTestBase {
     setUp(getConnectionFactory(HOST2, PORT2));
   }
 
-  @AfterEach
-  public void afterClass() {
+  @AfterAll
+  public static void afterClass() {
     tearDown(getConnectionFactory(HOST1, PORT1));
     tearDown(getConnectionFactory(HOST2, PORT2));
   }
